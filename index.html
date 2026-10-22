@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#8fd3ff">
+<title>Мастер воровства яиц</title>
+<style>
+:root{--ink:#2b2340}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--ink);font-family:"Arial Rounded MT Bold","Trebuchet MS",system-ui,sans-serif;overscroll-behavior:none;touch-action:none}
+#c{position:fixed;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
+
+/* джойстик появляется там, где коснулся палец */
+#joy{position:fixed;width:150px;height:150px;margin:-75px 0 0 -75px;border-radius:50%;background:rgba(255,255,255,.22);border:4px solid rgba(255,255,255,.55);display:none;pointer-events:none}
+#knob{position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px 0 0 -35px;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:0 4px 10px rgba(0,0,0,.2)}
+
+/* прыжок — как в оригинале: круг с двойной стрелкой */
+#jump{position:fixed;right:max(26px,env(safe-area-inset-right));bottom:max(30px,env(safe-area-inset-bottom));width:min(26vmin,130px);height:min(26vmin,130px);
+  border-radius:50%;border:none;padding:0;background:rgba(40,40,40,.32);display:flex;align-items:center;justify-content:center;touch-action:none;cursor:pointer}
+#jump svg{width:55%;height:55%}
+#jump.on{background:rgba(40,40,40,.5);transform:scale(.94)}
+
+#hint{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);color:#fff;font-size:15px;text-shadow:0 2px 3px rgba(0,0,0,.4);pointer-events:none;
+  white-space:nowrap;transition:opacity .6s}
+/* верхняя панель: таймер новых яиц и монеты */
+.pill{position:fixed;top:max(12px,env(safe-area-inset-top));display:flex;align-items:center;gap:8px;padding:6px 16px 6px 8px;border-radius:30px;
+  background:rgba(30,25,50,.55);color:#fff;font-size:min(6vmin,30px);font-weight:bold;pointer-events:none;text-shadow:0 2px 0 rgba(0,0,0,.35)}
+.pill .ic{font-size:1.25em;line-height:1}
+#sun{left:max(12px,env(safe-area-inset-left))}
+.coin{display:inline-block;width:.95em;height:.95em;border-radius:50%;vertical-align:-.12em;background:radial-gradient(circle at 35% 30%,#fff6c0 0 12%,#ffc21a 14% 100%);box-shadow:inset 0 0 0 .1em #e09000,0 0 0 .08em #a86a00}
+#coins{right:max(12px,env(safe-area-inset-right));color:#ffe14d}
+#coins.pop{animation:pop .35s}
+@keyframes pop{40%{transform:scale(1.2)}}
+.side{position:fixed;left:max(12px,env(safe-area-inset-left));width:min(16vmin,76px);height:min(16vmin,76px);border-radius:18px;border:4px solid #fff;
+  font-size:min(9vmin,42px);display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;touch-action:manipulation;box-shadow:0 5px 0 rgba(0,0,0,.25)}
+#bookBtn{top:calc(max(12px,env(safe-area-inset-top)) + min(14vmin,70px));background:#ffb020}
+#bookBtn .dot{position:absolute;right:-6px;top:-6px;width:20px;height:20px;border-radius:50%;background:#ff3b3b;border:3px solid #fff;display:none}
+
+/* окна поверх игры */
+.ov{position:fixed;inset:0;background:rgba(20,15,40,.55);display:none;align-items:center;justify-content:center;z-index:5}
+.ov.on{display:flex}
+.panel{position:relative;background:#fff;border-radius:28px;padding:16px;width:min(94vw,720px);max-height:88vh;display:flex;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+.panel h2{margin:0 0 10px;text-align:center;font-size:min(7vmin,32px)}
+.close{position:absolute;right:-10px;top:-10px;width:56px;height:56px;border-radius:50%;border:4px solid #fff;background:#ff5a5a;color:#fff;font-size:28px;font-weight:bold;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(26vw,120px),1fr));gap:10px;overflow-y:auto;padding:4px}
+.cell{border-radius:18px;border:5px solid #ddd;background:#f4f1ff;text-align:center;padding:4px 2px 6px;font-size:13px}
+.cell img{width:100%;aspect-ratio:1;display:block}
+.cell.unk img{filter:brightness(0) opacity(.35)}
+.cell .n{font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#card .panel{width:min(86vw,380px);align-items:center;text-align:center;gap:4px;animation:pop .4s}
+#card img{width:min(56vw,220px)}
+#card .r{font-weight:bold;font-size:20px}
+#card .inc{font-size:26px;font-weight:bold;color:#e0a800}
+#card .ok{margin-top:8px;border:none;border-radius:24px;background:#5fd35f;color:#fff;font-size:30px;font-weight:bold;padding:10px 40px;cursor:pointer;box-shadow:0 5px 0 rgba(0,0,0,.2)}
+
+/* скорость под монетами, банан над прыжком, смена игрока под книжкой */
+#speed{right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + min(13vmin,60px));color:#7fd4ff}
+#who{top:calc(max(12px,env(safe-area-inset-top)) + min(14vmin,70px) + min(20vmin,92px));background:#9b6bff;font-size:min(7vmin,32px)}
+#items{position:fixed;right:max(30px,env(safe-area-inset-right));bottom:calc(max(30px,env(safe-area-inset-bottom)) + min(26vmin,130px) + 14px);display:flex;flex-direction:column-reverse;flex-wrap:wrap-reverse;max-height:calc(100vh - min(26vmin,130px) - 150px);gap:12px;align-items:center}   /* много предметов — второй столбик левее */
+#items button{position:relative;width:min(16vmin,76px);height:min(16vmin,76px);
+  border-radius:50%;border:4px solid #fff;background:#ffe14d;font-size:min(8vmin,38px);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation;box-shadow:0 5px 0 rgba(0,0,0,.25)}
+#items button b{position:absolute;right:-6px;bottom:-6px;background:#2b2340;color:#fff;border-radius:14px;font-size:18px;padding:1px 7px}
+
+/* выбор игрока */
+#profiles{background:linear-gradient(#8fd3ff,#c9f0ff);flex-direction:column;gap:3vh}
+#profiles .title{color:#fff;font-size:min(13vw,80px);font-weight:bold;text-align:center;line-height:.95;text-shadow:0 5px 0 #ff8a3d,0 9px 16px rgba(0,0,0,.2)}
+#profiles .title small{display:block;font-size:.5em;text-shadow:0 3px 0 #3fa7ff}
+#profiles .cards{display:flex;gap:min(6vw,40px)}
+.pcard{border:6px solid #fff;border-radius:30px;background:#fff8;width:min(38vw,210px);padding:8px 8px 12px;cursor:pointer;font:inherit;font-size:min(7vw,30px);font-weight:bold;color:#2b2340;box-shadow:0 6px 0 rgba(0,0,0,.15)}
+.pcard img{width:100%;aspect-ratio:1;display:block}
+#pinbox{background:#fff;border-radius:32px;padding:18px 20px 22px;text-align:center;width:min(92vw,330px);box-shadow:0 10px 30px rgba(0,0,0,.2)}
+#pinbox.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+#pinbox .dots{display:flex;justify-content:center;gap:16px;margin:10px 0 16px}
+#pinbox .dots span{width:22px;height:22px;border-radius:50%;border:3px solid #2b2340}
+#pinbox .dots span.on{background:#2b2340}
+#pinbox .keys{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+#pinbox .keys button{height:64px;border:none;border-radius:20px;background:#f1ecff;color:#2b2340;font:inherit;font-size:30px;font-weight:bold;cursor:pointer;touch-action:manipulation}
+
+/* магазин */
+#shopList{display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+.item{display:flex;align-items:center;gap:12px;background:#f4f1ff;border-radius:20px;padding:8px 10px}
+.item .ic{font-size:min(10vw,46px);width:1.3em;text-align:center}
+.item .t{flex:1;font-weight:bold;font-size:min(5vw,22px)}
+.item .t small{display:block;font-weight:normal;font-size:.72em;color:#6a6280}
+.item .t .now{display:block;font-size:.75em;color:#2b8a3e;margin-top:3px}
+.item .t .goal{display:block;font-size:.7em;color:#b06a00;margin-top:2px}
+.item button small{display:block;font-size:.55em;font-weight:normal;opacity:.9}
+.item button{border:none;border-radius:18px;background:#5fd35f;color:#fff;font:inherit;font-weight:bold;font-size:min(5.5vw,24px);padding:10px 14px;min-width:min(30vw,130px);cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.2);touch-action:manipulation}
+.item button.no{background:#c9c4d6}
+.item button.max{background:#ffb020}
+.item button.shake{animation:shake .3s}
+
+/* отдых */
+/* мамин режим: записка из яйца */
+#note{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;background:rgba(40,30,80,.4);cursor:pointer}
+#note.on{display:flex}
+#note .paper{position:relative;width:min(86vw,460px);min-height:230px;padding:48px 30px 56px;display:flex;align-items:center;justify-content:center;text-align:center;border-radius:6px;
+  background:linear-gradient(to bottom,transparent 49.6%,rgba(120,90,40,.12) 50%,transparent 50.4%),linear-gradient(to right,transparent 49.6%,rgba(120,90,40,.08) 50%,transparent 50.4%),
+    linear-gradient(135deg,#fffdf4 0%,#f6efd9 45%,#fffaf0 55%,#efe5c8 100%);
+  box-shadow:0 16px 34px rgba(0,0,0,.28);transform:rotate(-3deg) scale(.5);opacity:0;transition:transform .4s cubic-bezier(.3,1.6,.5,1),opacity .2s}
+#note.open .paper{transform:rotate(-3deg) scale(1);opacity:1}
+#note .from{position:absolute;top:12px;left:0;right:0;font-size:15px;line-height:1.35;color:#9a8a6a}
+#note .paper{padding-top:66px}
+#note .from b{font-size:20px;color:#6a5a3a}
+#note.love .from b{color:#c04a7a}
+#note .txt{font-family:"Marker Felt","Bradley Hand","Segoe Print","Comic Sans MS",cursive;font-size:min(8vw,38px);line-height:1.2;color:#3a2c5a}
+#note .paw{position:absolute;right:18px;bottom:10px;font-size:34px;opacity:.55;transform:rotate(-15deg)}
+#note.love .paper{background:linear-gradient(to bottom,transparent 49.6%,rgba(200,60,110,.12) 50%,transparent 50.4%),linear-gradient(to right,transparent 49.6%,rgba(200,60,110,.08) 50%,transparent 50.4%),
+    linear-gradient(135deg,#fff5f8 0%,#ffe3ec 45%,#fff0f5 55%,#ffd6e4 100%)}
+#note.love .txt{color:#b0285e}
+#note.love .from{color:#d77a9c}
+#note.kid .paper{background:linear-gradient(135deg,#f2fbff 0%,#dff2ff 45%,#ecf8ff 55%,#cfeaff 100%)}
+#note.kid .txt{color:#1f5fa8;font-family:"Arial Rounded MT Bold","Trebuchet MS",sans-serif;font-size:min(8.5vw,40px)}
+#note.kid .from,#note.kid .from b{color:#4a86c8}
+#lock{background:linear-gradient(#9fb2e6,#d6c9ff);flex-direction:column;gap:20px}
+#lock .sign{background:#f6deac;border:8px solid #b07a3a;border-radius:20px;padding:20px 24px;max-width:min(90vw,560px);text-align:center;font-size:min(6.5vw,32px);font-weight:bold;color:#4a2f1a;box-shadow:0 8px 0 rgba(0,0,0,.15)}
+#lock .sign .em{font-size:1.6em;margin-top:8px}
+#heart{width:124px;height:124px;border-radius:50%;border:6px solid #fff;font-size:62px;cursor:pointer;touch-action:none;padding:0;
+  background:conic-gradient(#ff5a8a calc(var(--p,0)*360deg),#ffd6e5 0)}
+#lock .hint{font-size:15px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.4)}
+
+/* ресурсы и инструменты — справа под скоростью */
+#res{right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + 2 * min(13vmin,60px));font-size:min(5vmin,24px);gap:10px;padding-left:12px}
+#res b{margin-left:2px}
+#res b.pop{animation:pop .35s;display:inline-block}
+#starsP{right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + 3 * min(13vmin,60px));color:#ffe14d;display:none}
+#quest{right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + 4 * min(13vmin,60px));font-size:min(4.6vmin,22px);display:none}
+#tools{right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + 4 * min(13vmin,60px));font-size:min(6vmin,28px);padding:4px 12px;display:none}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.chip{background:#fff;border-radius:12px;padding:2px 8px;font-size:min(4.5vw,19px);font-weight:bold;border:3px solid #5fd35f}
+.chip.no{border-color:#ff7a7a;color:#c03030}
+.item.done{opacity:.75}
+.item.locked{opacity:.6}
+.sec{font-weight:bold;font-size:min(4.5vw,18px);color:#6a6280;margin:6px 4px -2px}
+
+#fade{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s;z-index:4}
+#fade.on{opacity:1}
+#toast{position:fixed;left:50%;top:22%;transform:translate(-50%,-20px);background:#fff;color:#2b2340;border-radius:24px;padding:12px 22px;font-size:min(5.5vw,24px);font-weight:bold;
+  text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;z-index:3;max-width:90vw}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#toast small{display:block;font-size:.7em;font-weight:normal;color:#6a6280}
+#effects{position:fixed;left:50%;transform:translateX(-50%);top:max(12px,env(safe-area-inset-top));display:none;gap:8px;pointer-events:none}
+#effects .eff{background:rgba(30,25,50,.6);color:#fff;border-radius:20px;padding:4px 12px;font-size:min(5.5vmin,26px);font-weight:bold;text-shadow:0 2px 0 rgba(0,0,0,.35)}
+#effects .eff.low{background:rgba(220,60,60,.75);animation:pop .5s infinite}
+#bellBtn{top:calc(max(12px,env(safe-area-inset-top)) + min(14vmin,70px) + 2 * min(20vmin,92px));background:#3fa7ff}
+#bellBtn b{position:absolute;right:-8px;top:-8px;min-width:24px;height:24px;border-radius:12px;background:#ff3b3b;color:#fff;font-size:15px;line-height:20px;border:2px solid #fff;padding:0 4px;display:none}
+#bellBtn.ring{animation:ring .8s}
+@keyframes ring{15%,45%,75%{transform:rotate(-14deg)}30%,60%{transform:rotate(14deg)}}
+#notesList{display:flex;flex-direction:column;gap:8px;overflow-y:auto}
+.note{display:flex;align-items:center;gap:12px;background:#f4f1ff;border-radius:18px;padding:6px 10px}
+.note.new{background:#fff6d6;box-shadow:inset 0 0 0 3px #ffd23f}
+.note.love{background:#ffe8f0}
+.note.love .t small:not(.ago){color:#b0285e;font-size:.9em}
+.note img,.note .nic{width:min(16vw,64px);height:min(16vw,64px);flex:none;font-size:min(10vw,40px);display:flex;align-items:center;justify-content:center}
+.note .t{font-weight:bold;font-size:min(4.6vw,19px)}
+.note .t small{display:block;font-weight:normal;font-size:.8em;color:#6a6280}
+.note .t .ago{font-size:.7em;color:#9a92b0}
+#notesList .empty{text-align:center;color:#6a6280;padding:20px}
+#invBtn{top:calc(max(12px,env(safe-area-inset-top)) + min(14vmin,70px) + 3 * min(20vmin,92px));background:#5fd35f}
+.invGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(28vw,118px),1fr));gap:8px;margin:6px 0 4px}
+.inv{background:#f4f1ff;border-radius:16px;padding:6px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}
+.inv.dim{opacity:.45;filter:grayscale(.6)}
+.inv .ic{position:relative;font-size:min(10vw,42px);line-height:1.1}
+.inv .ic b{position:absolute;right:-14px;bottom:-4px;background:#2b2340;color:#fff;border-radius:12px;font-size:14px;padding:0 6px;line-height:20px}
+.inv .nm{font-weight:bold;font-size:min(3.8vw,15px)}
+.inv small{font-size:min(3.2vw,12px);color:#6a6280}
+.inv button{margin-top:4px;border:none;border-radius:12px;background:#5fd35f;color:#fff;font:inherit;font-weight:bold;font-size:13px;padding:5px 8px;cursor:pointer}
+#bldBody{display:flex;flex-direction:column;align-items:center;gap:6px}
+#bldBody .bicon{font-size:64px;line-height:1}
+#bldBody .bname{font-size:min(7vw,28px);font-weight:bold}
+#bldBody .bwhat{color:#6a6280;font-size:min(4.2vw,17px)}
+#bldBody .bnow{color:#2b8a3e;font-weight:bold}
+#bldBody .bnext{color:#b06a00;font-weight:bold}
+#bldBody .brow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+#bldBody button{border:none;border-radius:18px;background:#5fd35f;color:#fff;font:inherit;font-weight:bold;font-size:min(5vw,20px);padding:10px 16px;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.2)}
+#bldBody button.no{background:#c9c4d6}
+#bldBody button.alt{background:#9b6bff}
+#bldBody button small{display:block;font-size:.65em;font-weight:normal}
+#bldBody .bmax{font-weight:bold;color:#ffb020}
+#fusList .empty{text-align:center;color:#6a6280;padding:20px}
+.cell.egg{font-size:11px;padding:2px}
+.cell.egg img{padding:4px}
+#fps{position:fixed;left:8px;top:8px;color:#fff;font:12px monospace;text-shadow:0 1px 2px #000;pointer-events:none;display:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="joy"><div id="knob"></div></div>
+<button id="jump" aria-label="Прыжок">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l7-7 7 7"/><path d="M5 20l7-7 7 7"/></svg>
+</button>
+<div id="sun" class="pill"><span class="ic">☀️</span><span id="sunT">1:00</span></div>
+<div id="coins" class="pill"><i class="coin"></i><span id="coinsN">0</span></div>
+<button id="bookBtn" class="side" aria-label="Коллекция">📖<span class="dot"></span></button>
+<div id="book" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>Мои питомцы</h2><div id="grid"></div></div></div>
+<div id="notes" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🔔 Новости</h2><div id="notesList"></div></div></div>
+<div id="speed" class="pill"><span class="ic">👟</span><span id="speedN">1</span></div>
+<button id="who" class="side" aria-label="Сменить игрока">👤</button>
+<button id="bellBtn" class="side" aria-label="Уведомления">🔔<b></b></button>
+<button id="invBtn" class="side" aria-label="Рюкзак">🎒</button>
+<div id="bld" class="ov"><div class="panel" style="width:min(90vw,420px);align-items:center;text-align:center"><button class="close" data-close>✕</button><div id="bldBody"></div></div></div>
+<div id="fus" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🔮 Машина слияния</h2><div id="fusList" style="display:flex;flex-direction:column;gap:8px;overflow-y:auto"></div></div></div>
+<div id="inv" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🎒 Рюкзак</h2><div id="invList" style="overflow-y:auto"></div></div></div>
+<div id="items"></div>
+<div id="effects"></div>
+<div id="toast"></div>
+<div id="shop" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🛒 Магазин</h2><div id="shopList"></div></div></div>
+<div id="profiles" class="ov on">
+  <div class="title">Мастер<small>воровства яиц</small></div>
+  <div class="cards"><button class="pcard" data-p="motya"><img alt=""><div>Мотя</div></button><button class="pcard" data-p="mama"><img alt=""><div>Мама</div></button></div>
+</div>
+<div id="pin" class="ov"><div id="pinbox">
+  <div style="font-size:40px">🔒</div><div class="dots"><span></span><span></span><span></span></div>
+  <div class="keys"><button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+  <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button data-k="x">✕</button><button data-k="0">0</button><button data-k="b">⌫</button></div>
+</div></div>
+<div id="note"><div class="paper"><div class="from" id="noteFrom"></div><div class="txt" id="noteTxt"></div><div class="paw" id="notePaw">🐾</div></div></div>
+<div id="lock" class="ov">
+  <div class="sign">Мотя, пора отдохнуть! Чтобы играть дальше, подойди к маме, обними и поцелуй её!<div class="em">🤗 😘 ❤️</div></div>
+  <button id="heart">❤️</button>
+  <div class="hint">мама: подержи сердечко 3 секунды</div>
+</div>
+<div id="res" class="pill"><span>🪵<b id="r-wood">0</b></span><span>🪨<b id="r-stone">0</b></span><span>💎<b id="r-crystal">0</b></span><span>🌿<b id="r-leaf">0</b></span></div>
+<div id="starsP" class="pill"><span class="ic">⭐</span><span id="starsN">0</span></div>
+<div id="quest" class="pill"></div>
+<div id="craft" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🔨 Верстак</h2><div id="craftList" style="display:flex;flex-direction:column;gap:10px;overflow-y:auto"></div></div></div>
+<div id="fade"></div>
+<div id="hint"></div>
+<div id="fps"></div>
+<script src="vendor/three.min.js"></script>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
