@@ -13,6 +13,7 @@ import { updateFx, puff, dust } from './fx.js';
 import { loadProfile, save, persist, PROFILES } from './save.js';
 import { modelThumb } from './pets.js';
 import { chooseProfile, showLock, noteOpen, toast } from './ui.js';
+import { FS } from './fs.js';
 import { startRest, checkRest, unlockRest } from './rest.js';
 
 const Q = new URLSearchParams(location.search);
@@ -52,13 +53,6 @@ setTimeout(() => hint.style.opacity = 0, 6000);
 // ---------- во весь экран: кнопка рядом с таймером ----------
 // Android, Chrome, iPad — разворачиваем и сворачиваем; iPhone так не умеет — подсказываем про экран «Домой»;
 // запущено с домашнего экрана — и так во весь экран, кнопка не нужна
-const FS = (() => {
-  const d = document.documentElement;
-  const on = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
-  const enter = () => { const r = d.requestFullscreen?.() || d.webkitRequestFullscreen?.(); r?.catch?.(() => {}); };
-  const exit = () => { const r = document.exitFullscreen?.() || document.webkitExitFullscreen?.(); r?.catch?.(() => {}); };
-  return { can: !!(document.fullscreenEnabled || document.webkitFullscreenEnabled), on, enter, exit };
-})();
 {
   const btn = document.getElementById('fsBtn');
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;

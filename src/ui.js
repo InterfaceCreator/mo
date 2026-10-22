@@ -1,5 +1,6 @@
 // Интерфейс поверх игры: монеты, таймер яиц, коллекция, карточка нового питомца.
 import { SPECIES, SPECIES_IDS, RARITY, petThumb, petIncome, fmt } from './pets.js';
+import { goFull } from './fs.js';
 
 const $ = id => document.getElementById(id);
 export const ui = { open: false };
@@ -119,8 +120,9 @@ export function chooseProfile(thumbs, sfx) {
     let pin = '';
     const dots = () => document.querySelectorAll('#pin .dots span').forEach((d, i) => d.classList.toggle('on', i < pin.length));
     const finish = id => { closeOv($('profiles')); closeOv($('pin')); done(id); };
-    document.querySelector('[data-p="motya"]').onclick = () => { sfx.tap(); finish('motya'); };
-    document.querySelector('[data-p="mama"]').onclick = () => { sfx.tap(); pin = ''; dots(); openOv('pin'); };
+    // выбрал игрока — сразу во весь экран
+    document.querySelector('[data-p="motya"]').onclick = () => { goFull(); sfx.tap(); finish('motya'); };
+    document.querySelector('[data-p="mama"]').onclick = () => { goFull(); sfx.tap(); pin = ''; dots(); openOv('pin'); };
     document.querySelectorAll('#pin [data-k]').forEach(b => b.onclick = () => {
       const k = b.dataset.k; sfx.tap();
       if (k === 'x') { closeOv($('pin')); return; }
