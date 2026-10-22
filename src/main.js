@@ -12,7 +12,7 @@ import { initGame, updateGame } from './game.js';
 import { updateFx, puff, dust } from './fx.js';
 import { loadProfile, save, persist, PROFILES } from './save.js';
 import { modelThumb } from './pets.js';
-import { chooseProfile, showLock, noteOpen } from './ui.js';
+import { chooseProfile, showLock, noteOpen, toast } from './ui.js';
 import { startRest, checkRest, unlockRest } from './rest.js';
 
 const Q = new URLSearchParams(location.search);
@@ -49,10 +49,36 @@ const touch = matchMedia('(pointer: coarse)').matches;
 hint.textContent = touch ? 'Слева — бежать · справа — крутить камеру' : 'WASD — бежать · мышь — камера · пробел — прыжок';
 setTimeout(() => hint.style.opacity = 0, 6000);
 
+// ---------- во весь экран: кнопка рядом с таймером ----------
+// Android, Chrome, iPad — разворачиваем и сворачиваем; iPhone так не умеет — подсказываем про экран «Домой»;
+// запущено с домашнего экрана — и так во весь экран, кнопка не нужна
+const FS = (() => {
+  const d = document.documentElement;
+  const on = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const enter = () => { const r = d.requestFullscreen?.() || d.webkitRequestFullscreen?.(); r?.catch?.(() => {}); };
+  const exit = () => { const r = document.exitFullscreen?.() || document.webkitExitFullscreen?.(); r?.catch?.(() => {}); };
+  return { can: !!(document.fullscreenEnabled || document.webkitFullscreenEnabled), on, enter, exit };
+})();
+{
+  const btn = document.getElementById('fsBtn');
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  const ICON = {
+    // четыре стрелки из центра в углы — «больше»; из углов к центру — «меньше»
+    open: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 10L3.5 3.5M3.5 9V3.5H9M14 10l6.5-6.5M15 3.5h5.5V9M10 14l-6.5 6.5M3.5 15v5.5H9M14 14l6.5 6.5M20.5 15v5.5H15"/></svg>',
+    close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 3.5L10 10M10 4.5V10H4.5M20.5 3.5L14 10M14 4.5V10h5.5M3.5 20.5L10 14M4.5 14H10v5.5M20.5 20.5L14 14M19.5 14H14v5.5"/></svg>',
+  };
+  const paint = () => { const o = FS.on(); btn.innerHTML = o ? ICON.close : ICON.open; btn.setAttribute('aria-label', o ? 'Свернуть' : 'Во весь экран'); };
+  if (!standalone) { btn.style.display = 'flex'; paint(); }
+  document.addEventListener('fullscreenchange', paint); document.addEventListener('webkitfullscreenchange', paint);
+  btn.addEventListener('click', e => {
+    e.stopPropagation(); SFX.tap();
+    if (!FS.can) { toast('📱 На iPhone: нажми «Поделиться» ⬆️ → «На экран „Домой“»<small>и открывай игру с иконки — будет во весь экран</small>'); return; }
+    if (FS.on()) FS.exit(); else FS.enter();
+  });
+}
 input.onFirstTouch = () => {
   initAudio();
-  const d = document.documentElement;   // на Android — во весь экран (на iPhone не поддерживается)
-  if (touch && !document.fullscreenElement && d.requestFullscreen) d.requestFullscreen().catch(() => {});
+  if (touch && FS.can && !FS.on()) FS.enter();     // на Android — сразу во весь экран; свернуть — кнопкой
 };
 
 // счётчик кадров: ?fps

@@ -22,11 +22,18 @@ let first = true;
 
 function firstTouch() { if (first) { first = false; input.onFirstTouch && input.onFirstTouch(); } }
 
+// на сенсорном экране джойстик виден всегда: в покое — слева внизу, при касании — под пальцем
+const touchScreen = matchMedia('(pointer: coarse)').matches;
 function joyStart(e) {
   joy.id = e.pointerId; joy.ox = e.clientX; joy.oy = e.clientY; joy.x = joy.y = 0;
-  joyEl.style.display = 'block'; joyEl.style.left = joy.ox + 'px'; joyEl.style.top = joy.oy + 'px'; knob.style.transform = '';
+  joyEl.classList.remove('idle'); joyEl.style.display = 'block'; joyEl.style.left = joy.ox + 'px'; joyEl.style.top = joy.oy + 'px'; knob.style.transform = '';
 }
-function joyEnd() { joy.id = null; joy.x = joy.y = 0; joyEl.style.display = 'none'; }
+export function joyEnd() {
+  joy.id = null; joy.x = joy.y = 0; knob.style.transform = '';
+  if (touchScreen) { joyEl.classList.add('idle'); joyEl.style.left = joyEl.style.top = ''; joyEl.style.display = 'block'; }
+  else joyEl.style.display = 'none';
+}
+joyEnd();
 
 canvas.addEventListener('pointerdown', e => {
   firstTouch();
