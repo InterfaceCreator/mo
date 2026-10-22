@@ -21,6 +21,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 #joy{background:rgba(30,25,50,.3);border-color:rgba(255,255,255,.85);box-shadow:0 4px 12px rgba(0,0,0,.2)}
 #joy.idle{left:calc(max(26px,env(safe-area-inset-left)) + 75px);top:calc(100% - max(30px,env(safe-area-inset-bottom)) - 75px);opacity:.85}
 #joy.idle #knob{background:rgba(255,255,255,.75)}
+/* телефон боком: столбик кнопок слева доходит до низа — джойстик правее него */
+@media (orientation: landscape){#joy.idle{left:calc(max(12px,env(safe-area-inset-left)) + min(16vmin,76px) + 24px + 75px)}}
 
 /* прыжок — как в оригинале: круг с двойной стрелкой */
 #jump{position:fixed;right:max(26px,env(safe-area-inset-right));bottom:max(30px,env(safe-area-inset-bottom));width:min(26vmin,130px);height:min(26vmin,130px);
