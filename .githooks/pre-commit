@@ -1,0 +1,6 @@
+#!/bin/sh
+# Перед каждым коммитом записываем номер сборки и время — он виден внизу стартового экрана.
+n=$(( $(git rev-list --count HEAD 2>/dev/null || echo 0) + 1 ))
+d=$(date '+%d.%m %H:%M')
+printf "// Номер сборки — пишется сам перед каждым коммитом (.githooks/pre-commit)\nexport const VERSION = 'сборка %s · %s';\n" "$n" "$d" > src/version.js
+git add src/version.js

@@ -1,6 +1,9 @@
 // Интерфейс поверх игры: монеты, таймер яиц, коллекция, карточка нового питомца.
 import { SPECIES, SPECIES_IDS, RARITY, petThumb, petIncome, fmt } from './pets.js';
 import { goFull } from './fs.js';
+import { VERSION } from './version.js';
+
+document.getElementById('ver').textContent = VERSION;   // номер сборки внизу стартового экрана
 
 const $ = id => document.getElementById(id);
 export const ui = { open: false };
