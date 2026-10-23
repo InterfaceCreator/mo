@@ -23,8 +23,14 @@ export function loadProfile(id) {
   return save;
 }
 let timer = 0;
+const write = () => { clearTimeout(timer); timer = 0; if (!profile) return; save.lastSeen = Date.now(); try { localStorage.setItem(KEY(profile), JSON.stringify(save)); } catch (e) {} };
 // записываем не чаще раза в полсекунды
 export function persist() {
   if (timer || !profile) return;
-  timer = setTimeout(() => { timer = 0; save.lastSeen = Date.now(); try { localStorage.setItem(KEY(profile), JSON.stringify(save)); } catch (e) {} }, 500);
+  timer = setTimeout(write, 500);
 }
+// игру закрыли или свернули — записываем сразу, не дожидаясь полсекунды
+addEventListener('pagehide', () => { if (timer) write(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && timer) write(); });
+// что сейчас лежит в хранилище (могла записать другая вкладка с этой же игрой)
+export function stored() { try { return JSON.parse(localStorage.getItem(KEY(profile)) || 'null'); } catch (e) { return null; } }

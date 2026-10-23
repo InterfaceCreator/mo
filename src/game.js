@@ -13,7 +13,7 @@ import { buildGuards, updateGuards, wake, dropBanana } from './guards.js';
 import { RARITY, SPECIES, rollPet, buildPen, updatePen, petIncome, petName, rebuildPen, penIncome, fmt, setPenBonus, addPending, modelThumb } from './pets.js';
 import { buildBase, onShopPad, onTreadmill, updateTreadmill } from './base.js';
 import { updateCraft, onBenchPad, TOOLS, RES, RECIPES, SCROLL_WHERE, known, made, canCraft, craft } from './craft.js';
-import { save, persist, profile } from './save.js';
+import { save, persist, profile, stored } from './save.js';
 import { takeNote, resetNotes, takeKidNote, kidNoteReady } from './notes.js';
 import { setCoins, setSun, setSpeed, setItems, toast, petNote, notify, bindNotes, bindBook, openShop, shopOpen, setRes, openCraft, bindInventory, craftOpen, fade, setStars, setEffects, setQuest, openBuilding, openFusion, showNote, onBellHold } from './ui.js';
 import { puff, confetti, sprite, emojiTex, makeLabel } from './fx.js';
@@ -96,6 +96,9 @@ function goThrough(pt) {
     enter(pt.to, pt.to === 'base' ? backFrom(from) : LOCS[pt.to].spawn); fade(false); moving = false;
     // маме на входе в лес — записка от Василия
     if (pt.to === 'forest' && profile === 'mama') {
+      // если игра открыта ещё в одной вкладке и та ушла по запискам дальше — продолжаем с её места, а не повторяем
+      const disk = stored()?.vasya, mine = save.vasya;
+      if (disk && (!mine || disk.round > mine.round || (disk.round === mine.round && disk.i > mine.i))) save.vasya = disk;
       const note = takeNote(save);
       if (note) { notify({ icon: '🐱', title: 'Записка от Василия', text: note.t, love: note.love, keep: true, read: true }); showNote(note, SFX); }
     }
