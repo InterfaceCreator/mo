@@ -37,6 +37,8 @@ export const SFX = {
   pick() { tone('triangle', 520, 1100, 0.12, 0.25); tone('triangle', 780, 1500, 0.12, 0.2, 0.1); },
   place() { [660, 880, 1100].forEach((f, i) => tone('sine', f, f, 0.15, 0.2, i * 0.08)); },
   caught() { tone('sine', 520, 200, 0.35, 0.25); noise(0.15, 0.3, 'lowpass', 500, 0.05); },
+  meow() { tone('triangle', 560, 900, 0.16, 0.13); tone('triangle', 900, 520, 0.32, 0.13, 0.15); },
+  purr() { for (let i = 0; i < 3; i++) noise(0.22, 0.1, 'lowpass', 150, i * 0.28, 1, 0.08); },
   rustle() { noise(0.3, 0.25, 'bandpass', 3200, 0, 0.6); },
   nope() { tone('square', 220, 150, 0.2, 0.07); },
   hatch() { noise(0.07, 0.5, 'highpass', 1700); [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, 0.25, 0.22, 0.1 + i * 0.1)); },

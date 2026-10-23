@@ -5,6 +5,7 @@ import { PEN, level, portals, unlockPortal, clearLevel, groundY, bake } from './
 import { LOCS, backFrom, defineAllNests, STARS_IN, petHouse } from './locations.js';
 import { updateFun, addPad, nearestFind } from './fun.js';
 import { updateExtras } from './extras.js';
+import { spawnVasya, updateVasya } from './vasya.js';
 import { questNow, questNext } from './quests.js';
 import { nests, buildNests, updateNests, nestNear, takeEgg, returnEgg, releaseNest, refillLeft,
   buildIncubators, incubators, freeIncubator, placeEgg, updateIncubators, setIncSlots, eggMesh, setLuck, VARIANT_NAME, VARIANT_INFO } from './eggs.js';
@@ -80,7 +81,7 @@ function enter(id, spawn) {
   sky(L.sky);
   const w = L.build(save);
   buildNests(id); buildGuards(nests);
-  if (id === 'base') { buildBase(); buildIncubators(); setIncSlots(save.incSlots); buildPen(save.pets, save.penCap); buildPlots(save); buildMailbox(); }
+  if (id === 'base') { buildBase(); buildIncubators(); setIncSlots(save.incSlots); buildPen(save.pets, save.penCap); buildPlots(save); buildMailbox(); spawnVasya(); }
   if (w) bake(w);                                  // неподвижное склеиваем — меньше работы видеокарте
   hero.pos.set(spawn.x, groundY(spawn.x, spawn.z), spawn.z); hero.vel.set(0, 0, 0);
   hero.face = spawn.face; hero.model.root.rotation.y = spawn.face; hero.safe = hero.pos.clone();
@@ -475,6 +476,14 @@ export function updateGame(dt) {
     notify({ icon: r.icon, title: `📜 Новый рецепт: ${r.name}`, text: `${r.info} — сделай на верстаке 🔨` });
     kidMoment();
   }
+  // кот Василий гуляет по базе; подойди и постой рядом — погладишь
+  if (atBase) {
+    const ve = updateVasya(dt, hero);
+    if (ve.meow) SFX.meow();
+    if (ve.purr) SFX.purr();
+    if (ve.petted && !hero.vasyaToday) { hero.vasyaToday = true; toast('🐱 Мур-мур! Василий доволен 💛'); }
+  }
+
   // канатки, гонка, клады, колодец, стрелки и бобр
   const qs = questNow(save);
   const xe = updateExtras(dt, hero, save, { has: !!qs, ready: !!qs?.ready });
