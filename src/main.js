@@ -21,7 +21,7 @@ const Q = new URLSearchParams(location.search);
 addEventListener('resize', resize); resize();
 
 // выбор игрока: Мотя или Мама (по паролю)
-const heroThumb = id => modelThumb('hero:' + id, s => buildHero(s, LOOK_OF[id]), { yaw: 0.35, size: 220 });
+const heroThumb = id => modelThumb('hero:' + id, s => buildHero(s, LOOK_OF[id]), { yaw: 0.35, size: 360, dist: 1.4 });
 const who = await chooseProfile({ motya: heroThumb('motya'), mama: heroThumb('mama') }, SFX);
 initAudio();
 loadProfile(who);

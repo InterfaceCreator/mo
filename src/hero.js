@@ -3,32 +3,65 @@ import { group, box, damp } from './engine.js';
 
 export const HERO_H = 2.75;   // рост вместе с волосами — для столкновений и камеры
 
+// облики по фото: Мотя — русый «ёжик» с чёлкой, чёрное поло с молнией и белым логотипом, чёрные штаны, белые кроссовки;
+// мама — длинные тёмные волосы, белый свитер оверсайз с красными сердечками, белые шорты в сердечко, белые носки
 const LOOKS = {
-  boy: { skin: 0xffd3a6, shirt: 0x2a2a30, pants: 0x1f1f24, shoes: 0xffffff, hair: 0x17161c, print: 0xdedede },
-  girl: { skin: 0xffd9b8, shirt: 0xff7ac8, pants: 0x3f6fd8, shoes: 0xffffff, hair: 0x7a4422, print: 0xffffff, long: true },
+  boy: { skin: 0xffd9b8, shirt: 0x1d1d23, pants: 0x18181d, shoes: 0xf6f6f6, sole: 0xd8d8d8, hair: 0x9a6a35, hairHi: 0xc49559, style: 'crop', polo: true },
+  girl: { skin: 0xf8c9a8, shirt: 0xfbfaf6, pants: 0xf9f5f0, shoes: 0xffffff, sole: 0xffffff, hair: 0x3a2318, hairHi: 0x55341f, style: 'long', hearts: 0xb3142f, shorts: true, wide: true },
 };
 export const LOOK_OF = { motya: 'boy', mama: 'girl' };
+
+// пиксельное сердечко на плоскости: две «горки» и ромбик; face — 'z+' спереди, 'z-' сзади, 'x+'/'x-' сбоку
+function heart(p, color, x, y, z, s, face = 'z+') {
+  const g = group(p, x, y, z);
+  if (face === 'z-') g.rotation.y = Math.PI; else if (face === 'x+') g.rotation.y = Math.PI / 2; else if (face === 'x-') g.rotation.y = -Math.PI / 2;
+  // пиксель-арт 5×4: ▪▪·▪▪ / ▪▪▪▪▪ / ·▪▪▪· / ··▪··
+  const u = s / 5, rows = ['11011', '11111', '01110', '00100'];
+  rows.forEach((r, j) => { for (let i = 0; i < 5; i++) if (r[i] === '1') box(g, u * 1.02, u * 1.02, 0.02, color, (i - 2) * u, (1.5 - j) * u, 0, { shadow: false, studs: false }); });
+  return g;
+}
 
 export function buildHero(parent, lookId = 'boy') {
   const root = group(parent), body = group(root);
   const L = LOOKS[lookId] || LOOKS.boy;
+  const TW = L.wide ? 1.1 : 1.0, TH = L.wide ? 1.12 : 1.0, TY = L.wide ? 1.46 : 1.5, AW = L.wide ? 0.52 : 0.48;   // свитер оверсайз — шире и длиннее
 
   // ноги — точка вращения в бедре
   const legL = group(body, -0.25, 1.0, 0), legR = group(body, 0.25, 1.0, 0);
   for (const leg of [legL, legR]) {
-    box(leg, 0.48, 0.82, 0.5, L.pants, 0, -0.41, 0);
+    if (L.shorts) {
+      // короткие шорты, ниже — ноги и белые носки
+      box(leg, 0.5, 0.3, 0.52, L.pants, 0, -0.13, 0);
+      for (const [dx, dy] of [[-0.12, -0.2], [0.12, -0.2]]) box(leg, 0.05, 0.05, 0.02, 0xe0607a, dx, dy, 0.265, { shadow: false, studs: false });   // мелкие сердечки на шортах
+      box(leg, 0.42, 0.42, 0.44, L.skin, 0, -0.48, 0);
+      box(leg, 0.44, 0.14, 0.46, 0xffffff, 0, -0.73, 0);
+    } else box(leg, 0.48, 0.82, 0.5, L.pants, 0, -0.41, 0);
     box(leg, 0.5, 0.2, 0.58, L.shoes, 0, -0.9, 0.04);
+    box(leg, 0.52, 0.06, 0.6, L.sole, 0, -0.98, 0.04, { shadow: false });
   }
-  // туловище (худи) с принтом
-  const torso = box(body, 1.0, 1.0, 0.52, L.shirt, 0, 1.5, 0);
-  box(body, 0.34, 0.3, 0.02, L.print, 0.12, 1.55, 0.27, { shadow: false });
-  box(body, 0.6, 0.12, 0.54, L.shirt, 0, 2.0, 0);                       // капюшон-воротник
+  // туловище
+  const torso = box(body, TW, TH, 0.52, L.shirt, 0, TY, 0);
+  if (L.polo) {
+    // воротник поло, молния, белая футболка под ним и логотип на груди
+    box(body, 0.24, 0.07, 0.02, 0xffffff, 0, 1.95, 0.27, { shadow: false, studs: false });
+    for (const sx of [-1, 1]) { const c = box(body, 0.26, 0.16, 0.06, L.shirt, sx * 0.15, 1.92, 0.28, { shadow: false }); c.rotation.z = sx * 0.5; }
+    box(body, 0.04, 0.34, 0.02, 0xb9bec6, 0, 1.73, 0.27, { shadow: false, studs: false });
+    box(body, 0.06, 0.08, 0.03, 0xd8dde4, 0, 1.58, 0.275, { shadow: false, studs: false });
+    box(body, 0.1, 0.13, 0.02, 0xffffff, 0.24, 1.7, 0.27, { shadow: false, studs: false });
+    box(body, 0.62, 0.12, 0.54, L.shirt, 0, 2.0, 0);                      // воротник сзади
+  } else box(body, 0.6, 0.12, 0.54, L.shirt, 0, 2.0, 0);
+  if (L.hearts) {
+    // сердечки на свитере: спереди, сзади
+    for (const [x, y] of [[-0.1, 1.82], [0.12, 1.55], [-0.12, 1.3], [0.36, 1.05], [-0.34, 1.0]]) heart(body, L.hearts, x, y, 0.27, 0.2);   // не под прядями волос
+    for (const [x, y] of [[0.25, 1.75], [-0.28, 1.4], [0.1, 1.1]]) heart(body, L.hearts, x, y, -0.27, 0.2, 'z-');
+  }
 
   // руки — точка вращения в плече
-  const armL = group(body, -0.75, 1.95, 0), armR = group(body, 0.75, 1.95, 0);
-  for (const arm of [armL, armR]) {
-    box(arm, 0.48, 0.78, 0.5, L.shirt, 0, -0.36, 0);
+  const armL = group(body, -(TW / 2 + AW / 2 + 0.01), 1.95, 0), armR = group(body, TW / 2 + AW / 2 + 0.01, 1.95, 0);
+  for (const [arm, side] of [[armL, -1], [armR, 1]]) {
+    box(arm, AW, 0.78, 0.5, L.shirt, 0, -0.36, 0);
     box(arm, 0.44, 0.22, 0.46, L.skin, 0, -0.86, 0);
+    if (L.hearts) heart(arm, L.hearts, side * (AW / 2 + 0.011), -0.3, 0, 0.2, side > 0 ? 'x+' : 'x-');
   }
 
   // голова
@@ -43,20 +76,27 @@ export function buildHero(parent, lookId = 'boy') {
   box(head, 0.18, 0.04, 0.03, 0x1a1a1a, 0, -0.14, 0.34, { shadow: false });
   for (const sx of [-1, 1]) box(head, 0.05, 0.04, 0.03, 0x1a1a1a, sx * 0.1, -0.11, 0.34, { shadow: false });
 
-  // волосы: шапка, затылок и торчащие пряди, как у мальчика на скриншотах
   const hair = group(head, 0, 0, 0);
-  box(hair, 0.78, 0.2, 0.74, L.hair, 0, 0.36, -0.02);
-  box(hair, 0.78, 0.5, 0.16, L.hair, 0, 0.14, -0.33);
-  for (const sx of [-1, 1]) box(hair, 0.1, 0.36, 0.6, L.hair, sx * 0.37, 0.16, -0.04);
-  [[-0.24, 0.2], [-0.08, 0.26], [0.08, 0.22], [0.24, 0.18]].forEach(([x, h], i) => {
-    const s = box(hair, 0.18, h, 0.12, L.hair, x, 0.22 - h * 0.2, 0.33); s.rotation.z = (i - 1.5) * 0.12;
-  });
-  if (L.long) {
-    // длинные волосы до плеч и ресницы
-    box(hair, 0.82, 0.95, 0.16, L.hair, 0, -0.12, -0.36);
-    for (const sx of [-1, 1]) { box(hair, 0.12, 0.8, 0.5, L.hair, sx * 0.4, -0.08, -0.1); box(head, 0.06, 0.04, 0.03, 0x1a1a1a, sx * 0.2, 0.15, 0.345, { shadow: false }); }
-  } else for (const [x, z, r] of [[-0.2, -0.1, -0.4], [0.05, 0.05, 0.1], [0.24, -0.15, 0.45], [0, -0.3, -0.1]]) {
-    const s = box(hair, 0.22, 0.24, 0.22, L.hair, x, 0.5, z); s.rotation.z = r; s.rotation.x = -0.3;
+  if (L.style === 'crop') {
+    // короткая стрижка: шапочка, короткий затылок, чёлка набок; светлые кончики сверху
+    box(hair, 0.76, 0.18, 0.72, L.hair, 0, 0.37, -0.02);
+    box(hair, 0.76, 0.36, 0.14, L.hair, 0, 0.2, -0.33);
+    for (const sx of [-1, 1]) box(hair, 0.08, 0.26, 0.56, L.hair, sx * 0.37, 0.22, -0.06);
+    const f = box(hair, 0.64, 0.12, 0.14, L.hair, -0.03, 0.27, 0.32); f.rotation.z = 0.08;
+    box(hair, 0.66, 0.06, 0.6, L.hairHi, 0, 0.48, 0.02);                    // выгоревшие кончики сверху
+    for (const [x, z] of [[-0.16, 0.14], [0.12, 0.2], [0.02, -0.08]]) box(hair, 0.14, 0.06, 0.14, L.hairHi, x, 0.53, z);
+  } else {
+    // длинные волосы: макушка с пробором, по бокам, сзади ниже лопаток и две пряди спереди на груди
+    box(hair, 0.78, 0.2, 0.74, L.hair, 0, 0.36, -0.02);
+    box(hair, 0.4, 0.14, 0.14, L.hair, 0.16, 0.27, 0.32);                    // чёлка набок (пробор)
+    box(hair, 0.22, 0.1, 0.14, L.hairHi, -0.2, 0.3, 0.32);
+    for (const sx of [-1, 1]) box(hair, 0.1, 0.72, 0.62, L.hair, sx * 0.4, -0.02, -0.06);
+    box(hair, 0.84, 1.55, 0.16, L.hair, 0, -0.42, -0.37);
+    box(hair, 0.6, 0.2, 0.12, L.hairHi, 0, -1.15, -0.38);
+    for (const sx of [-1, 1]) {
+      box(hair, 0.18, 0.95, 0.12, L.hair, sx * 0.34, -0.62, 0.33);            // пряди спереди на свитере
+      box(head, 0.1, 0.06, 0.02, 0xffa3a3, sx * 0.24, -0.08, 0.34, { shadow: false, studs: false });   // румянец
+    }
   }
 
   // инструменты в правой руке: рукоять вдоль локальной оси z, рабочая часть смотрит в −y (туда, куда бьёт удар)

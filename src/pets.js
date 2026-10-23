@@ -165,14 +165,17 @@ export function fmt(n) {
 // ---------- картинки для коллекции ----------
 let thumbR = null; const thumbs = {};
 // картинка модели (для коллекции и выбора игрока); build(scene) возвращает { root }
-export function modelThumb(key, build, { yaw = 0.6, size = 160 } = {}) {
+export function modelThumb(key, build, { yaw = 0.6, size = 160, dist = 1.9 } = {}) {   // dist — насколько далеко камера (в размерах модели)
   if (thumbs[key]) return thumbs[key];
   if (!thumbR) { thumbR = new T.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true }); }
   thumbR.setSize(size, size);
   const s = new T.Scene(); s.add(new T.HemisphereLight(0xffffff, 0x99aa88, 0.9)); const l = new T.DirectionalLight(0xffffff, 0.6); l.position.set(2, 4, 5); s.add(l);
   const m = build(s); m.root.rotation.y = yaw;
-  const bb = new T.Box3().setFromObject(m.root), c = bb.getCenter(new T.Vector3()), sz = bb.getSize(new T.Vector3()).length();
-  const cam = new T.PerspectiveCamera(30, 1, 0.1, 50); cam.position.set(c.x, c.y + sz * 0.35, c.z + sz * 1.9); cam.lookAt(c);
+  // рамка — только по видимым частям (спрятанные зонтик и инструменты не в счёт)
+  const bb = new T.Box3(); m.root.updateMatrixWorld(true);
+  (function walk(o) { if (!o.visible) return; if (o.isMesh) bb.union(new T.Box3().setFromObject(o)); o.children.forEach(walk); })(m.root);
+  const c = bb.getCenter(new T.Vector3()), sz = bb.getSize(new T.Vector3()).length();
+  const cam = new T.PerspectiveCamera(30, 1, 0.1, 50); cam.position.set(c.x, c.y + sz * 0.35, c.z + sz * dist); cam.lookAt(c);
   thumbR.render(s, cam);
   return (thumbs[key] = thumbR.domElement.toDataURL());
 }
