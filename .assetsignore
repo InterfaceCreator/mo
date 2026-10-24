@@ -1,0 +1,9 @@
+.git
+.githooks
+.gitignore
+.assetsignore
+wrangler.jsonc
+ref
+server.js
+PLAN.md
+node_modules
