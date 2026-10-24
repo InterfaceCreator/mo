@@ -318,7 +318,16 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 <script type="module" src="src/main.js" onerror="__bootErr('не загрузился src/main.js')"></script>
 <script>
 // игра хранится на устройстве (sw.js) — на сайтах; на локальном сервере не нужно, чтобы правки видно было сразу
-if ('serviceWorker' in navigator && !/^(localhost|127\.|192\.168\.)/.test(location.hostname)) navigator.serviceWorker.register('sw.js').catch(function () {});
+if ('serviceWorker' in navigator && !/^(localhost|127\.|192\.168\.)/.test(location.hostname)) {
+  navigator.serviceWorker.register('sw.js').catch(function () {});
+  // когда всё загрузилось — отдаём скрипту список файлов: пусть сохранит всё с первого раза
+  addEventListener('load', function () { setTimeout(function () {
+    navigator.serviceWorker.ready.then(function (r) {
+      var urls = [location.href].concat(performance.getEntriesByType('resource').map(function (e) { return e.name; }));
+      r.active && r.active.postMessage({ cache: urls });
+    });
+  }, 3000); });
+}
 </script>
 <script nomodule>__bootErr('браузер слишком старый: не поддерживает модули JavaScript')</script>
 </body>

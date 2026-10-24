@@ -5,6 +5,16 @@ const CACHE = 'egg-thief';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 
+// страница прислала список всех своих файлов (после первой загрузки) — сохраняем их все разом, чтобы следующий запуск был уже без сети
+self.addEventListener('message', e => {
+  const urls = (e.data && e.data.cache) || [];
+  e.waitUntil(caches.open(CACHE).then(cache => Promise.all(urls.map(u => {
+    const url = new URL(u, location), key = url.pathname === new URL('./', location).pathname ? new URL('./', location).href : url.href;
+    if (url.origin !== location.origin) return null;
+    return cache.match(key, { ignoreSearch: true }).then(hit => hit || fetch(url.href).then(r => r.ok && cache.put(key, r)).catch(() => {}));
+  }))));
+});
+
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
