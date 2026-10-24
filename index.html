@@ -316,6 +316,10 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 <div id="fps"></div>
 <script src="vendor/three.min.js" onerror="__bootErr('не загрузился three.min.js')"></script>
 <script type="module" src="src/main.js" onerror="__bootErr('не загрузился src/main.js')"></script>
+<script>
+// игра хранится на устройстве (sw.js) — на сайтах; на локальном сервере не нужно, чтобы правки видно было сразу
+if ('serviceWorker' in navigator && !/^(localhost|127\.|192\.168\.)/.test(location.hostname)) navigator.serviceWorker.register('sw.js').catch(function () {});
+</script>
 <script nomodule>__bootErr('браузер слишком старый: не поддерживает модули JavaScript')</script>
 </body>
 </html>
