@@ -36,7 +36,7 @@ export function craft(r, save) {
   for (const [k, n] of Object.entries(r.need)) save.res[k] -= n;
   if (r.type === 'mat') save.res[r.id] = (save.res[r.id] || 0) + r.out;
   else if (r.type === 'tool') save.tools[r.id] = true;
-  else (save.items ||= {})[r.id] = (save.items[r.id] || 0) + r.out;
+  else (save.items || (save.items = {}))[r.id] = (save.items[r.id] || 0) + r.out;
 }
 export const WORKBENCH = { x: 0, z: 57, pad: { x: 0, z: 53.5 } };
 
@@ -216,7 +216,7 @@ export function updateCraft(dt, hero, save) {
 
   // сундуки: открылся сам, когда подошёл; потом новый через 5 минут
   const now = Date.now();
-  save.chests ||= {};
+  if (!save.chests) save.chests = {};
   for (const c of chests) {
     const left = Math.max(0, Math.ceil(((save.chests[c.id] || 0) + B.CHEST_EVERY * 1000 - now) / 1000));
     c.lid.rotation.x = left ? -1.1 : 0;

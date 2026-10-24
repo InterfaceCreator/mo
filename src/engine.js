@@ -4,7 +4,15 @@ export const T = window.THREE;
 export const canvas = document.getElementById('c');
 // на телефонах плотность пикселей ограничиваем — так держится 60 кадров
 const DPR = Math.min(window.devicePixelRatio || 1, Math.min(screen.width, screen.height) < 500 ? 1.75 : 2);
-export const renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+// слабый планшет может не дать 3D с полными настройками — пробуем попроще
+function makeRenderer() {
+  let err;
+  for (const o of [{ antialias: true, powerPreference: 'high-performance' }, { antialias: false }, { antialias: false, powerPreference: 'low-power', depth: true, stencil: false }]) {
+    try { return new T.WebGLRenderer({ canvas, ...o }); } catch (e) { err = e; }
+  }
+  throw new Error('3D (WebGL) не запускается на этом устройстве: ' + (err && err.message));
+}
+export const renderer = makeRenderer();
 renderer.setPixelRatio(DPR);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
 

@@ -128,7 +128,7 @@ export function updateFun(dt, hero, save) {
     s.m.rotation.y += dt * 2; s.m.position.y = s.y + Math.sin(t * 2 + i) * 0.2;
     if (Math.hypot(p.x - s.x, p.z - s.z) < 1.4 && Math.abs(p.y + 1.2 - s.y) < 1.8) {
       scene.remove(s.m); stars.splice(i, 1);
-      (save.stars ||= {})[s.id] = true; ev.star = s.id;
+      (save.stars || (save.stars = {}))[s.id] = true; ev.star = s.id;
       confetti(s.m.position, 60); puff('⭐', s.m.position.clone().setY(s.y + 1), { size: 1.8, rise: 1.2, life: 1.6 });
     }
   }
@@ -138,7 +138,7 @@ export function updateFun(dt, hero, save) {
     sc.g.rotation.y += dt * 0.6;                                // свиток не светится и почти не двигается — его надо искать
     if (Math.hypot(p.x - sc.x, p.z - sc.z) < 1.4 && Math.abs(p.y + 1.2 - sc.y) < 1.8) {
       scene.remove(sc.g); scrolls.splice(i, 1);
-      (save.recipes ||= {})[sc.id] = true; ev.scroll = sc.id;
+      (save.recipes || (save.recipes = {}))[sc.id] = true; ev.scroll = sc.id;
       confetti(sc.g.position, 60); puff('📜', sc.g.position.clone().setY(sc.y + 1), { size: 1.8, rise: 1.2, life: 1.6 });
     }
   }

@@ -105,7 +105,7 @@ export function updateExtras(dt, hero, save, questState) {
   for (const d of digs) {
     if (!d.g.visible || Math.hypot(p.x - d.x, p.z - d.z) > 1.3 || Math.abs(p.y - d.y) > 1) continue;
     if (!save.tools.pick) { if (!d.told) { d.told = true; ev.needPick = true; } continue; }
-    d.g.visible = false; (save.digs ||= {})[d.id] = Date.now();
+    d.g.visible = false; (save.digs || (save.digs = {}))[d.id] = Date.now();
     chips(new T.Vector3(d.x, d.y + 0.5, d.z), 0x9c6a3c, 16); ev.dig = d.id;
   }
   // колодец: подошёл вплотную — бросил монетку; ещё раз — отойди и подойди снова

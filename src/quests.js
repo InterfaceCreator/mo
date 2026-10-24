@@ -20,7 +20,7 @@ export const QUESTS = [
 
 // текущее задание и прогресс: { q, have, ready } или null, если все сделаны
 export function questNow(save) {
-  const Q = save.quest ||= { i: 0, base: null };
+  const Q = save.quest || (save.quest = { i: 0, base: null });
   const q = QUESTS[Q.i]; if (!q) return null;
   if (Q.base === null) Q.base = q.absolute ? 0 : q.stat(save);
   const have = Math.min(q.stat(save) - Q.base, q.goal);

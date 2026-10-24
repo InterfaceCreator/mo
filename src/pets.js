@@ -167,7 +167,7 @@ let thumbR = null; const thumbs = {};
 // картинка модели (для коллекции и выбора игрока); build(scene) возвращает { root }
 export function modelThumb(key, build, { yaw = 0.6, size = 160, dist = 1.9 } = {}) {   // dist — насколько далеко камера (в размерах модели)
   if (thumbs[key]) return thumbs[key];
-  if (!thumbR) { thumbR = new T.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true }); }
+  if (!thumbR) { try { thumbR = new T.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true }); } catch (e) { thumbR = new T.WebGLRenderer({ alpha: true, preserveDrawingBuffer: true }); } }
   thumbR.setSize(size, size);
   const s = new T.Scene(); s.add(new T.HemisphereLight(0xffffff, 0x99aa88, 0.9)); const l = new T.DirectionalLight(0xffffff, 0.6); l.position.set(2, 4, 5); s.add(l);
   const m = build(s); m.root.rotation.y = yaw;

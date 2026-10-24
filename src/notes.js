@@ -83,7 +83,7 @@ const KID_NOTES = [
 ];
 export const KID_COOLDOWN = 90;      // секунд между записками — чтобы две не выскочили подряд
 export function takeKidNote(save) {
-  const N = save.momNotes ||= { q: [], i: 0, last: null, at: 0 };
+  const N = save.momNotes || (save.momNotes = { q: [], i: 0, last: null, at: 0 });
   if (N.i >= N.q.length) {
     N.q = shuffle([...KID_NOTES]); N.i = 0;
     if (N.q[0] === N.last) N.q.push(N.q.shift());       // на стыке кругов — не та же самая

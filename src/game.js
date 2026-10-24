@@ -31,12 +31,12 @@ let cam = null, portalCool = 0, moving = false;
 
 export function initGame(h, camera) {
   hero = h; cam = camera; hero.carrying = null;
-  save.chests ||= {}; if (save.chestAt) { save.chests.tower = save.chestAt; delete save.chestAt; }   // старое сохранение
-  save.build ||= {}; save.daily ||= { last: 0, streak: 0 }; save.eggs ||= {};
+  if (!save.chests) save.chests = {}; if (save.chestAt) { save.chests.tower = save.chestAt; delete save.chestAt; }   // старое сохранение
+  if (!save.build) save.build = {}; if (!save.daily) save.daily = { last: 0, streak: 0 }; if (!save.eggs) save.eggs = {};
   save.inc.forEach((e, i) => { if (e && incubators[i]) placeEgg(incubators[i], e.r, e.end, null, e.loc, e.v); });
   setIncSlots(save.incSlots);
   rebuildPen(save.pets, save.penCap);
-  save.notes ||= []; bindNotes(save.notes, persist);
+  if (!save.notes) save.notes = []; bindNotes(save.notes, persist);
   // маме: держать 🔔 3 секунды — записки Василия с нуля (для проверки)
   if (profile === 'mama') onBellHold(() => {
     if (!confirm('Сбросить записки Василия и начать с первой?')) return;
@@ -117,7 +117,7 @@ function kidMoment() {
   notify({ icon: '💌', title: 'Записка от мамы', text: note.t, keep: true, read: true });
   showNote(note, SFX);
 }
-const stat = k => { (save.stats ||= {})[k] = (save.stats[k] || 0) + 1; persist(); };
+const stat = k => { (save.stats || (save.stats = {}))[k] = (save.stats[k] || 0) + 1; persist(); };
 
 // клад: монеты, кристаллы, иногда предмет
 function digPrize() {
@@ -126,7 +126,7 @@ function digPrize() {
   save.coins += coins;
   let extra = '';
   if (x < 0.4) { const n = 1 + Math.floor(Math.random() * 3); save.res.crystal = (save.res.crystal || 0) + n; extra = ` и ${n} 💎`; }
-  else if (x < 0.6) { save.items ||= {}; save.items.potion = (save.items.potion || 0) + 1; extra = ' и зелье 🧪'; }
+  else if (x < 0.6) { if (!save.items) save.items = {}; save.items.potion = (save.items.potion || 0) + 1; extra = ' и зелье 🧪'; }
   else if (x < 0.8) { save.bananas += 2; extra = ' и 2 банана 🍌'; }
   persist(); confetti(hero.pos, 40);
   toast(`💰 Клад! +${coins} монет${extra}<small>новый клад тут будет завтра</small>`);
@@ -150,7 +150,7 @@ function talkBeaver(qs) {
   if (r.coins) save.coins += r.coins;
   if (r.crystal) save.res.crystal = (save.res.crystal || 0) + r.crystal;
   if (r.bananas) save.bananas += r.bananas;
-  for (const [k, n] of Object.entries(r.items || {})) { save.items ||= {}; save.items[k] = (save.items[k] || 0) + n; }
+  for (const [k, n] of Object.entries(r.items || {})) { if (!save.items) save.items = {}; save.items[k] = (save.items[k] || 0) + n; }
   let egg = '';
   if (r.egg) { const inc = freeIncubator(); if (inc) { placeEgg(inc, 3, Date.now() + hatchTime(3, 'rainbow'), null, 'forest', 'rainbow'); saveInc(); } else { save.coins += 2000; egg = ' (инкубаторы заняты — вместо яйца +2000 монет)'; } }
   questNext(save); persist(); SFX.fanfare(); confetti(hero.pos, 70);
@@ -222,10 +222,10 @@ const shopItems = () => [
     } },
   { icon: '🧪', name: 'Зелье скорости', what: `кнопка 🧪 над прыжком — выпей, когда надо: ${B.POTION_TIME} секунд бежишь намного быстрее`,
     now: `у тебя ${itemCount('potion')} 🧪`, goal: 'пей прямо в погоне — от самого быстрого сторожа',
-    cost: POTION_COST, buy() { save.coins -= POTION_COST; (save.items ||= {}).potion = itemCount('potion') + 1; persist(); } },
+    cost: POTION_COST, buy() { save.coins -= POTION_COST; (save.items || (save.items = {})).potion = itemCount('potion') + 1; persist(); } },
   { icon: '🧭', name: 'Компас', what: `кнопка 🧭 над прыжком — ${B.COMPASS_TIME} секунд стрелка показывает на ближайший спрятанный свиток 📜 (а когда их нет — на звезду ⭐)`,
     now: `у тебя ${itemCount('compass')} 🧭`, goal: 'включай там, где ещё что-то не найдено',
-    cost: COMPASS_COST, buy() { save.coins -= COMPASS_COST; (save.items ||= {}).compass = itemCount('compass') + 1; persist(); } },
+    cost: COMPASS_COST, buy() { save.coins -= COMPASS_COST; (save.items || (save.items = {})).compass = itemCount('compass') + 1; persist(); } },
 ];
 
 // верстак: материалы → инструменты → найденные рецепты (ненайденные — с подсказкой, где искать)
@@ -273,7 +273,7 @@ const tier = p => p.rainbow ? 3 : p.gold ? 2 : p.big ? 1 : 0;
 const TIER_NAME = ['обычный', 'большой', 'золотой', 'радужный'];
 function fusionGroups() {
   const groups = {};
-  for (const p of save.pets) { const k = p.s + ':' + tier(p); (groups[k] ||= []).push(p); }
+  for (const p of save.pets) { const k = p.s + ':' + tier(p); (groups[k] || (groups[k] = [])).push(p); }
   return Object.values(groups).filter(g => g.length >= 3 && tier(g[0]) < 3).map(g => {
     const t = tier(g[0]);
     return {
@@ -466,7 +466,7 @@ export function updateGame(dt) {
   if (fe.plate) SFX.tap();
   if (fe.puzzle) {
     // загадка: раз в 10 минут за неё дают монеты и кристаллы; звезда появляется один раз
-    const last = (save.puzzles ||= {})[fe.puzzle] || 0;
+    const last = (save.puzzles || (save.puzzles = {}))[fe.puzzle] || 0;
     if (now - last > 600000) { save.puzzles[fe.puzzle] = now; save.coins += 200; save.res.crystal = (save.res.crystal || 0) + 2; persist(); toast('🗿 Плиты зажглись! +200 монет, +2 💎'); }
     SFX.fanfare(); confetti(p, 60); kidMoment();
   }
@@ -492,7 +492,7 @@ export function updateGame(dt) {
   if (xe.ring) SFX.coins();
   if (xe.raceWin) {
     stat('races'); SFX.fanfare();
-    const first = !save.stars?.[xe.raceWin]; (save.stars ||= {})[xe.raceWin] = true;
+    const first = !save.stars?.[xe.raceWin]; (save.stars || (save.stars = {}))[xe.raceWin] = true;
     save.coins += 150; persist(); toast(`🏁 Успел! +150 монет${first ? ' и ⭐' : ''}`); kidMoment();
   }
   if (xe.raceLose !== undefined) { SFX.nope(); toast(`⏱ Время вышло — ${xe.raceLose} колец. Попробуй ещё!<small>встань на синюю плиту старта</small>`); }
