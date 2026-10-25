@@ -28,14 +28,22 @@
   window.__bootErr = function (m) { if (window.__running) return; errs.push(m); if (document.body) show(); else addEventListener('DOMContentLoaded', show); };
   addEventListener('error', function (e) { if (e.message) window.__bootErr(e.message + ' @ ' + String(e.filename || '').split('/').pop() + ':' + (e.lineno || '')); });
   addEventListener('unhandledrejection', function (e) { var r = e.reason; window.__bootErr('promise: ' + (r && (r.stack || r.message) || r)); });
-  // не дошли до меню — пишем, сколько файлов успело скачаться (если стоит на одном — тормозит сеть, а не игра)
-  function loaded() {
-    var r = performance.getEntriesByType('resource').filter(function (e) { return /\.js/.test(e.name); });
-    var kb = Math.round(r.reduce(function (s, e) { return s + (e.transferSize || 0); }, 0) / 1024);
-    return 'скачано файлов: ' + r.length + ' из ~32 (' + kb + ' КБ), three.js: ' + (window.THREE ? 'да' : 'нет') + ', последний: ' + (r.length ? r[r.length - 1].name.split('/').pop() : '—');
+  // полоска загрузки на стартовом экране: сколько файлов игры уже скачано; встала надолго — подсказываем про сеть
+  var FILES = 31, lastN = 0, lastT = Date.now();
+  function tick() {
+    var box = document.getElementById('loading'); if (!box) return setTimeout(tick, 200);
+    if (window.__menuReady) { box.style.display = 'none'; document.querySelector('#profiles .cards').classList.remove('wait'); return; }
+    var n = performance.getEntriesByType('resource').filter(function (e) { return /\.js/.test(e.name); }).length;
+    if (n !== lastN) { lastN = n; lastT = Date.now(); }
+    box.querySelector('i').style.width = Math.min(97, Math.round(n / FILES * 100)) + '%';
+    var slow = Date.now() - lastT > 12000;
+    box.querySelector('span').innerHTML = slow
+      ? 'Интернет очень медленный… можно подождать<br><small>или подключиться к другой сети — например, к раздаче с телефона</small>'
+      : 'Загружаем игру… ' + Math.min(n, FILES) + ' из ' + FILES;
+    box.classList.toggle('slow', slow);
+    setTimeout(tick, 250);
   }
-  setTimeout(function () { if (!window.__menuReady && !errs.length) window.__bootErr('игра не дошла до меню за 10 секунд; ' + loaded()); }, 10000);
-  setTimeout(function () { if (!window.__menuReady) window.__bootErr('через 40 секунд: ' + loaded()); }, 40000);
+  tick();
 })();
 </script>
 <style>
@@ -147,6 +155,13 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 .pcard .go{font-size:min(4.2vw,3.4vh,18px);font-weight:bold;color:#fff;padding:5px 14px;border-radius:16px}
 .pcard.boy .go{background:#3fa7ff;box-shadow:0 3px 0 #1f7fd0}
 .pcard.girl .go{background:#ff5f9e;box-shadow:0 3px 0 #d63d7c}
+#profiles .cards.wait{opacity:.55;pointer-events:none}
+#loading{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;color:#2b5d8f;font-weight:bold;font-size:min(4.4vw,3.6vh,18px);text-align:center}
+#loading .bar{width:min(70vw,320px);height:14px;border-radius:8px;background:#fff9;box-shadow:inset 0 0 0 3px #fff;overflow:hidden}
+#loading .bar i{display:block;height:100%;width:0;border-radius:8px;background:linear-gradient(90deg,#ffd23f,#ff8a3d);transition:width .3s}
+#loading.slow .bar i{background:repeating-linear-gradient(45deg,#ffb020 0 10px,#ffd23f 10px 20px);animation:barmove 1s linear infinite}
+#loading small{font-size:.8em;font-weight:normal}
+@keyframes barmove{to{background-position:28px 0}}
 #profiles .ver{position:absolute;bottom:calc(6px + env(safe-area-inset-bottom));left:0;right:0;text-align:center;font-size:12px;color:#fffc;text-shadow:0 1px 2px rgba(0,0,0,.35);pointer-events:none}
 @media (prefers-reduced-motion: reduce){#profiles *{animation:none!important}}
 #pinbox{background:#fff;border-radius:32px;padding:18px 20px 22px;text-align:center;width:min(92vw,330px);box-shadow:0 10px 30px rgba(0,0,0,.2)}
@@ -297,10 +312,11 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
   <i class="egg" style="--bg:linear-gradient(135deg,#fff3a0,#ffd23f 60%,#e0a000);left:44%;bottom:3%;--w:34px;--d:-2.6s"></i>
   <div class="title">Мастер<small>воровства яиц</small></div>
   <div class="who">Кто играет?</div>
-  <div class="cards">
+  <div class="cards wait">
     <button class="pcard boy" data-p="motya"><span class="pic"><img alt=""></span><span class="name">Мотя</span><span class="go">▶ Играть</span></button>
     <button class="pcard girl" data-p="mama"><span class="pic"><img alt=""></span><span class="name">Мама</span><span class="go">🔒 Играть</span></button>
   </div>
+  <div id="loading"><div class="bar"><i></i></div><span>Загружаем игру…</span></div>
   <div class="ver" id="ver"></div>
 </div>
 <div id="pin" class="ov"><div id="pinbox">
