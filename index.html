@@ -28,7 +28,14 @@
   window.__bootErr = function (m) { if (window.__running) return; errs.push(m); if (document.body) show(); else addEventListener('DOMContentLoaded', show); };
   addEventListener('error', function (e) { if (e.message) window.__bootErr(e.message + ' @ ' + String(e.filename || '').split('/').pop() + ':' + (e.lineno || '')); });
   addEventListener('unhandledrejection', function (e) { var r = e.reason; window.__bootErr('promise: ' + (r && (r.stack || r.message) || r)); });
-  setTimeout(function () { if (!window.__menuReady && !errs.length) window.__bootErr('игра не дошла до меню за 10 секунд'); }, 10000);
+  // не дошли до меню — пишем, сколько файлов успело скачаться (если стоит на одном — тормозит сеть, а не игра)
+  function loaded() {
+    var r = performance.getEntriesByType('resource').filter(function (e) { return /\.js/.test(e.name); });
+    var kb = Math.round(r.reduce(function (s, e) { return s + (e.transferSize || 0); }, 0) / 1024);
+    return 'скачано файлов: ' + r.length + ' из ~32 (' + kb + ' КБ), three.js: ' + (window.THREE ? 'да' : 'нет') + ', последний: ' + (r.length ? r[r.length - 1].name.split('/').pop() : '—');
+  }
+  setTimeout(function () { if (!window.__menuReady && !errs.length) window.__bootErr('игра не дошла до меню за 10 секунд; ' + loaded()); }, 10000);
+  setTimeout(function () { if (!window.__menuReady) window.__bootErr('через 40 секунд: ' + loaded()); }, 40000);
 })();
 </script>
 <style>
