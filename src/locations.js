@@ -4,6 +4,10 @@ import { B } from './balance.js';
 import { T, scene, group, box } from './engine.js';
 import { C, solid, tree, fence, clouds, portal, groundY, level, addCollider, PEN, CAVE, TOWER } from './world.js';
 import { addZip, addRace, addDig, addWell, addArrow, addBeaver } from './extras.js';
+import { buildTrack } from './track.js';
+import { buildAutumn, AUTUMN } from './autumn.js';
+import { FRIEND_HOMES } from './friends.js';
+import { makeLabel } from './fx.js';
 import { addStar, addScroll, addPad, addBunny, addCritter, addDuck, addButterfly, addRotor, addWaterfall, addMushroom, addPlates } from './fun.js';
 import { buildTerrain, water } from './terrain.js';
 import { defineNests } from './eggs.js';
@@ -15,6 +19,8 @@ function seeded(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; 
 // ================= БАЗА =================
 // порталы в северной стене: x — центр прохода
 export const BASE_PORTALS = { forest: 0, desert: -26, ice: 26 };
+const TRACK_PORTAL = { x: 46, z: 34 };
+const AUTUMN_PORTAL = { x: -70, z: 49 };                             // Осень — в бывшей пещере за валуном                               // Дорожка — в восточной стене
 
 function buildBase(save) {
   const w = group(scene);
@@ -22,7 +28,13 @@ function buildBase(save) {
   // западная стена с проходом в пещеру, восточная — сплошная
   solid(w, 2, 12, CAVE.gap[0] + 5, C.wall, -46, 0, (CAVE.gap[0] - 5) / 2, { cam: true });
   solid(w, 2, 12, 65 - CAVE.gap[1], C.wall, -46, 0, (CAVE.gap[1] + 65) / 2, { cam: true });
-  solid(w, 2, 12, 70, C.wall, 46, 0, 30, { cam: true });
+  // восточная стена с проёмом под портал Дорожки (z от 25 до 43)
+  solid(w, 2, 12, 30, C.wall, 46, 0, 10, { cam: true }); solid(w, 2, 12, 22, C.wall, 46, 0, 54, { cam: true });
+  portal(w, { x: 46, z: TRACK_PORTAL.z, to: 'track', color: 0xff5a3d, label: '🏁 Дорожка', rot: -Math.PI / 2 });
+  // песчаная тропинка от дома к Дорожке и указатель
+  solid(w, 41, 0.08, 3, 0xe9d9a6, 23.5, 0, 42.5, { shadow: false }); solid(w, 3, 0.08, 9, 0xe9d9a6, 43, 0, 37.5, { shadow: false });
+  box(w, 0.3, 2.4, 0.3, 0x8a5a2b, 5, 1.2, 40.5, { studs: false }); box(w, 2.6, 0.9, 0.15, 0xffd23f, 6, 2.2, 40.5, { studs: false });
+  const sign = makeLabel(5, 1.25); sign.position.set(6, 3.4, 40.5); scene.add(sign); sign.userData.set('🏁 Дорожка →', { color: '#ffffff' });
   solid(w, 94, 12, 2, C.wall, 0, 0, 66, { cam: true });
   // северная стена с тремя порталами
   for (const [x0, x1] of [[-47, -35], [-17, -9], [9, 17], [35, 47]]) {
@@ -45,25 +57,22 @@ function buildBase(save) {
   if (save.tools.house) petHouse();
 
   // деревья и площадка с лесенкой
-  for (const [x, z, s, k] of [[-38, 8, 1, 'apple'], [-40, 52, 1.2, 'pine'], [38, 58, 1, 'birch'], [40, 6, 1.1, 'oak'], [-22, 58, 0.9, 'pine'], [24, 60, 1, 'apple'], [-36, 30, 0.9, 'birch']]) tree(w, x, z, s, 0, k);
+  for (const [x, z, s, k] of [[-44, 0, 1, 'apple'], [-40, 52, 1.2, 'pine'], [38, 58, 1, 'birch'], [40, 6, 1.1, 'oak'], [-22, 58, 0.9, 'pine'], [24, 60, 1, 'apple'], [-36, 30, 0.9, 'birch']]) tree(w, x, z, s, 0, k);
   for (let i = 0; i < 5; i++) solid(w, 3, 1 + i, 3, [0x3fa7ff, 0xff5a5a, 0xffd93b, 0x9b6bff, 0x40e0d0][i], 38 - i * 3, 0, 46, { cam: true });
   solid(w, 6, 5, 6, 0x3fa7ff, 21.5, 0, 46, { cam: true });
 
-  // кристальная пещера за валуном (кирка)
+  // бывшая пещера за валуном (кирка): теперь осенний дворик с порталом в Осеннюю долину
   const K = CAVE, kx = (K.x0 + K.x1) / 2, kz = (K.z0 + K.z1) / 2;
-  solid(w, K.x1 - K.x0, 1, K.z1 - K.z0, 0x6a5a86, kx, -1, kz);
-  solid(w, 31, 14, 2, 0x4a3a66, kx - 1, 0, K.z0 - 1, { cam: true }); solid(w, 31, 14, 2, 0x4a3a66, kx - 1, 0, K.z1 + 1, { cam: true });
-  solid(w, 2, 14, K.z1 - K.z0, 0x4a3a66, K.x0 - 1, 0, kz, { cam: true });
-  for (let i = 0; i < 10; i++) {                     // светящиеся грибочки
-    const x = K.x0 + 3 + (i * 41) % 26, z = K.z0 + 2 + (i * 29) % 22;
-    box(w, 0.25, 0.6, 0.25, 0xffffff, x, 0.3, z, { shadow: false });
-    const cap = box(w, 0.8, 0.35, 0.8, [0x3fe0ff, 0xff7ae0, 0x9bff6a][i % 3], x, 0.75, z, { shadow: false });
-    cap.material = cap.material.clone(); cap.material.emissive.setHex([0x1a6a80, 0x803070, 0x407a20][i % 3]);
-  }
+  solid(w, K.x1 - K.x0, 1, K.z1 - K.z0, 0xd9a443, kx, -1, kz);
+  solid(w, 31, 12, 2, 0x8a4a1e, kx - 1, 0, K.z0 - 1, { cam: true }); solid(w, 31, 12, 2, 0x8a4a1e, kx - 1, 0, K.z1 + 1, { cam: true });
+  solid(w, 2, 12, K.z1 - K.z0, 0x8a4a1e, K.x0 - 1, 0, kz, { cam: true });
+  for (const z of [K.z0 - 1, K.z1 + 1]) box(w, 31, 1, 2.4, 0xff7b22, kx - 1, 12.5, z, { studs: true });
+  portal(w, { x: AUTUMN_PORTAL.x, z: AUTUMN_PORTAL.z, to: 'autumn', color: 0xff8a1a, label: '🍂 Осень', rot: Math.PI / 2 });
+  for (const [x, z, k] of [[-52, 39, 'maple'], [-52, 59, 'golden'], [-60, 38, 'rust'], [-60, 60, 'maple']]) tree(w, x, z, 0.7, 0, k);
+  for (let i = 0; i < 18; i++) { const x = K.x0 + 8 + (i * 37) % 22, z = K.z0 + 2 + (i * 23) % 22; const lf = box(w, 0.5, 0.04, 0.4, [0xe2442a, 0xff8a1a, 0xffc22a][i % 3], x, 0.03, z, { shadow: false, studs: false }); lf.rotation.y = i; }
   const kg = (K.gap[0] + K.gap[1]) / 2;
   addDoor(save, { id: 'cave', x: -46, z: kg, look: 'boulder', col: { x0: -47.8, x1: -44.2, z0: K.gap[0], z1: K.gap[1] } });
-  for (const [x, z] of [[-72, 58], [-60, 39], [-50, 59], [-70, 46]]) addRock(x, z, 'cluster');
-  addRock(-56, 48, 'boulder', true);
+  const toAutumn = makeLabel(6.5, 1.6); toAutumn.position.set(-44, 6, kg); scene.add(toAutumn); toAutumn.userData.set('🍂 Осень — за валуном', { color: '#ffd23f' });
 
   // башня с сундуком (верёвка)
   solid(w, 4, TOWER.h, 4, 0x8f8fa8, TOWER.x, 0, TOWER.z, { cam: true });
@@ -74,9 +83,9 @@ function buildBase(save) {
 
   // ресурсы на базе
   for (const [x, z] of [[-38, 0], [-36, 46], [-26, 56], [6, 64], [30, 52], [42, 42], [-40, 26], [4, 40]]) addLoose(x, z, 'wood');
-  for (const [x, z] of [[-34, 10], [-4, 46], [30, 2], [44, 24], [-28, 52], [-4, 64], [-70, 40], [-55, 58], [-62, 44]]) addLoose(x, z, 'stone');
+  for (const [x, z] of [[-10, 12], [-4, 46], [30, 2], [44, 24], [-28, 52], [-4, 64], [-56, 40], [-55, 58], [-62, 44]]) addLoose(x, z, 'stone');
   for (const [x, z] of [[-30, 50], [28, 4]]) addRock(x, z);
-  for (const [x, z] of [[-42, 30], [-14, 44], [36, 30], [-30, 4], [22, 64], [42, 50]]) addLoose(x, z, 'leaf');
+  for (const [x, z] of [[-42, 30], [-14, 44], [36, 30], [-12, 5], [22, 64], [42, 50]]) addLoose(x, z, 'leaf');
   buildWorkbench();
   clouds(w);
   return w;
@@ -474,7 +483,7 @@ function buildForest(save) {
   addStar(save, 'forest-island', F.river(9), 9, 0);
 
   // деревья, ресурсы, камни, зверушки — не в реке, не у построек, не у гнёзд и не у портала
-  const busy = [[F.plateau, P.r + 3], [F.bigTree, 9], [F.hill, 7], [F.fort, 13], [F.sky, 7], [F.log, 8], [F.mountain, 4], [F.cave, 6], [F.spawn, 13], [F.mush, 16], [F.village, 16], [F.circle, 12], [F.camp, 10], [F.zipTower, 8], [F.ship, 12], [F.well, 4], [F.race, 4],
+  const busy = [[F.plateau, P.r + 3], [F.bigTree, 9], [F.hill, 7], [F.fort, 13], [F.sky, 7], [F.log, 8], [F.mountain, 4], [F.cave, 6], [F.spawn, 13], [F.mush, 16], [F.village, 16], [F.circle, 12], [F.camp, 10], [F.zipTower, 8], [F.ship, 12], [F.well, 4], [F.race, 4], ...FRIEND_HOMES('forest').map(o => [o, o.area || 5]),
     ...F.race.rings.map(([x, z]) => [{ x, z }, 5]), ...F.digs.map(([x, z]) => [{ x, z }, 3]), ...F.arrows.map(([x, z]) => [{ x, z }, 3]), ...F.zipEnds.map(o => [o, 4])];
   const free = (x, z, pad = 0) => {
     if (Math.max(Math.abs(x), Math.abs(z)) > F.edge - 6) return false;
@@ -505,10 +514,12 @@ function buildForest(save) {
   clouds(w, 10);
   return w;
 }
-export const STARS_IN = { forest: 19 };
+export const STARS_IN = { forest: 19, autumn: 6 };
 
 // ================= СПИСОК =================
 export const LOCS = {
+  autumn: { name: 'Осень', icon: '🍂', build: buildAutumn, spawn: { x: AUTUMN.spawn.x, z: AUTUMN.spawn.z, face: Math.PI }, sky: 0xffcf9a },
+  track: { name: 'Дорожка', icon: '🏁', build: buildTrack, spawn: { x: 0, z: 6, face: Math.PI }, sky: 0xbfe6ff },
   base: { name: 'База', icon: '🏠', build: buildBase, spawn: { x: 0, z: 34, face: Math.PI }, sky: 0x8fd3ff },
   forest: { name: 'Лес', icon: '🌲', req: B.REQ.forest, build: buildForest, spawn: { x: FOREST.spawn.x, z: FOREST.spawn.z, face: Math.PI }, sky: 0x9fdcff },
   desert: {
@@ -525,9 +536,65 @@ export const LOCS = {
   },
 };
 // куда ставить героя на базе, когда он вернулся из локации
-export const backFrom = id => ({ x: BASE_PORTALS[id] ?? 0, z: 0, face: 0 });
+export const backFrom = id => id === 'autumn' ? { x: AUTUMN_PORTAL.x + 7, z: AUTUMN_PORTAL.z, face: Math.PI / 2 } : id === 'track' ? { x: TRACK_PORTAL.x - 6, z: TRACK_PORTAL.z, face: -Math.PI / 2 } : { x: BASE_PORTALS[id] ?? 0, z: 0, face: 0 };
 // все гнёзда описываются сразу — их таймеры идут, даже если в локации ни разу не были
 export function defineAllNests() {
-  defineNests('base', [{ x: -62, z: 52, r: 4, guard: null, s: 1.3, every: 3 }]);      // в пещере
+  // (гнездо в пещере переехало: в бывшей пещере теперь портал в Осеннюю долину)
 }
 export { PEN };
+
+// ---------- карта (🗺️): что где находится. Координаты — те же, что у построек ----------
+// bounds — какую часть рисовать; areas — подложки (rect/circle), marks — значки мест; river — русло (в лесу)
+export function mapData(id) {
+  const F = FOREST;
+  if (id === 'base') return {
+    bounds: { x0: -78, x1: 50, z0: -10, z1: 68 }, ground: '#7fd86a',
+    areas: [
+      { rect: [-46, 46, -6, 66], fill: '#8fe07a' }, { rect: [-76, -45, 36, 62], fill: '#e0b050' },
+      { rect: [-30, -8, 16, 40], fill: '#c8e88a' }, { rect: [8, 30, 16, 40], fill: '#c8e88a' },
+      { rect: [-3, 3, -3, 31], fill: '#efe2b8' }, { rect: [-23, 23, -2.5, 2.5], fill: '#efe2b8' }, { rect: [3, 44, 41, 44], fill: '#efe2b8' },
+    ],
+    marks: [
+      ['🌲', 'Лес', 0, -6], ['🏜️', 'Пустыня', -26, -6], ['❄️', 'Лёд', 26, -6], ['🏁', 'Дорожка', 46, 34],
+      ['🐣', 'Загон', -19, 28], ['🛒', 'Магазин', 8, 52], ['🔨', 'Верстак', 0, 57], ['👟', 'Тренировка', -8, 49],
+      ['📬', 'Почта', 5, 30], ['🗼', 'Башня', 38, 24], ['🎠', 'Площадка', 22, 6], ['🥅', 'Футбол', -35, 5], ['🍂', 'Осень (за валуном)', -62, 49],
+    ],
+  };
+  if (id === 'forest') return {
+    bounds: { x0: -100, x1: 100, z0: -100, z1: 100 }, ground: '#6fcf5a', river: F.river,
+    areas: [
+      { circle: [F.mountain.x, F.mountain.z, F.mountain.r], fill: '#9fbf86' }, { circle: [F.plateau.x, F.plateau.z, F.plateau.r], fill: '#b08a5a' },
+      { circle: [F.lake.x, F.lake.z, F.lake.r], fill: '#4aa8f0' }, { circle: [F.lake.x, F.lake.z, F.lake.island], fill: '#8fe07a' },
+      { rect: [F.maze.x0, F.maze.x0 + F.maze.n * F.maze.cell, F.maze.z0, F.maze.z0 + F.maze.n * F.maze.cell], fill: '#3f9a3a' },
+      { rect: [F.glade.x0, F.glade.x1, F.glade.z0, F.glade.z1], fill: '#a8e890' },
+    ],
+    marks: [
+      ['🌀', 'На базу', F.spawn.x, F.spawn.z + 8], ['🌳', 'Дерево-великан', F.bigTree.x, F.bigTree.z], ['⛰️', 'Гора', F.mountain.x, F.mountain.z],
+      ['🏡', 'Мельница', F.hill.x, F.hill.z], ['🏰', 'Крепость', F.fort.x, F.fort.z], ['☁️', 'Остров в небе', F.sky.x, F.sky.z], ['🪨', 'Плато', F.plateau.x, F.plateau.z],
+      ['🪵', 'Бревно', F.log.x, F.log.z], ['🕳️', 'Пещерка', F.cave.x, F.cave.z], ['🍄', 'Грибы', F.mush.x, F.mush.z], ['🌿', 'Лабиринт', F.maze.x0 + 14, F.maze.z0 + 14],
+      ['🏘️', 'Деревня', F.village.x, F.village.z], ['🗿', 'Камни', F.circle.x, F.circle.z], ['⛺', 'Лагерь', F.camp.x, F.camp.z], ['🚡', 'Канатка', F.zipTower.x, F.zipTower.z],
+      ['🏴‍☠️', 'Корабль', F.ship.x, F.ship.z], ['🪙', 'Колодец', F.well.x, F.well.z], ['⭕', 'Гонка', F.race.x, F.race.z], ['💧', 'Озеро', F.lake.x, F.lake.z + F.lake.r - 3],
+      ['🌼', 'Тайная поляна', (F.glade.x0 + F.glade.x1) / 2, (F.glade.z0 + F.glade.z1) / 2], ['🟥', 'Цветные плиты', -33, 51],
+    ],
+  };
+  if (id === 'autumn') { const U = AUTUMN; return {
+    bounds: { x0: -72, x1: 72, z0: -72, z1: 72 }, ground: '#d9b048',
+    areas: [
+      { circle: [U.pond.x, U.pond.z, U.pond.r], fill: '#4a9fd8' }, { circle: [U.pond.x, U.pond.z, U.pond.island], fill: '#ccae44' },
+      { circle: [U.fair.x, U.fair.z, U.fair.r], fill: '#e8cc8a' }, { rect: [U.patch.x0, U.patch.x1, U.patch.z0, U.patch.z1], fill: '#8a5a2b' },
+      { rect: [U.orchard.x0, U.orchard.x1, U.orchard.z0, U.orchard.z1], fill: '#e0a040' }, { circle: [U.rocks.x, U.rocks.z, 11], fill: '#b5aa9a' },
+    ],
+    marks: [
+      ['🌀', 'На базу', U.spawn.x, U.spawn.z + 8], ['🎡', 'Колесо', U.wheel.x, U.wheel.z], ['🎪', 'Ярмарка', U.fair.x - 8, U.fair.z + 8], ['💧', 'Пруд', U.pond.x, U.pond.z + U.pond.r - 2],
+      ['🎃', 'Грядка', (U.patch.x0 + U.patch.x1) / 2, (U.patch.z0 + U.patch.z1) / 2], ['🏠', 'Домик-тыква', U.house.x, U.house.z], ['🍎', 'Сад', (U.orchard.x0 + U.orchard.x1) / 2, (U.orchard.z0 + U.orchard.z1) / 2],
+      ['🛝', 'Горка', U.slide.x, U.slide.z], ['🎳', 'Боулинг', (U.bowl.x0 + U.bowl.x1) / 2, U.bowl.z0 - 2], ['🍁', 'Большой клён', U.maple.x, U.maple.z], ['💎', 'Кристаллы', U.rocks.x, U.rocks.z],
+      ...U.piles.map(([x, z]) => ['🍂', '', x, z]),
+    ],
+  }; }
+  if (id === 'track') return {
+    bounds: { x0: -26, x1: 26, z0: -190, z1: 22 }, ground: '#7fd86a', rotate: 'landscape',   // лёжа — только на горизонтальном экране
+    areas: [{ rect: [-7, 7, -184, 16], fill: '#e0784a' }, { rect: [-7, 7, -7.2, -4.8], fill: '#ffe14d' }],
+    marks: [['🏠', 'База', 0, 12], ['🏁', 'Твоя линия', 0, -6], ['🏰', 'Логово', 0, -180]],
+  };
+  return null;
+}

@@ -8,7 +8,7 @@ const BOTTOM = -4;
 // size — сторона квадратной карты, cell — сторона клетки; height(x, z) — высота (уже ступенькой),
 // color(x, z, h) — цвет верха клетки; side — цвет склонов.
 // cliff — с этой высоты начинаются настоящие скалы; всё ниже сглаживается до ступенек не выше maxStep
-export function buildTerrain(parent, { size, cell, height, color, side = 0x9c6a3c, cliff = 6, maxStep = 1, grass = 0 }) {
+export function buildTerrain(parent, { size, cell, height, color, side = 0x9c6a3c, cliff = 6, maxStep = 1, grass = 0, grassHue = 0.27 }) {   // grassHue: 0.27 — зелёная, ~0.1 — осенняя
   const n = Math.round(size / cell), half = size / 2;
   const H = new Float32Array(n * n);
   for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) H[i * n + j] = height(-half + (i + 0.5) * cell, -half + (j + 0.5) * cell);
@@ -63,12 +63,12 @@ export function buildTerrain(parent, { size, cell, height, color, side = 0x9c6a3
   mesh.receiveShadow = true; parent.add(mesh);
 
   level.ground = (x, z) => h(Math.floor((x + half) / cell), Math.floor((z + half) / cell));
-  if (grass) tufts(parent, grass, size, (x, z) => { const y = level.ground(x, z); return y >= 0 && y < cliff - 1 ? y : null; });
+  if (grass) tufts(parent, grass, size, (x, z) => { const y = level.ground(x, z); return y >= 0 && y < cliff - 1 ? y : null; }, grassHue);
   return mesh;
 }
 
 // пучки травы: тысячи травинок одним мешем (рисуются за один раз)
-function tufts(parent, n, size, ground) {
+function tufts(parent, n, size, ground, hue = 0.27) {
   const geo = new T.BoxGeometry(0.12, 0.6, 0.12); geo.translate(0, 0.3, 0);
   const m = new T.InstancedMesh(geo, new T.MeshLambertMaterial({ color: 0xffffff }), n * 3);
   const o = new T.Object3D(), c = new T.Color(); let k = 0;
@@ -79,7 +79,7 @@ function tufts(parent, n, size, ground) {
       o.position.set(x + (Math.random() - 0.5) * 0.3, y, z + (Math.random() - 0.5) * 0.3);
       o.rotation.set((Math.random() - 0.5) * 0.5, Math.random() * 3, (Math.random() - 0.5) * 0.5);
       o.scale.set(1, 0.6 + Math.random() * 0.8, 1); o.updateMatrix(); m.setMatrixAt(k, o.matrix);
-      m.setColorAt(k, c.setHSL(0.27 + Math.random() * 0.06, 0.65, 0.32 + Math.random() * 0.15)); k++;
+      m.setColorAt(k, c.setHSL(hue + Math.random() * 0.06, 0.65, 0.32 + Math.random() * 0.15)); k++;
     }
   }
   m.count = k; m.instanceMatrix.needsUpdate = true; parent.add(m);

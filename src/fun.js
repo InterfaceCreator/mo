@@ -1,7 +1,7 @@
 // То, ради чего интересно бродить: звёзды в укромных местах, батуты, зверушки, крылья мельницы, водопад.
 // Всё — объекты текущей локации; локации расставляют их функциями add…
 import { T, scene, group, box, damp, dampAngle } from './engine.js';
-import { addCollider, onLevelReset, groundY, trees, bake } from './world.js';
+import { addCollider, onLevelReset, groundY, trees, bake, level } from './world.js';
 import { buildBeast, buildBird, animateAnimal } from './animals.js';
 import { puff, confetti } from './fx.js';
 
@@ -176,11 +176,12 @@ export function updateFun(dt, hero, save) {
     w.g.position.set(w.river(z), -0.45 + Math.sin(t * 3 + w.z0) * 0.04, z); w.g.rotation.y = dir;
   }
   // с деревьев рядом с героем иногда кружась падают листья
-  if ((leafT -= dt) <= 0 && leaves.length < 20) {
-    leafT = 0.25;
+  const autumn = level.id === 'autumn';                       // осенью листопад гуще и листья красно-рыжие
+  if ((leafT -= dt) <= 0 && leaves.length < (autumn ? 50 : 20)) {
+    leafT = autumn ? 0.07 : 0.25;
     const near = trees.filter(tr => tr.kind !== 'pine' && Math.abs(tr.x - p.x) < 22 && Math.abs(tr.z - p.z) < 22);
     if (near.length) {
-      const tr = near[Math.floor(Math.random() * near.length)], m = box(scene, 0.3, 0.05, 0.22, [0x7fe04a, 0xc8e04a, 0xffb02e][leaves.length % 3], tr.x + (Math.random() - 0.5) * 3 * tr.s, tr.y + 3.4 * tr.s, tr.z + (Math.random() - 0.5) * 3 * tr.s, { shadow: false });
+      const tr = near[Math.floor(Math.random() * near.length)], m = box(scene, 0.3, 0.05, 0.22, (autumn ? [0xe2442a, 0xff8a1a, 0xffc22a, 0xb5541a] : [0x7fe04a, 0xc8e04a, 0xffb02e])[leaves.length % (autumn ? 4 : 3)], tr.x + (Math.random() - 0.5) * 3 * tr.s, tr.y + 3.4 * tr.s, tr.z + (Math.random() - 0.5) * 3 * tr.s, { shadow: false });
       leaves.push({ m, t: 0, ph: Math.random() * 6, floor: groundY(m.position.x, m.position.z) });
     }
   }

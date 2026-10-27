@@ -6,6 +6,13 @@ import { LOCS, backFrom, defineAllNests, STARS_IN, petHouse } from './locations.
 import { updateFun, addPad, nearestFind } from './fun.js';
 import { updateExtras } from './extras.js';
 import { spawnVasya, updateVasya } from './vasya.js';
+import { updateTrack } from './track.js';
+import { updateAutumn } from './autumn.js';
+import { FRIENDS, spawnFriends, updateFriends, befriend, heartsOf, metFriend, meet, MAX_HEARTS } from './friends.js';
+import { startKidGame, updateKidGame, kidGameOn } from './kidgames.js';
+import { buildKids, updateKidSpots, startMini, updateMini, miniGame, miniOn } from './kids.js';
+import { buildPlayground, updatePlayground } from './playground.js';
+import { openMap } from './map.js';
 import { questNow, questNext } from './quests.js';
 import { nests, buildNests, updateNests, nestNear, takeEgg, returnEgg, releaseNest, refillLeft,
   buildIncubators, incubators, freeIncubator, placeEgg, updateIncubators, setIncSlots, eggMesh, setLuck, VARIANT_NAME, VARIANT_INFO } from './eggs.js';
@@ -16,8 +23,8 @@ import { buildBase, onShopPad, onTreadmill, updateTreadmill } from './base.js';
 import { updateCraft, onBenchPad, TOOLS, RES, RECIPES, SCROLL_WHERE, known, made, canCraft, craft } from './craft.js';
 import { save, persist, profile, stored } from './save.js';
 import { takeNote, resetNotes, takeKidNote, kidNoteReady } from './notes.js';
-import { setCoins, setSun, setSpeed, setItems, toast, petNote, notify, bindNotes, bindBook, openShop, shopOpen, setRes, openCraft, bindInventory, craftOpen, fade, setStars, setEffects, setQuest, openBuilding, openFusion, showNote, onBellHold } from './ui.js';
-import { puff, confetti, sprite, emojiTex, makeLabel } from './fx.js';
+import { setCoins, setSun, setSpeed, setItems, toast, petNote, notify, bindNotes, bindBook, openShop, shopOpen, setRes, openCraft, bindInventory, craftOpen, fade, setStars, setEffects, setQuest, openBuilding, openFusion, showNote, onBellHold, setKidHud } from './ui.js';
+import { puff, confetti, sprite, emojiTex, makeLabel, fireworks } from './fx.js';
 import { SFX } from './sfx.js';
 
 // баланс — в balance.js
@@ -37,6 +44,7 @@ export function initGame(h, camera) {
   setIncSlots(save.incSlots);
   rebuildPen(save.pets, save.penCap);
   if (!save.notes) save.notes = []; bindNotes(save.notes, persist);
+  document.getElementById('mapBtn').onclick = () => { SFX.tap(); openMap({ loc: level.id, hero: { x: hero.pos.x, z: hero.pos.z, face: hero.face }, save }); };
   // маме: держать 🔔 3 секунды — записки Василия с нуля (для проверки)
   if (profile === 'mama') onBellHold(() => {
     if (!confirm('Сбросить записки Василия и начать с первой?')) return;
@@ -45,7 +53,9 @@ export function initGame(h, camera) {
   applyBonuses();
   offlineIncome();
   defineAllNests();
-  bindBook(() => save.found, { all: EGG_KINDS, seen: () => save.eggs, thumb: e => modelThumb('egg:' + e.key, sc => ({ root: eggMesh(sc, e.r, 1, e.v) }), { yaw: 0.3, size: 128 }) });
+  bindBook(() => save.found, { all: EGG_KINDS, seen: () => save.eggs, thumb: e => modelThumb('egg:' + e.key, sc => ({ root: eggMesh(sc, e.r, 1, e.v) }), { yaw: 0.3, size: 128 }) },
+    { list: () => FRIENDS.map(f => ({ name: f.name, place: f.place, met: metFriend(save, f.id), hearts: heartsOf(save, f.id), max: MAX_HEARTS,
+      tip: f.special || `любит ${f.k === 'banana' ? '🍌' : RES[f.k]}`, thumb: modelThumb('friend:' + f.id, s => f.build(s), { yaw: 0.5, size: 160, dist: 1.6 }) })) });
   bindInventory(inventory);
   enter('base', LOCS.base.spawn);
 }
@@ -82,6 +92,9 @@ function enter(id, spawn) {
   const w = L.build(save);
   buildNests(id); buildGuards(nests);
   if (id === 'base') { buildBase(); buildIncubators(); setIncSlots(save.incSlots); buildPen(save.pets, save.penCap); buildPlots(save); buildMailbox(); spawnVasya(); }
+  spawnFriends(id, save);                          // друзья: Ряба на базе, Ёжик, Совёнок, Лисичка, Медвежонок в лесу
+  buildKids(id, w);                                // места для игр детей: футбол, боулинг, цветные плиты, челнок
+  if (id === 'base') buildPlayground(w || scene);  // качели, карусель, пузыри, надувной мяч
   if (w) bake(w);                                  // неподвижное склеиваем — меньше работы видеокарте
   hero.pos.set(spawn.x, groundY(spawn.x, spawn.z), spawn.z); hero.vel.set(0, 0, 0);
   hero.face = spawn.face; hero.model.root.rotation.y = spawn.face; hero.safe = hero.pos.clone();
@@ -117,6 +130,24 @@ function kidMoment() {
   notify({ icon: '💌', title: 'Записка от мамы', text: note.t, keep: true, read: true });
   showNote(note, SFX);
 }
+// дружба выросла на сердечко: награда; на 5-м — лучшие друзья и редкое яйцо
+function friendUp(f, h) {
+  const hearts = '❤️'.repeat(h) + '🤍'.repeat(MAX_HEARTS - h);
+  SFX.fanfare(); confetti(hero.pos, 50); stat('friendHearts');
+  if (h < MAX_HEARTS) {
+    const coins = B.FRIEND_GIFT[h - 1] || 0; save.coins += coins;
+    setTimeout(() => toast(`💕 ${f.name}: дружба ${hearts}<small>подарок другу — ответный подарок тебе: +${coins} монет</small>`), 1800);
+    notify({ icon: '💕', title: `${f.name}: ${hearts}`, text: `дружба крепнет! +${coins} монет` });
+  } else {
+    // лучшие друзья: редкое яйцо в инкубатор (или кристаллы, если все заняты)
+    const inc = freeIncubator(); let gift;
+    if (inc) { placeEgg(inc, B.FRIEND_BEST_EGG, Date.now() + hatchTime(B.FRIEND_BEST_EGG, null), null, 'forest', null); saveInc(); gift = 'эпическое яйцо — уже в инкубаторе 🥚'; }
+    else { save.res.crystal = (save.res.crystal || 0) + B.FRIEND_BEST_CRYSTALS; gift = `${B.FRIEND_BEST_CRYSTALS} кристаллов 💎`; }
+    setTimeout(() => toast(`💛 ${f.name}: вы лучшие друзья!<small>подарок: ${gift}</small>`), 1800);
+    notify({ icon: '💛', title: `${f.name} — лучший друг!`, text: `подарок: ${gift}` });
+  }
+  persist(); setTimeout(kidMoment, 3500);
+}
 const stat = k => { (save.stats || (save.stats = {}))[k] = (save.stats[k] || 0) + 1; persist(); };
 
 // клад: монеты, кристаллы, иногда предмет
@@ -144,6 +175,7 @@ function wish() {
 }
 // бобр: сдать готовое задание или напомнить, что нужно
 function talkBeaver(qs) {
+  meet(save, 'borya');
   if (!qs) { toast('🦫 Спасибо за всё! Ты лучший помощник в лесу 💛'); return; }
   if (!qs.ready) { toast(`🦫 ${qs.q.text}<small>сейчас ${qs.have} из ${qs.q.goal} · награда: ${qs.q.rewardText}</small>`); SFX.tap(); return; }
   const r = qs.q.reward; qs.q.take?.(save);
@@ -154,6 +186,7 @@ function talkBeaver(qs) {
   let egg = '';
   if (r.egg) { const inc = freeIncubator(); if (inc) { placeEgg(inc, 3, Date.now() + hatchTime(3, 'rainbow'), null, 'forest', 'rainbow'); saveInc(); } else { save.coins += 2000; egg = ' (инкубаторы заняты — вместо яйца +2000 монет)'; } }
   questNext(save); persist(); SFX.fanfare(); confetti(hero.pos, 70);
+  const bh = befriend(save, 'borya'); if (bh) setTimeout(() => friendUp(FRIENDS.find(f => f.id === 'borya'), bh), 2500);   // задания — это дружба с Борей
   const next = questNow(save);
   toast(`🦫 Спасибо! Держи: ${qs.q.rewardText}${egg}<small>${next ? 'новое задание: ' + next.q.text : 'это было последнее задание!'}</small>`);
   notify({ icon: '🦫', title: 'Задание бобра выполнено', text: `награда: ${qs.q.rewardText}` });
@@ -167,6 +200,8 @@ const ITEMS = [{ id: 'banana', icon: '🍌' }, { id: 'trap', icon: '🪤' }, { i
 const itemCount = id => id === 'banana' ? save.bananas : (save.items?.[id] || 0);
 function useItem(id) {
   if (itemCount(id) <= 0 || hero.climb) return;
+  // на Дорожке батут перебросил бы через ворота — там каждого зверя надо пройти честно
+  if (id === 'pad' && level.id === 'track') { SFX.nope(); toast('🟥 На Дорожке батут не работает<small>каждого зверя — только честно!</small>'); return; }
   if (id === 'banana') save.bananas--; else save.items[id]--;
   persist();
   // зелье и компас включаются, когда нажал; повторное нажатие добавляет время
@@ -234,7 +269,7 @@ function craftSections() {
     const lockedR = !known(r, save);
     return {
       icon: r.icon, name: r.name,
-      info: lockedR ? `рецепт не найден — ищи свиток 📜 ${SCROLL_WHERE[r.id] || ''}` : r.info + (r.type === 'mat' ? ` · есть ${save.res[r.id] || 0}` : r.type === 'item' ? ` · есть ${itemCount(r.id)}` : ''),
+      info: lockedR ? `рецепт не найден — ищи свиток 📜 ${SCROLL_WHERE[r.id] || ''}` : r.info + (r.type === 'mat' ? ` · есть ${save.res[r.id] || 0}` : r.type === 'item' ? ` · есть ${itemCount(r.give || r.id)}` : ''),
       chips: Object.entries(r.need).map(([k, n]) => ({ icon: RES[k], have: save.res[k] || 0, need: n })),
       state: lockedR ? 'locked' : made(r, save) ? 'done' : canCraft(r, save) ? 'can' : 'no',
       make() {
@@ -246,8 +281,9 @@ function craftSections() {
   };
   return [
     { title: 'Материалы', rows: RECIPES.filter(r => r.type === 'mat').map(row) },
-    { title: 'Инструменты', rows: RECIPES.filter(r => !r.scroll && r.type !== 'mat').map(row) },
+    { title: 'Инструменты', rows: RECIPES.filter(r => !r.scroll && !r.autumn && r.type !== 'mat').map(row) },
     { title: 'Рецепты из свитков 📜', rows: RECIPES.filter(r => r.scroll).map(row) },
+    { title: 'Осенние поделки 🍂 — из желудей и тыкв', rows: RECIPES.filter(r => r.autumn).map(row) },
   ];
 }
 
@@ -312,7 +348,7 @@ function claimDaily() {
 // рюкзак: ресурсы, инструменты, предметы, находки
 const ITEM_INFO = { banana: ['Банан', 'сторож поскользнётся'], trap: ['Ловушка', 'сторож посидит в клетке'], pad: ['Батут', 'ставится перед тобой'], potion: ['Зелье скорости', `${B.POTION_TIME} с быстрого бега`], compass: ['Компас', 'стрелка к спрятанному'] };
 function inventory() {
-  const RES_NAME = { wood: 'Брёвна', stone: 'Камни', crystal: 'Кристаллы', leaf: 'Листья', plank: 'Доски', brick: 'Кирпичи', thread: 'Нити' };
+  const RES_NAME = { wood: 'Брёвна', stone: 'Камни', crystal: 'Кристаллы', leaf: 'Листья', plank: 'Доски', brick: 'Кирпичи', thread: 'Нити', acorn: 'Жёлуди', pumpkin: 'Тыквы' };
   const stars = id => Object.keys(save.stars || {}).filter(k => k.startsWith(id + '-')).length;
   return [
     { title: 'Ресурсы и материалы', cells: Object.keys(RES).map(k => ({ icon: RES[k], n: save.res[k] || 0, name: RES_NAME[k], dim: !save.res[k] })) },
@@ -359,7 +395,8 @@ export function updateGame(dt) {
       }
       pt.told = near;
     }
-    if (!pt.locked && portalCool <= 0 && !hero.climb && Math.abs(p.x - pt.x) < pt.w / 2 && Math.abs(p.z - pt.z) < 1.2 && p.y - groundY(pt.x, pt.z) < 4) goThrough(pt);
+    const along = pt.side ? p.z - pt.z : p.x - pt.x, across = pt.side ? p.x - pt.x : p.z - pt.z;   // портал в боковой стене повёрнут
+    if (!pt.locked && portalCool <= 0 && !hero.climb && Math.abs(along) < pt.w / 2 && Math.abs(across) < 1.2 && p.y - groundY(pt.x, pt.z) < 4) goThrough(pt);
   }
 
   // подошёл к гнезду — яйцо само прыгает в руки, сторож просыпается
@@ -479,9 +516,51 @@ export function updateGame(dt) {
   // кот Василий гуляет по базе; подойди и постой рядом — погладишь
   if (atBase) {
     const ve = updateVasya(dt, hero);
-    if (ve.meow) SFX.meow();
+    if (ve.meow) { SFX.meow(); meet(save, 'vasya'); }
     if (ve.purr) SFX.purr();
-    if (ve.petted && !hero.vasyaToday) { hero.vasyaToday = true; toast('🐱 Мур-мур! Василий доволен 💛'); }
+    if (ve.petted) { const h = befriend(save, 'vasya'); if (h) friendUp(FRIENDS.find(f => f.id === 'vasya'), h); else if (!hero.vasyaToday) toast('🐱 Мур-мур! Василий доволен 💛'); hero.vasyaToday = true; }
+  }
+
+  // друзья: подошёл — разговор, есть подарок — дружба растёт
+  const fr = updateFriends(dt, hero, save);
+  if (fr.say) { SFX.tap(); toast(fr.say); }
+  if (fr.up) friendUp(fr.up.f, fr.up.h);
+  // игры с Елисеем: догонялки и прятки
+  if (fr.game && !kidGameOn() && !miniOn()) {
+    if (miniGame(fr.game)) { if (startMini(fr.game, hero, save)) SFX.tap(); }   // игры остальных детей (kids.js)
+    else { startKidGame(fr.game, fr.n); SFX.tap(); }                             // что за игра — крупно по центру (setKidHud)
+  }
+  const kg = updateKidGame(dt, hero), mg = updateMini(dt, hero);
+  setKidHud(kg.hud || mg.hud);                   // крупно по центру: отсчёт, таймер, «горячо — холодно», счёт
+  for (const k of mg.sfx || []) k.startsWith('note') ? SFX.note(+k.slice(4)) : SFX[k]?.();
+  if (mg.say && !mg.win && !mg.lose) toast(mg.say);
+  if (mg.win) {
+    SFX.fanfare(); confetti(p, 60); stat('kidWins');
+    let up = false;
+    for (const f of mg.kids) { const h = befriend(save, f.id); if (h) { friendUp(f, h); up = true; } }
+    if (!up) save.coins += 30;
+    persist(); toast(mg.say + (up ? '' : '<small>+30 монет</small>'));
+  }
+  if (mg.lose) { SFX.nope(); toast(mg.say); }
+  const ks = updateKidSpots(dt, hero);           // футбольный мяч на базе — можно пинать и без игры
+  if (ks.sfx) SFX.kick();
+  if (ks.goal) { SFX.fanfare(); toast('⚽ ГОЛ!<small>позови Колю и Олю — сыграем на счёт</small>'); }
+  if (atBase) {
+    const pg = updatePlayground(dt, hero);
+    for (const k of new Set(pg.sfx)) SFX[k]();
+    if (pg.say) toast(pg.say);
+    if (pg.coins) save.coins += pg.coins;
+  }
+  if (kg.count) SFX.tap();
+  if (kg.go) SFX.levelUp();
+  if (kg.win || kg.lose) {
+    const vanya = FRIENDS.find(f => f.id === 'vanya');
+    if (kg.win) {
+      SFX.fanfare(); confetti(p, 50); stat('kidWins');
+      const h = befriend(save, 'vanya');
+      if (h) friendUp(vanya, h); else { save.coins += 30; persist(); }
+      toast(kg.win === 'tag' ? '🎉 Елисей: Ой, догнал! Ты быстрый!' : '🎉 Елисей: Нашёл! Ну ты и следопыт!');
+    } else { SFX.nope(); toast(kg.lose === 'tag' ? '😜 Елисей: Ха-ха, не догнал! Подойди — сыграем ещё!' : '😜 Елисей: Я тут был! Подойди — сыграем ещё!'); }
   }
 
   // канатки, гонка, клады, колодец, стрелки и бобр
@@ -500,6 +579,36 @@ export function updateGame(dt) {
   if (xe.dig) digPrize();
   if (xe.well) wish();
   if (xe.dash !== undefined) { hero.dashT = 1.2; hero.vel.x = Math.sin(xe.dash) * 22; hero.vel.z = Math.cos(xe.dash) * 22; hero.face = xe.dash; SFX.boing(); }
+
+  // Осенняя долина: кучи листьев, колесо, горка, тыквы, жёлуди, яблоки
+  if (level.id === 'autumn') {
+    const ae = updateAutumn(dt, hero, save);
+    for (const k of new Set(ae.sfx)) SFX[k]();
+    for (const [k, n] of Object.entries(ae.got || {})) save.res[k] = (save.res[k] || 0) + n;
+    if (ae.coins) save.coins += ae.coins;
+    if (ae.say) toast(ae.say);
+    if (ae.sfx && ae.sfx.length) persist();
+  }
+
+  // Дорожка: унёс яйцо за свою линию — зверь закручивается и исчезает, открывается следующий
+  if (level.id === 'track') {
+    const te = updateTrack(dt, hero, save);
+    if (te.dash !== undefined) { hero.dashT = 1.2; hero.vel.x = Math.sin(te.dash) * 22; hero.vel.z = Math.cos(te.dash) * 22; hero.face = te.dash; SFX.boing(); }
+    if (te.win) {
+      const R = te.win.round, coins = B.trackWin(te.win.k, R); save.coins += coins; stat('trackWins'); persist();
+      SFX.fanfare(); confetti(p, te.win.boss ? 160 : 70);
+      if (te.win.boss) {
+        // праздник: небо темнеет, как вечером, и над Дорожкой — фейерверк
+        sky(0x2c3270); fireworks(p.clone(), 12, () => SFX.boom());
+        setTimeout(() => { if (level.id === 'track') sky(LOCS.track.sky); }, 7500);
+        const egg = { 1: 'огненное яйцо 🔥', 2: 'ледяное яйцо ❄️', 3: 'солнечное яйцо ✨' }[Math.min(R, 3)];
+        toast(`🏆 ${te.win.name} побеждён! +${fmt(coins)} монет<small>${egg} твоё — неси его в загон. Открыт круг ${R + 1}: звери сильнее, яйца реже!</small>`);
+        notify({ icon: '🐉', title: `Круг ${R} пройден!`, text: `${egg} — твоё. В следующий раз — круг ${R + 1}: новые звери, быстрее, яйца реже` });
+      } else toast(`🌀 Пуф! ${te.win.name} закручивается и исчезает… +${fmt(coins)} монет<small>ворота открыты — дальше ${te.win.next}</small>`);
+      setTimeout(kidMoment, 2500);          // записка — после того, как зверь докрутится и исчезнет
+      const mh = befriend(save, 'misha'); if (mh) setTimeout(() => friendUp(FRIENDS.find(f => f.id === 'misha'), mh), 4500);   // тренер гордится
+    }
+  }
   if (xe.talk) talkBeaver(qs);
   setQuest(qs ? `🦫 ${qs.q.short} ${qs.have}/${qs.q.goal}${qs.ready ? ' ✅' : ''}` : null);
 
@@ -520,6 +629,6 @@ export function updateGame(dt) {
 
   setEffects([['🧪', hero.boostT], ['🧭', hero.compassT], ['⏱', xe.raceT]]);
   setCoins(save.coins); setSpeed(save.speed); setItems(ITEMS.map(i => ({ ...i, n: itemCount(i.id) })), useItem);
-  setRes(save.res);
+  setRes(save.res, level.id === 'autumn');
 }
 

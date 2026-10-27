@@ -41,6 +41,19 @@ function pushOut(p) {
 // mv — вектор джойстика (y < 0 — вперёд), camYaw — куда смотрит камера
 export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
   // лезет по верёвке: плавно поднимаемся к точке наверху
+  // катание (колесо обозрения, горка): ride(t) говорит, где герой в момент t от 0 до 1
+  if (pl.climb?.ride) {
+    const c = pl.climb;
+    // нажал прыжок — спрыгнул (с колеса, с горки)
+    if (wantJump && c.t > 0.05) { pl.climb = null; pl.vel.set(Math.sin(pl.face) * 3, JUMP_V * 0.6, Math.cos(pl.face) * 3); pl.grounded = false; pl.jumped = true; return; }
+    c.t = Math.min(c.t + dt / c.dur, 1);
+    const prev = pl.pos.clone(); pl.pos.copy(c.ride(c.t));
+    pl.vel.set(0, 0, 0); pl.grounded = false; pl.speed = 0;
+    if (c.face !== undefined) pl.model.root.rotation.y = pl.face = c.face;
+    else if (pl.pos.distanceTo(prev) > 0.001) pl.model.root.rotation.y = pl.face = Math.atan2(pl.pos.x - prev.x, pl.pos.z - prev.z);
+    if (c.t >= 1) { pl.climb = null; if (c.exit) pl.vel.copy(c.exit); }
+    return;
+  }
   // канатная дорога: висим на ролике и едем по тросу вниз (трос чуть провисает)
   if (pl.climb?.zip) {
     const c = pl.climb; c.t = Math.min(c.t + dt / c.dur, 1);

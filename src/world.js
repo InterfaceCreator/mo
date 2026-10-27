@@ -83,10 +83,12 @@ export function tree(p, x, z, s = 1, y = 0, kind = 'oak') {
     // ёлка — ярусы, сужающиеся кверху
     [[4.2, 1.6, 3.4], [3.2, 1.5, 4.8], [2.2, 1.4, 6.1], [1.2, 1.2, 7.2]].forEach(([w, h, yy]) => box(g, w * s, h * s, w * s, 0x2e8b3a, 0, yy * s, 0, { studs: true }));
   } else {
-    const leaf = kind === 'birch' ? 0x9be36a : C.leaf, top = kind === 'birch' ? 0xb5ec84 : 0x6ad13c;
+    // осенние: клён (красный), золотое, рыжее, яблоня в рыжей листве
+    const AUT = { maple: [0xe2442a, 0xff6a3d], golden: [0xffc22a, 0xffdb5a], rust: [0xff8a1a, 0xffab4a], aapple: [0xf09a2a, 0xffc04a] }[kind];
+    const leaf = AUT ? AUT[0] : kind === 'birch' ? 0x9be36a : C.leaf, top = AUT ? AUT[1] : kind === 'birch' ? 0xb5ec84 : 0x6ad13c;
     box(g, 4 * s, 2.6 * s, 4 * s, leaf, 0, 4.1 * s, 0, { studs: true });
     box(g, 2.8 * s, 1.6 * s, 2.8 * s, top, 0, 6 * s, 0, { studs: true });
-    if (kind === 'apple') for (const [ax, ay, az] of [[1.5, 3.6, 1.2], [-1.4, 4.4, 1.6], [1.7, 4.8, -1], [-1.2, 3.4, -1.6], [0.4, 3.3, 2.05]]) box(g, 0.45 * s, 0.45 * s, 0.45 * s, 0xff3b3b, ax * s, ay * s, az * s, { shadow: false });
+    if (kind === 'apple' || kind === 'aapple') for (const [ax, ay, az] of [[1.5, 3.6, 1.2], [-1.4, 4.4, 1.6], [1.7, 4.8, -1], [-1.2, 3.4, -1.6], [0.4, 3.3, 2.05]]) box(g, 0.45 * s, 0.45 * s, 0.45 * s, 0xff3b3b, ax * s, ay * s, az * s, { shadow: false });
   }
   // крона не твёрдая, но камера сквозь неё не проходит — иначе весь экран зелёный
   const cw = kind === 'pine' ? 2.1 : 2;
@@ -130,6 +132,10 @@ function eggTex(base, stripe, pattern = 'stripes') {
   else if (pattern === 'crystal') { c.globalAlpha = 0.7; for (let i = 0; i < 10; i++) { c.fillStyle = i % 2 ? '#ffffff' : hex(stripe); c.beginPath(); const x = (i * 41) % 128, y = (i * 23) % 128; c.moveTo(x, y); c.lineTo(x + 26, y + 10); c.lineTo(x + 8, y + 34); c.fill(); } c.globalAlpha = 1; }
   else if (pattern === 'cracks') { wave(38, 12); wave(78, 12); c.strokeStyle = '#3a2a1a'; c.lineWidth = 3; for (let i = 0; i < 6; i++) { c.beginPath(); const x = (i * 23) % 128; c.moveTo(x, 0); c.lineTo(x + 8, 20); c.lineTo(x - 4, 40); c.lineTo(x + 6, 60); c.stroke(); } }
   else if (pattern === 'stars') { c.fillStyle = '#ffffff'; for (let i = 0; i < 24; i++) { const x = (i * 53) % 128, y = (i * 29) % 128, r = 1.5 + (i % 3); c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); } c.fillStyle = '#ffe680'; for (const [x, y] of [[30, 40], [90, 80], [70, 20]]) { c.beginPath(); for (let j = 0; j < 10; j++) { const a = j / 10 * Math.PI * 2, rr = j % 2 ? 4 : 10; c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } c.fill(); } }
+  else if (pattern === 'fire') {
+    // языки пламени снизу вверх: оранжевые, сверху жёлтые
+    for (const [col, h] of [['#ff8a1a', 70], ['#ffd23f', 44]]) { c.fillStyle = col; c.beginPath(); c.moveTo(0, 128); for (let x = 0; x <= 128; x += 16) { c.lineTo(x + 8, 128 - h - (x % 32 ? 18 : 0)); c.lineTo(x + 16, 128 - h * 0.45); } c.lineTo(128, 128); c.fill(); }
+  }
   else if (pattern === 'gold') { c.fillStyle = 'rgba(255,255,255,.7)'; for (let i = 0; i < 4; i++) { c.save(); c.translate(i * 40 - 20, 0); c.rotate(0.5); c.fillRect(0, -20, 10, 200); c.restore(); } }
   return (eggTexCache[k] = new T.CanvasTexture(cv));
 }
@@ -177,9 +183,12 @@ export function portal(p, { x, z, w = 18, to, color, label, rot = 0, locked = fa
   box(g, w + 6.4, 2, 3, color, 0, 10, 0, { studs: true });
   const swirl = new T.Mesh(new T.PlaneGeometry(w, 9.4), new T.MeshBasicMaterial({ color, map: swirlTex, transparent: true, opacity: 0.75, side: T.DoubleSide, depthWrite: false }));
   swirl.position.y = 4.7; g.add(swirl);
-  // столбы твёрдые (портал повёрнут на 0 или 180°, поэтому смещения только по x)
-  for (const sx of [-1, 1]) addCollider({ x0: x + sx * half - 1.7, x1: x + sx * half + 1.7, y0: 0, y1: 10.4, z0: z - 1.7, z1: z + 1.7, cam: true });
-  const pt = { x, z, w, to, g, swirl, label, req, locked, bars: null, col: null };
+  // столбы твёрдые; портал стоит поперёк оси z (rot 0 или 180°) или поперёк оси x (rot ±90° — в боковой стене)
+  const side = Math.abs(Math.sin(rot)) > 0.5;
+  for (const sx of [-1, 1]) addCollider(side
+    ? { x0: x - 1.7, x1: x + 1.7, y0: 0, y1: 10.4, z0: z + sx * half - 1.7, z1: z + sx * half + 1.7, cam: true }
+    : { x0: x + sx * half - 1.7, x1: x + sx * half + 1.7, y0: 0, y1: 10.4, z0: z - 1.7, z1: z + 1.7, cam: true });
+  const pt = { x, z, w, to, g, swirl, label, req, locked, bars: null, col: null, side };
   if (label) { pt.sign = makeLabel(7, 1.75); pt.sign.userData.set(label, { color: '#ffffff' }); pt.sign.position.set(0, 12.8, 0); g.add(pt.sign); }
   if (locked) {
     pt.bars = group(g);

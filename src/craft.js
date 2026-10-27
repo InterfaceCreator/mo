@@ -7,7 +7,7 @@ import { trees, addCollider, onLevelReset, groundY } from './world.js';
 import { puff, makeLabel, confetti, chips, emojiTex, sprite } from './fx.js';
 
 // ресурсы: первые четыре собираются в мире, остальные делаются на верстаке
-export const RES = { wood: '🪵', stone: '🪨', crystal: '💎', leaf: '🌿', plank: '🟫', brick: '🧱', thread: '🧵' };
+export const RES = { wood: '🪵', stone: '🪨', crystal: '💎', leaf: '🌿', plank: '🟫', brick: '🧱', thread: '🧵', acorn: '🌰', pumpkin: '🎃' };   // жёлуди и тыквы — из Осенней долины
 export const RAW = ['wood', 'stone', 'crystal', 'leaf'];
 // рецепты лесенкой: брёвна → доски → инструменты.
 // type: mat — материал (+out в ресурсы), tool — вещь навсегда, item — расходник (+out штук).
@@ -25,6 +25,10 @@ export const RECIPES = [
   { id: 'magnet', scroll: true, type: 'tool', icon: '🧲', name: 'Магнит', info: 'ресурсы собираются издалека', need: { brick: 3, crystal: 2 } },
   { id: 'house', scroll: true, type: 'tool', icon: '🏡', name: 'Домик для питомцев', info: 'загон приносит на четверть больше монет', need: { plank: 4, brick: 4, crystal: 2 } },
   { id: 'pad', scroll: true, type: 'item', icon: '🟥', name: 'Переносной батут', info: 'ставишь где угодно — подбрасывает высоко', need: { plank: 3, thread: 2, brick: 1 }, out: 1 },
+  // осенние поделки: из желудей и тыкв Осенней долины — те же полезные вещи, только дешевле
+  { id: 'acorntrap', autumn: true, give: 'trap', type: 'item', icon: '🪤', name: 'Ловушки из желудей ×2', info: 'сторож поскользнётся на желудях и посидит 5 секунд', need: { acorn: 4, thread: 1 }, out: 2 },
+  { id: 'pumpkinpad', autumn: true, give: 'pad', type: 'item', icon: '🎃', name: 'Тыква-батут', info: 'упругая тыква — подбрасывает высоко, как батут', need: { pumpkin: 2, plank: 1 }, out: 1 },
+  { id: 'acorncompass', autumn: true, give: 'compass', type: 'item', icon: '🧭', name: 'Компас из жёлудя', info: 'показывает на ближайший свиток или звезду', need: { acorn: 6, crystal: 1 }, out: 1 },
 ];
 // где лежит свиток с рецептом (подсказка на верстаке)
 export const SCROLL_WHERE = { umbrella: '🌲 где-то у гигантского дерева', boots: '🌲 где-то в руинах крепости', trap: '🌲 где-то на тайной поляне', magnet: '🌲 где-то у водопада', house: '🌲 где-то на склоне горы', pad: '🌲 где-то у мельницы' };
@@ -36,7 +40,7 @@ export function craft(r, save) {
   for (const [k, n] of Object.entries(r.need)) save.res[k] -= n;
   if (r.type === 'mat') save.res[r.id] = (save.res[r.id] || 0) + r.out;
   else if (r.type === 'tool') save.tools[r.id] = true;
-  else (save.items || (save.items = {}))[r.id] = (save.items[r.id] || 0) + r.out;
+  else { const id = r.give || r.id; (save.items || (save.items = {}))[id] = (save.items[id] || 0) + r.out; }
 }
 export const WORKBENCH = { x: 0, z: 57, pad: { x: 0, z: 53.5 } };
 

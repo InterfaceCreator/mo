@@ -134,3 +134,30 @@ export function dust(pos, n = 8) {
     });
   }
 }
+
+// фейерверк: ракеты взлетают и рассыпаются цветными огоньками. onBoom — на каждый хлопок (звук)
+const FW = [0xff4a4a, 0xffd23f, 0x5fd35f, 0x3fa7ff, 0xff7ac8, 0xffffff, 0xff9f40].map(c => { const m = new T.MeshBasicMaterial({ color: c }); m.userData.cached = true; return m; });
+export function fireworks(center, n = 8, onBoom) {
+  for (let i = 0; i < n; i++) setTimeout(() => {
+    const m = FW[i % FW.length], from = new T.Vector3(center.x + (Math.random() - 0.5) * 18, center.y, center.z + (Math.random() - 0.5) * 18);
+    const top = from.clone().setY(center.y + 16 + Math.random() * 8), rocket = new T.Mesh(BOX, m); rocket.scale.set(0.2, 0.6, 0.2); rocket.position.copy(from); scene.add(rocket);
+    let t = 0;
+    addFx(dt => {
+      t += dt / 0.9; rocket.position.lerpVectors(from, top, 1 - (1 - Math.min(t, 1)) ** 2);
+      if (t < 1) return true;
+      scene.remove(rocket); onBoom && onBoom();
+      for (let k = 0; k < 36; k++) {
+        const s = new T.Mesh(BOX, FW[(i + (k % 2) * 3) % FW.length]); s.position.copy(top); scene.add(s);
+        const v = new T.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(6 + Math.random() * 3);
+        let u = 0;
+        addFx(dt2 => {
+          u += dt2; v.y -= 3 * dt2; v.multiplyScalar(Math.exp(-1.2 * dt2)); s.position.addScaledVector(v, dt2);
+          s.scale.setScalar(Math.max(0.01, 0.35 * (1 - u / 1.8)));
+          if (u >= 1.8) { scene.remove(s); return false; }
+          return true;
+        });
+      }
+      return false;
+    });
+  }, i * 450);
+}

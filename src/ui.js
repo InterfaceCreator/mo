@@ -23,11 +23,12 @@ document.querySelectorAll('.ov').forEach(o => o.addEventListener('pointerdown', 
 
 // коллекция: найденные — цветные, ненайденные — силуэты
 // eggs: { all: [{ key, r, v, name }], seen: { key: true }, thumb(key) }
-export function bindBook(getFound, eggs) {
+// friends.list() → [{ name, met, hearts, max, tip, thumb }] — страница «Друзья»
+export function bindBook(getFound, eggs, friends) {
   $('bookBtn').addEventListener('click', () => {
     const found = getFound(), grid = $('grid'); grid.innerHTML = '';
     // по местам: кого где искать
-    for (const [home, title] of [['forest', '🌲 Лес'], ['desert', '🏜️ Пустыня'], ['ice', '❄️ Лёд']]) {
+    for (const [home, title] of [['forest', '🌲 Лес'], ['desert', '🏜️ Пустыня'], ['ice', '❄️ Лёд'], ['autumn', '🍂 Осень'], ['track', '🏁 Дорожка']]) {
       const ids = SPECIES_IDS.filter(id => SPECIES[id].home[0] === home);
       const h = document.createElement('div'); h.className = 'sec'; h.style.gridColumn = '1 / -1';
       h.textContent = `${title} — ${ids.filter(id => found[id]).length} из ${ids.length}`; grid.appendChild(h);
@@ -35,6 +36,16 @@ export function bindBook(getFound, eggs) {
         const sp = SPECIES[id], R = RARITY[sp.r], has = !!found[id];
         const c = document.createElement('div'); c.className = 'cell' + (has ? '' : ' unk'); c.style.borderColor = R.color;
         c.innerHTML = `<img src="${petThumb(id)}" alt=""><div class="n">${has ? sp.name : '?'}</div>`;
+        grid.appendChild(c);
+      }
+    }
+    // друзья: кого встретил — портрет и сердечки; кого нет — силуэт
+    if (friends) {
+      const list = friends.list(), fh = document.createElement('div'); fh.className = 'sec'; fh.style.gridColumn = '1 / -1';
+      fh.textContent = `👫 Друзья — ${list.filter(f => f.hearts >= f.max).length} лучших из ${list.length}`; grid.appendChild(fh);
+      for (const f of list) {
+        const c = document.createElement('div'); c.className = 'cell friend' + (f.met ? '' : ' unk'); c.style.borderColor = f.hearts >= f.max ? '#ffc21a' : '#ff8ab3';
+        c.innerHTML = `<img src="${f.thumb}" alt=""><div class="n">${f.met ? f.name : '?'}</div><div class="h">${f.met ? '❤️'.repeat(f.hearts) + '🤍'.repeat(f.max - f.hearts) : ''}</div><div class="tip">${f.met ? f.tip + '<br>' : ''}📍 ${f.place}</div>`;
         grid.appendChild(c);
       }
     }
@@ -140,6 +151,27 @@ export function chooseProfile(thumbs, sfx) {
 }
 $('who').addEventListener('click', () => location.reload());   // сменить игрока — заново на экран выбора
 
+// ---------- игры с Елисеем: крупная надпись по центру — отсчёт, таймер, градусник «горячо — холодно» ----------
+let kidShown = '';
+export function setKidHud(h) {
+  const el = $('kidhud');
+  if (!h) { if (kidShown) { kidShown = ''; el.style.display = 'none'; } return; }
+  const sec = h.t !== undefined ? Math.max(0, Math.ceil(h.t)) : 0;
+  let html;
+  if (h.mode === 'gen') html = `<b>${h.title}</b><span>${h.sub}</span>` + (h.big ? `<i class="big">${h.big}</i>` : '');   // игры детей (kids.js)
+  else if (h.mode === 'count') html = h.kind === 'hide'
+    ? `<b>🙈 Прятки!</b><span>Елисей прячется… не подглядывай!</span><i class="big">${h.n}</i>`
+    : `<b>🏃 Догонялки!</b><span>Елисей убегает — сейчас догоняй!</span><i class="big">${h.n}</i>`;
+  else if (h.mode === 'tag') html = `<b>🏃 Догони Елисея!</b><span>осталось ${sec} с</span>`;
+  else {
+    const word = { hot: '🔥 Горячо!', warm: '🙂 Тепло', cold: '❄️ Холодно' }[h.word];
+    const trend = h.trend === 'warmer' ? '<em class="w">Теплее! ⬆</em>' : h.trend === 'colder' ? '<em class="c">Холоднее ⬇</em>' : '';
+    html = `<b>🙈 Найди Елисея!</b><div class="therm"><i style="left:${Math.round(h.heat * 100)}%"></i></div><span>${word} ${trend} · ${sec} с</span><small>следи, где Елисей хихикает 🤭</small>`;
+  }
+  if (html === kidShown) return; kidShown = html;
+  el.innerHTML = html; el.style.display = 'flex'; el.classList.toggle('hot', h.word === 'hot');
+}
+
 // ---------- записка (мамин режим): на весь экран, игра стоит, пока не тапнешь ----------
 let noteShown = false;
 export const noteOpen = () => noteShown;
@@ -197,8 +229,10 @@ export const shopOpen = () => $('shop').classList.contains('on');
 
 // ---------- ресурсы и верстак ----------
 const resShown = {};
-export function setRes(res) {
-  for (const k of ['wood', 'stone', 'crystal', 'leaf']) {
+// autumn — в Осенней долине: тогда видны и жёлуди с тыквами (а ещё — если они уже есть)
+export function setRes(res, autumn = false) {
+  for (const k of ['acorn', 'pumpkin']) { const on = autumn || (res[k] || 0) > 0; const el = $('r-' + k).parentElement; if (el.hidden === on) el.hidden = !on; }
+  for (const k of ['wood', 'stone', 'crystal', 'leaf', 'acorn', 'pumpkin']) {
     const n = res[k] || 0; if (resShown[k] === n) continue;
     const el = $('r-' + k); if (resShown[k] !== undefined && n > resShown[k]) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
     resShown[k] = n; el.textContent = n;

@@ -29,7 +29,7 @@
   addEventListener('error', function (e) { if (e.message) window.__bootErr(e.message + ' @ ' + String(e.filename || '').split('/').pop() + ':' + (e.lineno || '')); });
   addEventListener('unhandledrejection', function (e) { var r = e.reason; window.__bootErr('promise: ' + (r && (r.stack || r.message) || r)); });
   // полоска загрузки на стартовом экране: сколько файлов игры уже скачано; встала надолго — подсказываем про сеть
-  var FILES = 31, lastN = 0, lastT = Date.now();
+  var FILES = 33, lastN = 0, lastT = Date.now();
   function tick() {
     var box = document.getElementById('loading'); if (!box) return setTimeout(tick, 200);
     if (window.__menuReady) { box.style.display = 'none'; document.querySelector('#profiles .cards').classList.remove('wait'); return; }
@@ -47,7 +47,9 @@
 })();
 </script>
 <style>
-:root{--ink:#2b2340}
+:root{--ink:#2b2340;--step:min(20vmin,92px)}   /* --step — шаг кнопок в левом столбике */
+/* телефон боком: пять кнопок слева должны уместиться по высоте */
+@media (orientation: landscape){:root{--step:min(16vmin,92px)}.side{width:min(13.5vmin,76px)!important;height:min(13.5vmin,76px)!important}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--ink);font-family:"Arial Rounded MT Bold","Trebuchet MS",system-ui,sans-serif;overscroll-behavior:none;touch-action:none}
 #c{position:fixed;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
@@ -84,6 +86,13 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 #fsBtn{flex:none;
   width:min(13vmin,60px);height:min(13vmin,60px);border-radius:16px;border:4px solid #fff;background:#ff7a3d;color:#fff;padding:0;cursor:pointer;
   display:none;align-items:center;justify-content:center;touch-action:manipulation;box-shadow:0 5px 0 rgba(0,0,0,.25)}
+/* карта: кнопка рядом с «во весь экран» и окно */
+#mapBtn{top:calc(max(12px,env(safe-area-inset-top)) + min(14vmin,70px) + 4 * var(--step));background:#ff9f40}
+#mapTabs{display:flex;gap:6px;justify-content:center;margin-bottom:8px;flex-wrap:wrap}
+#mapTabs button{border:none;border-radius:14px;padding:6px 12px;font:inherit;font-weight:bold;font-size:min(4vw,16px);background:#efeaff;color:#2b2340;cursor:pointer}
+#mapTabs button.on{background:#3fa7ff;color:#fff}
+#map .mapbox{overflow:auto;display:flex;justify-content:center}
+#mapHint{display:block;text-align:center;color:#6a6280;margin-top:6px}
 #fsBtn svg{width:72%;height:72%;filter:drop-shadow(0 2px 0 rgba(0,0,0,.25))}
 .coin{display:inline-block;width:.95em;height:.95em;border-radius:50%;vertical-align:-.12em;background:radial-gradient(circle at 35% 30%,#fff6c0 0 12%,#ffc21a 14% 100%);box-shadow:inset 0 0 0 .1em #e09000,0 0 0 .08em #a86a00}
 #coins{right:max(12px,env(safe-area-inset-right));color:#ffe14d}
@@ -113,7 +122,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 
 /* скорость под монетами, банан над прыжком, смена игрока под книжкой */
 #speed{right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + min(13vmin,60px));color:#7fd4ff}
-#who{top:calc(max(12px,env(safe-area-inset-top)) + min(14vmin,70px) + min(20vmin,92px));background:#9b6bff;font-size:min(7vmin,32px)}
+#who{top:calc(max(12px,env(safe-area-inset-top)) + min(14vmin,70px) + var(--step));background:#9b6bff;font-size:min(7vmin,32px)}
 #items{position:fixed;right:max(30px,env(safe-area-inset-right));bottom:calc(max(30px,env(safe-area-inset-bottom)) + min(26vmin,130px) + 14px);display:flex;flex-direction:column-reverse;flex-wrap:wrap-reverse;max-height:calc(100vh - min(26vmin,130px) - 150px);max-height:calc(100dvh - min(26vmin,130px) - 150px);gap:12px;align-items:center}   /* много предметов — второй столбик левее */
 #items button{position:relative;width:min(16vmin,76px);height:min(16vmin,76px);
   border-radius:50%;border:4px solid #fff;background:#ffe14d;font-size:min(8vmin,38px);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation;box-shadow:0 5px 0 rgba(0,0,0,.25)}
@@ -162,6 +171,13 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 #loading.slow .bar i{background:repeating-linear-gradient(45deg,#ffb020 0 10px,#ffd23f 10px 20px);animation:barmove 1s linear infinite}
 #loading small{font-size:.8em;font-weight:normal}
 @keyframes barmove{to{background-position:28px 0}}
+/* новая версия: прогресс загрузки и кнопка «Обновить» */
+#upd{position:relative;display:none;flex-direction:column;align-items:center;gap:5px;max-width:min(92vw,420px);padding:8px 14px;border-radius:18px;background:#fffd;color:#2b5d8f;text-align:center;font-size:min(3.8vw,3.2vh,16px);box-shadow:0 4px 0 rgba(0,0,0,.12)}
+#upd .bar{width:100%;height:10px;border-radius:6px;background:#dfefff;overflow:hidden}
+#upd .bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#3fa7ff,#9b6bff);transition:width .3s}
+#upd small{font-size:.82em;color:#5a7a9a}
+#upd button{border:none;border-radius:14px;padding:7px 18px;font:inherit;font-weight:bold;color:#fff;background:#5fd35f;box-shadow:0 3px 0 #3aa83a;cursor:pointer;touch-action:manipulation}
+#upd.muted{background:#fff9;color:#5a7a9a}
 #profiles .ver{position:absolute;bottom:calc(6px + env(safe-area-inset-bottom));left:0;right:0;text-align:center;font-size:12px;color:#fffc;text-shadow:0 1px 2px rgba(0,0,0,.35);pointer-events:none}
 @media (prefers-reduced-motion: reduce){#profiles *{animation:none!important}}
 #pinbox{background:#fff;border-radius:32px;padding:18px 20px 22px;text-align:center;width:min(92vw,330px);box-shadow:0 10px 30px rgba(0,0,0,.2)}
@@ -238,11 +254,27 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 #toast small{display:block;font-size:.7em;font-weight:normal;color:#6a6280}
 #effects{position:fixed;left:50%;transform:translateX(-50%);top:max(12px,env(safe-area-inset-top));display:none;gap:8px;pointer-events:none}
 #effects .eff{background:rgba(30,25,50,.6);color:#fff;border-radius:20px;padding:4px 12px;font-size:min(5.5vmin,26px);font-weight:bold;text-shadow:0 2px 0 rgba(0,0,0,.35)}
+/* игры с Елисеем: крупно по центру сверху */
+#kidhud{position:fixed;left:50%;transform:translateX(-50%);top:32%;display:none;flex-direction:column;align-items:center;gap:4px;
+  width:min(72vw,360px);padding:8px 16px 10px;border-radius:20px;background:rgba(30,25,50,.72);color:#fff;text-align:center;pointer-events:none;z-index:3;text-shadow:0 2px 0 rgba(0,0,0,.35)}
+#kidhud b{font-size:min(6.5vmin,30px)}
+#kidhud span{font-size:min(4.6vmin,21px);font-weight:bold}
+#kidhud small{font-size:min(3.6vmin,15px);opacity:.85}
+#kidhud .big{font-style:normal;font-weight:bold;font-size:min(16vmin,80px);line-height:1;color:#ffe14d;animation:pop .5s}
+#kidhud .therm{position:relative;width:100%;height:16px;border-radius:9px;background:linear-gradient(90deg,#3fa7ff,#9bdcff 35%,#ffd23f 65%,#ff4a1a);box-shadow:inset 0 0 0 2px #fff}
+#kidhud .therm i{position:absolute;top:-5px;width:12px;height:26px;margin-left:-6px;border-radius:6px;background:#fff;box-shadow:0 0 0 2px #2b2340;transition:left .3s}
+#kidhud em{font-style:normal;padding:0 6px;border-radius:8px}
+#kidhud em.w{background:#ff7a3d}
+#kidhud em.c{background:#3fa7ff}
+@media (orientation: landscape){#kidhud{top:max(8px,env(safe-area-inset-top));width:min(46vw,360px)}}
+#kidhud.hot{background:rgba(160,40,20,.8)}
 #effects .eff.low{background:rgba(220,60,60,.75);animation:pop .5s infinite}
-#bellBtn{top:calc(max(12px,env(safe-area-inset-top)) + min(14vmin,70px) + 2 * min(20vmin,92px));background:#3fa7ff}
+#bellBtn{top:calc(max(12px,env(safe-area-inset-top)) + min(14vmin,70px) + 2 * var(--step));background:#3fa7ff}
 #bellBtn b{position:absolute;right:-8px;top:-8px;min-width:24px;height:24px;border-radius:12px;background:#ff3b3b;color:#fff;font-size:15px;line-height:20px;border:2px solid #fff;padding:0 4px;display:none}
 #bellBtn.ring{animation:ring .8s}
 @keyframes ring{15%,45%,75%{transform:rotate(-14deg)}30%,60%{transform:rotate(14deg)}}
+#grid .cell.friend .h{font-size:10px;line-height:1.2}
+#grid .cell.friend .tip{font-size:10px;color:#6a6280;line-height:1.2}
 #notesList{display:flex;flex-direction:column;gap:8px;overflow-y:auto}
 .note{display:flex;align-items:center;gap:12px;background:#f4f1ff;border-radius:18px;padding:6px 10px}
 .note.new{background:#fff6d6;box-shadow:inset 0 0 0 3px #ffd23f}
@@ -253,7 +285,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 .note .t small{display:block;font-weight:normal;font-size:.8em;color:#6a6280}
 .note .t .ago{font-size:.7em;color:#9a92b0}
 #notesList .empty{text-align:center;color:#6a6280;padding:20px}
-#invBtn{top:calc(max(12px,env(safe-area-inset-top)) + min(14vmin,70px) + 3 * min(20vmin,92px));background:#5fd35f}
+#invBtn{top:calc(max(12px,env(safe-area-inset-top)) + min(14vmin,70px) + 3 * var(--step));background:#5fd35f}
 .invGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(28vw,118px),1fr));gap:8px;margin:6px 0 4px}
 .inv{background:#f4f1ff;border-radius:16px;padding:6px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}
 .inv.dim{opacity:.45;filter:grayscale(.6)}
@@ -290,16 +322,19 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 <div id="coins" class="pill"><i class="coin"></i><span id="coinsN">0</span></div>
 <button id="bookBtn" class="side" aria-label="Коллекция">📖<span class="dot"></span></button>
 <div id="book" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>Мои питомцы</h2><div id="grid"></div></div></div>
+<div id="map" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🗺️ Карта</h2><div id="mapTabs"></div><div class="mapbox"><canvas id="mapC"></canvas></div><small id="mapHint"></small></div></div>
 <div id="notes" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🔔 Новости</h2><div id="notesList"></div></div></div>
 <div id="speed" class="pill"><span class="ic">👟</span><span id="speedN">1</span></div>
 <button id="who" class="side" aria-label="Сменить игрока">👤</button>
 <button id="bellBtn" class="side" aria-label="Уведомления">🔔<b></b></button>
 <button id="invBtn" class="side" aria-label="Рюкзак">🎒</button>
+<button id="mapBtn" class="side" aria-label="Карта">🗺️</button>
 <div id="bld" class="ov"><div class="panel" style="width:min(90vw,420px);align-items:center;text-align:center"><button class="close" data-close>✕</button><div id="bldBody"></div></div></div>
 <div id="fus" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🔮 Машина слияния</h2><div id="fusList" style="display:flex;flex-direction:column;gap:8px;overflow-y:auto"></div></div></div>
 <div id="inv" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🎒 Рюкзак</h2><div id="invList" style="overflow-y:auto"></div></div></div>
 <div id="items"></div>
 <div id="effects"></div>
+<div id="kidhud"></div>
 <div id="toast"></div>
 <div id="shop" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🛒 Магазин</h2><div id="shopList"></div></div></div>
 <div id="profiles" class="ov on">
@@ -317,6 +352,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
     <button class="pcard girl" data-p="mama"><span class="pic"><img alt=""></span><span class="name">Мама</span><span class="go">🔒 Играть</span></button>
   </div>
   <div id="loading"><div class="bar"><i></i></div><span>Загружаем игру…</span></div>
+  <div id="upd"></div>
   <div class="ver" id="ver"></div>
 </div>
 <div id="pin" class="ov"><div id="pinbox">
@@ -330,7 +366,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
   <button id="heart">❤️</button>
   <div class="hint">мама: подержи сердечко 3 секунды</div>
 </div>
-<div id="res" class="pill"><span>🪵<b id="r-wood">0</b></span><span>🪨<b id="r-stone">0</b></span><span>💎<b id="r-crystal">0</b></span><span>🌿<b id="r-leaf">0</b></span></div>
+<div id="res" class="pill"><span>🪵<b id="r-wood">0</b></span><span>🪨<b id="r-stone">0</b></span><span>💎<b id="r-crystal">0</b></span><span>🌿<b id="r-leaf">0</b></span><span hidden>🌰<b id="r-acorn">0</b></span><span hidden>🎃<b id="r-pumpkin">0</b></span></div>
 <div id="starsP" class="pill"><span class="ic">⭐</span><span id="starsN">0</span></div>
 <div id="quest" class="pill"></div>
 <div id="craft" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🔨 Верстак</h2><div id="craftList" style="display:flex;flex-direction:column;gap:10px;overflow-y:auto"></div></div></div>
@@ -341,15 +377,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 <script type="module" src="src/main.js" onerror="__bootErr('не загрузился src/main.js')"></script>
 <script>
 // игра хранится на устройстве (sw.js) — на сайтах; на локальном сервере не нужно, чтобы правки видно было сразу
-if ('serviceWorker' in navigator && !/^(localhost|127\.|192\.168\.)/.test(location.hostname)) {
+if ('serviceWorker' in navigator && (!/^(localhost|127\.|192\.168\.)/.test(location.hostname) || /[?&]sw\b/.test(location.search))) {   // на своём компьютере — только с ?sw (для проверки)
   navigator.serviceWorker.register('sw.js').catch(function () {});
-  // когда всё загрузилось — отдаём скрипту список файлов: пусть сохранит всё с первого раза
-  addEventListener('load', function () { setTimeout(function () {
-    navigator.serviceWorker.ready.then(function (r) {
-      var urls = [location.href].concat(performance.getEntriesByType('resource').map(function (e) { return e.name; }));
-      r.active && r.active.postMessage({ cache: urls });
-    });
-  }, 3000); });
 }
 </script>
 <script nomodule>__bootErr('браузер слишком старый: не поддерживает модули JavaScript')</script>

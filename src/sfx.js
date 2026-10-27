@@ -59,5 +59,10 @@ export const SFX = {
   portal() { tone('sine', 300, 1200, 0.45, 0.2); tone('triangle', 600, 2000, 0.4, 0.12, 0.08); },
   star() { [988, 1319, 1568, 1976, 2637].forEach((f, i) => tone('triangle', f, f, 0.22, 0.2, i * 0.07)); },
   boing() { tone('sine', 160, 640, 0.25, 0.35); tone('sine', 640, 220, 0.35, 0.25, 0.24); },
+  pop() { tone('sine', 900, 1800, 0.06, 0.14); },
+  kick() { noise(0.06, 0.4, 'lowpass', 700); tone('sine', 180, 90, 0.1, 0.2); },
+  quack() { tone('sawtooth', 520, 380, 0.12, 0.07); tone('sawtooth', 500, 360, 0.12, 0.07, 0.16); },
+  note(i = 0) { const f = [523, 659, 784, 988][i % 4]; tone('triangle', f, f, 0.35, 0.24); },
+  boom() { noise(0.5, 0.4, 'lowpass', 300); tone('sine', 1400, 300, 0.4, 0.06, 0.05); },
   refill() { [784, 988, 1175].forEach((f, i) => tone('sine', f, f, 0.2, 0.12, i * 0.07)); },
 };

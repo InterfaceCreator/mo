@@ -13,12 +13,15 @@ const LOOK = {
   spots: R => [R.base, R.stripe, R.glow || 0, 'spots'],
   gold: () => [0xffd23f, 0xfff3a0, 0x664400, 'gold'],
   rainbow: () => [0xffffff, 0xffffff, 0x221133, 'rainbow'],
+  fire: () => [0xff3b1a, 0xffd23f, 0xaa2200, 'fire'],                  // огненное яйцо босса с Дорожки (1-й круг)
+  ice: () => [0x5fb8f0, 0xffffff, 0x2266aa, 'crystal'],                // ледяное — 2-й круг
+  sun: () => [0xffd23f, 0xff8a1a, 0x885500, 'fire'],                   // солнечное (золотой дракон) — 3-й и дальше
   quick: R => [R.base, R.stripe, R.glow || 0, 'quick'],
   giant: R => [R.base, R.stripe, R.glow || 0, 'cracks'],
   crystal: () => [0xbff0ff, 0x7fd4ff, 0x1a5070, 'crystal'],
 };
-export const VARIANT_NAME = { spots: 'Пятнистое', gold: 'Золотое', rainbow: 'Радужное', quick: 'Быстрое', giant: 'Огромное', crystal: 'Кристальное' };
-export const VARIANT_INFO = { spots: 'чаще большие питомцы', gold: 'часто золотой питомец', rainbow: 'может выйти радужный питомец ×6', quick: 'вылупляется в 2,5 раза быстрее', giant: 'питомец на ступень реже, но нести тяжело', crystal: 'при вылуплении — кристаллы' };
+export const VARIANT_NAME = { fire: 'Огненное', ice: 'Ледяное', sun: 'Солнечное', spots: 'Пятнистое', gold: 'Золотое', rainbow: 'Радужное', quick: 'Быстрое', giant: 'Огромное', crystal: 'Кристальное' };
+export const VARIANT_INFO = { fire: 'яйцо дракона-босса: из него — огненный дракончик', ice: 'яйцо ледяного дракона: из него — ледяной дракончик', sun: 'яйцо золотого дракона: из него — золотой дракончик', spots: 'чаще большие питомцы', gold: 'часто золотой питомец', rainbow: 'может выйти радужный питомец ×6', quick: 'вылупляется в 2,5 раза быстрее', giant: 'питомец на ступень реже, но нести тяжело', crystal: 'при вылуплении — кристаллы' };
 export function eggMesh(parent, r, s = 1, v = null) {
   const R = RARITY[r], [base, stripe, glow, pattern] = v ? LOOK[v](R) : [R.base, R.stripe, R.glow || 0, R.pattern || 'stripes'];
   return makeEgg(parent, 0, 0, 0, s * (v === 'giant' ? 1.35 : 1), base, stripe, glow, pattern);
@@ -46,12 +49,14 @@ export function defineNests(loc, defs) {
   });
 }
 // иногда яйцо на ступень реже; иногда — особое
-function roll(n) { n.has = true; n.r1 = Math.min(n.r + (Math.random() < B.RARITY_UP * luck ? 1 : 0), RARITY.length - 1); n.v = rollVariant(); }
+function roll(n) {
+  if (n.fixed) { n.has = true; n.r1 = n.r; n.v = n.v0 || null; return; }       // на Дорожке у каждого зверя своё яйцо
+  n.has = true; n.r1 = Math.min(n.r + (Math.random() < B.RARITY_UP * luck ? 1 : 0), RARITY.length - 1); n.v = rollVariant(); }
 
 // построить гнёзда локации в сцене
 export function buildNests(loc) {
   for (const n of all.values()) {
-    if (n.loc !== loc) continue;
+    if (n.loc !== loc || n.off) continue;                // off — зверь с Дорожки уже побеждён
     n.y = n.y0 ?? groundY(n.x, n.z);                 // y0 — гнездо высоко (на домике)
     n.g = nest(scene, n.x, n.z, n.s, n.y); bake(n.g);                 // веточки гнезда — одним мешем
     n.egg = null; if (n.has) showEgg(n);
@@ -75,12 +80,23 @@ export function updateNests(dt) {
   }
   if ((refillT -= dt) > 0) return false;
   refillT = REFILL; let any = false;
-  for (const n of all.values()) if (!n.has && !n.away) {
+  for (const n of all.values()) if (!n.has && !n.away && !n.off) {
     if (n.every && (++n.cycle) % n.every) continue;
     roll(n);
     if (n.g) { showEgg(n); any = true; puff('✨', new T.Vector3(n.x, n.y + 1.5 * n.s, n.z), { size: 1 }); }
   }
   return any;
+}
+
+// новый забег на Дорожке: яйцо снова в гнезде сразу, не дожидаясь таймера
+export function refillNest(n) { if (!n.has && !n.away) roll(n); }
+// гнёзда одного места (Дорожке нужно знать, какие уже побеждены)
+export const nestsOf = loc => [...all.values()].filter(n => n.loc === loc);
+// зверя победили — гнездо исчезает вместе с ним
+export function retireNest(n) {
+  n.off = true;
+  if (n.g) n.g.visible = false; if (n.label) n.label.visible = false;
+  const i = nests.indexOf(n); if (i >= 0) nests.splice(i, 1);
 }
 
 // гнездо с яйцом рядом с точкой — или null

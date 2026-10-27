@@ -55,6 +55,8 @@ const WP = { A: [-26, 1], B: [-12, 1], C: [0, 4], D: [12, 1], E: [26, 1], F: [-2
 const NB = { A: 'B', B: 'AC', C: 'BDF', D: 'CE', E: 'D', F: 'CG', G: 'FH', H: 'GI', I: 'HJ', J: 'I' };
 
 let cat = null;
+// где сейчас Василий (для карты) — или null, если он не на этой локации
+export const vasyaPos = () => cat ? { x: cat.m.root.position.x, z: cat.m.root.position.z } : null;
 onLevelReset(() => { cat = null; });
 
 export function spawnVasya() {

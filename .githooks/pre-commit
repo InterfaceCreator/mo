@@ -1,6 +1,12 @@
 #!/bin/sh
-# Перед каждым коммитом записываем номер сборки и время — он виден внизу стартового экрана.
+# Перед каждым коммитом: номер сборки (виден внизу стартового экрана) и список файлов версии для обновления на устройствах (files.json).
 n=$(( $(git rev-list --count HEAD 2>/dev/null || echo 0) + 1 ))
 d=$(date '+%d.%m %H:%M')
-printf "// Номер сборки — пишется сам перед каждым коммитом (.githooks/pre-commit)\nexport const VERSION = 'сборка %s · %s';\n" "$n" "$d" > src/version.js
-git add src/version.js
+v="сборка $n · $d"
+printf "// Номер сборки — пишется сам перед каждым коммитом (.githooks/pre-commit)\nexport const VERSION = '%s';\n" "$v" > src/version.js
+{
+  printf '{"version":"%s","files":["./","vendor/three.min.js"' "$v"
+  for f in src/*.js; do printf ',"%s"' "$f"; done
+  printf ']}\n'
+} > files.json
+git add src/version.js files.json

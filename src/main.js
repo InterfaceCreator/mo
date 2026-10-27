@@ -14,6 +14,7 @@ import { loadProfile, save, persist, PROFILES } from './save.js';
 import { modelThumb } from './pets.js';
 import { chooseProfile, showLock, noteOpen, toast } from './ui.js';
 import { FS } from './fs.js';
+import './update.js';                  // плашка «загружается новая версия» на стартовом экране
 import { startRest, checkRest, unlockRest } from './rest.js';
 
 const Q = new URLSearchParams(location.search);

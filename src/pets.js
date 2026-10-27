@@ -18,7 +18,7 @@ export const RARITY = [
 
 const RAINBOW = [0xff5a5a, 0xffd93b, 0x5fd35f, 0x3fa7ff, 0x9b6bff];
 // home — в каких местах этот зверь вылупляется (из яиц тамошних гнёзд); так у каждого места свои питомцы
-const F = ['forest', 'base'], D = ['desert'], I = ['ice'];
+const F = ['forest', 'base'], D = ['desert'], I = ['ice'], TR = ['track'], AU = ['autumn'];
 export const SPECIES = {
   // --- Лес ---
   chick:    { name: 'Цыплёнок', r: 0, home: F, build: p => buildBird(p, { body: 0xffe14d, beak: 0xff9f1a, tuft: true }) },
@@ -32,6 +32,13 @@ export const SPECIES = {
   hedgehog: { name: 'Ёжик', r: 2, home: F, build: p => buildBeast(p, { body: 0x9a7b5a, head: 0xd9b48c, quills: 0x5a4030, snout: 0xd9b48c, nose: 0x222222, ear: 'round', leg: 0.18, w: 0.8, h: 0.5, d: 0.85, tail: 'none' }) },
   fox:      { name: 'Лисёнок', r: 3, home: F, build: p => buildBeast(p, { body: 0xff7a1a, ear: 'point', earC: 0x3a2a2a, tail: 'big', snout: 0xffffff, belly: 0xffffff, legC: 0x3a2a2a }) },
   panda:    { name: 'Панда', r: 3, home: F, build: p => buildBeast(p, { body: 0xffffff, ear: 'round', earC: 0x222222, legC: 0x222222, patch: 0x222222, tail: 'puff', w: 0.95, h: 0.75, d: 1.05 }) },
+  // Осенняя долина
+  squirrel: { name: 'Бельчонок', r: 1, home: AU, build: p => buildBeast(p, { body: 0xd9702a, belly: 0xffe0b8, ear: 'point', tail: 'big', tailC: 0xd9702a, snout: 0xffe0b8, w: 0.6, d: 0.8, leg: 0.25 }) },
+  raccoon:  { name: 'Енотик', r: 2, home: AU, build: p => buildBeast(p, { body: 0x8a8a92, head: 0x9a9aa2, patch: 0x2b2b33, snout: 0xe8e8ee, ear: 'point', tail: 'big', tailC: 0x6a6a72, stripes: 0x4a4a52, w: 0.75, d: 0.95 }) },
+  moose:    { name: 'Лосёнок', r: 3, home: AU, build: p => buildBeast(p, { body: 0x7a5a3a, head: 0x8a6a48, antlers: 0xe8d4b0, snout: 0x9a7a5a, ear: 'point', leg: 0.6, w: 0.85, d: 1.25, tail: 'stub' }) },
+  firedragon: { name: 'Огненный дракончик', r: 5, home: TR, build: p => buildDino(p, { body: 0xff4a1a, belly: 0xffd23f, spikes: 0xffe14d, wings: 0xff8a1a }) },   // только из огненного яйца босса
+  icedragon: { name: 'Ледяной дракончик', r: 5, home: TR, build: p => buildDino(p, { body: 0x5fb8f0, belly: 0xe8f8ff, spikes: 0xffffff, wings: 0xbfe9ff }) },   // из ледяного яйца (2-й круг)
+  golddragon: { name: 'Золотой дракончик', r: 6, home: TR, build: p => buildDino(p, { body: 0xffb81a, belly: 0xfff3a0, spikes: 0xff7a1a, wings: 0xffe14d }) },  // из солнечного яйца (3-й круг и дальше)
   owl:      { name: 'Совёнок', r: 3, home: F, build: p => buildBird(p, { body: 0x9c7a54, head: 0xb08a60, belly: 0xe8d4b0, eye: 1.5, tufts: true, beak: 0xffc21a, legC: 0xffc21a }) },
   fawn:     { name: 'Оленёнок', r: 3, home: F, build: p => buildBeast(p, { body: 0xc98a4a, spots: 0xffffff, antlers: 0x8a5a2b, ear: 'point', tail: 'stub', snout: 0xe0b080, leg: 0.5, w: 0.7, d: 1.0 }) },
   unicorn:  { name: 'Единорог', r: 4, home: F, build: p => buildBeast(p, { body: 0xffffff, horn: 0xffd23f, ear: 'point', mane: RAINBOW, tail: 'long', tailC: 0xff7ac8, leg: 0.5, d: 1.15 }) },
@@ -59,10 +66,13 @@ export const SPECIES_IDS = Object.keys(SPECIES).sort((a, b) => SPECIES[a].r - SP
 
 // случайный питомец из яйца редкости r, найденного в месте loc; v — особое яйцо (влияет на мутации).
 // Огромное яйцо даёт питомца на ступень реже
+// яйца драконов Дорожки — всегда свой дракончик
+const DRAGON_OF = { fire: 'firedragon', ice: 'icedragon', sun: 'golddragon' };
 export function rollPet(r, loc = 'forest', v = null) {
+  if (DRAGON_OF[v]) return { s: DRAGON_OF[v], big: false, gold: false, rainbow: false };
   if (v === 'giant') r = Math.min(r + 1, RARITY.length - 1);
   let pool = SPECIES_IDS.filter(id => SPECIES[id].r === r && SPECIES[id].home.includes(loc));
-  if (!pool.length) pool = SPECIES_IDS.filter(id => SPECIES[id].r === r);
+  if (!pool.length) pool = SPECIES_IDS.filter(id => SPECIES[id].r === r && !SPECIES[id].home.includes('track'));   // дракончик — только из огненного яйца
   const rainbow = v === 'rainbow' && Math.random() < 0.25;
   const gold = !rainbow && Math.random() < B.GOLD.chance * (v === 'gold' ? 5 : 1);
   const big = Math.random() < B.BIG.chance * (v === 'spots' ? 3 : 1);

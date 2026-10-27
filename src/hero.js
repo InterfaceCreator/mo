@@ -10,6 +10,22 @@ const LOOKS = {
   girl: { skin: 0xf8c9a8, shirt: 0xfbfaf6, pants: 0xf9f5f0, shoes: 0xffffff, sole: 0xffffff, hair: 0x3a2318, hairHi: 0x55341f, style: 'long', hearts: 0xb3142f, shorts: true, wide: true },
 };
 export const LOOK_OF = { motya: 'boy', mama: 'girl' };
+// жители-люди: та же модель, свои вещи — hat ('cap' | 'scarf'), beard, apron, stripes (спортивный костюм), whistle
+export const PEOPLE = {
+  galya: { skin: 0xf6c9a6, shirt: 0x9b6bff, pants: 0x3a4a7a, shoes: 0x6a3f1e, sole: 0x4a2a12, hair: 0x7a4a2a, hairHi: 0x7a4a2a, style: 'crop', hat: 'scarf', hatC: 0xff5a7a, apron: 0xffffff, cheeks: true },
+  gena: { skin: 0xf2c29a, shirt: 0x3fa7ff, pants: 0x2a5aa8, shoes: 0x4a3424, sole: 0x2a1a10, hair: 0x7a7a7a, hairHi: 0x7a7a7a, style: 'crop', hat: 'cap', hatC: 0xff7b22, beard: 0x8a8a8a, apron: 0x8a5a2b },
+  misha: { skin: 0xf8d0ae, shirt: 0xd8261a, pants: 0xd8261a, shoes: 0xffffff, sole: 0xd8d8d8, hair: 0x2a1a10, hairHi: 0x2a1a10, style: 'crop', hat: 'cap', hatC: 0xffffff, stripes: 0xffffff, whistle: 0xffd23f },
+  scarecrow: { skin: 0xf2d28a, shirt: 0xc0392b, pants: 0x3a5aa8, shoes: 0x8a5a2b, sole: 0x5a3a1a, hair: 0xe8c45a, hairHi: 0xffe08a, style: 'crop', hat: 'cap', hatC: 0x6a4a2a, apron: 0xe8c45a },   // пугало: соломенное, в клетчатой рубахе
+  vanya: { skin: 0xffd9b8, shirt: 0x2fbf4a, pants: 0x3a6ad8, shoes: 0xff3b3b, sole: 0xffffff, hair: 0xf2c24a, hairHi: 0xffe08a, style: 'crop' },
+  // дети — ровесники Моти, у каждого своя игра (kids.js)
+  sonya: { skin: 0xffdcc0, shirt: 0xff7ac8, pants: 0xffffff, shoes: 0xff3b8a, sole: 0xffffff, hair: 0xc8762a, hairHi: 0xe8a050, style: 'long', shorts: true, cheeks: true },
+  alisa: { skin: 0xf8d0ae, shirt: 0xffd23f, pants: 0x3fa7ff, shoes: 0x3fa7ff, sole: 0xffffff, hair: 0xf2d27a, hairHi: 0xfff0b0, style: 'long', hat: 'scarf', hatC: 0xff7b22 },
+  timur: { skin: 0xe8b48a, shirt: 0xff7b22, pants: 0x5a3a1a, shoes: 0x2b2b33, sole: 0xffffff, hair: 0x1d1410, hairHi: 0x3a2a20, style: 'crop', hat: 'cap', hatC: 0x2e8b57 },
+  masha: { skin: 0xffe0c8, shirt: 0x9b6bff, pants: 0xff7ac8, shoes: 0xffffff, sole: 0xffd23f, hair: 0x5a3a20, hairHi: 0x7a5232, style: 'long', hearts: 0xffd23f, cheeks: true },
+  petya: { skin: 0xffd9b8, shirt: 0x3fa7ff, pants: 0x1d1d23, shoes: 0x5fd35f, sole: 0xffffff, hair: 0xa0522d, hairHi: 0xc8763a, style: 'crop', stripes: 0xffffff },
+  kolya: { skin: 0xffd4b0, shirt: 0xe2442a, pants: 0xffffff, shoes: 0x1d1d23, sole: 0xffffff, hair: 0xf2c24a, hairHi: 0xffe08a, style: 'crop', stripes: 0xffffff, shorts: true },
+  olya: { skin: 0xffd4b0, shirt: 0xe2442a, pants: 0xffffff, shoes: 0x1d1d23, sole: 0xffffff, hair: 0xf2c24a, hairHi: 0xffe08a, style: 'long', stripes: 0xffffff, shorts: true },
+};
 
 // пиксельное сердечко на плоскости: две «горки» и ромбик; face — 'z+' спереди, 'z-' сзади, 'x+'/'x-' сбоку
 function heart(p, color, x, y, z, s, face = 'z+') {
@@ -23,7 +39,7 @@ function heart(p, color, x, y, z, s, face = 'z+') {
 
 export function buildHero(parent, lookId = 'boy') {
   const root = group(parent), body = group(root);
-  const L = LOOKS[lookId] || LOOKS.boy;
+  const L = typeof lookId === 'object' ? lookId : LOOKS[lookId] || LOOKS.boy;
   const TW = L.wide ? 1.1 : 1.0, TH = L.wide ? 1.12 : 1.0, TY = L.wide ? 1.46 : 1.5, AW = L.wide ? 0.52 : 0.48;   // свитер оверсайз — шире и длиннее
 
   // ноги — точка вращения в бедре
@@ -97,6 +113,31 @@ export function buildHero(parent, lookId = 'boy') {
       box(hair, 0.18, 0.95, 0.12, L.hair, sx * 0.34, -0.62, 0.33);            // пряди спереди на свитере
       box(head, 0.1, 0.06, 0.02, 0xffa3a3, sx * 0.24, -0.08, 0.34, { shadow: false, studs: false });   // румянец
     }
+  }
+  // вещи жителей
+  if (L.cheeks) for (const sx of [-1, 1]) box(head, 0.1, 0.06, 0.02, 0xffa3a3, sx * 0.24, -0.08, 0.34, { shadow: false, studs: false });
+  if (L.hat === 'cap') {                                                   // кепка с козырьком
+    box(head, 0.8, 0.22, 0.76, L.hatC, 0, 0.44, -0.02); box(head, 0.7, 0.06, 0.34, L.hatC, 0, 0.35, 0.48);
+  } else if (L.hat === 'scarf') {                                          // платок: закрывает волосы, узелок сзади
+    box(head, 0.8, 0.24, 0.76, L.hatC, 0, 0.42, -0.02);
+    for (const sx of [-1, 1]) box(head, 0.08, 0.5, 0.62, L.hatC, sx * 0.39, 0.16, -0.06);
+    box(head, 0.8, 0.5, 0.12, L.hatC, 0, 0.18, -0.37); box(head, 0.2, 0.2, 0.16, L.hatC, 0, -0.08, -0.46);
+    for (const [x, y] of [[-0.2, 0.42], [0.15, 0.44], [0, 0.2]]) box(head, 0.06, 0.06, 0.02, 0xffffff, x, y, 0.37, { shadow: false, studs: false });
+  }
+  if (L.beard) {                                                           // борода и усы
+    box(head, 0.66, 0.24, 0.08, L.beard, 0, -0.22, 0.33); box(head, 0.32, 0.06, 0.04, L.beard, 0, -0.09, 0.36, { shadow: false });
+    for (const sx of [-1, 1]) box(head, 0.08, 0.3, 0.3, L.beard, sx * 0.33, -0.1, 0.18);
+  }
+  if (L.apron) {                                                           // фартук с кармашком
+    box(body, TW * 0.8, TH * 0.78, 0.04, L.apron, 0, TY - TH * 0.08, 0.27, { shadow: false });
+    box(body, 0.34, 0.2, 0.03, L.apron === 0xffffff ? 0xffd0e0 : 0x6a3f1e, 0, TY - TH * 0.25, 0.3, { shadow: false });
+  }
+  if (L.stripes) {                                                         // спортивный костюм: лампасы на руках и ногах
+    for (const leg of [legL, legR]) for (const sx of [-1, 1]) box(leg, 0.02, 0.8, 0.08, L.stripes, sx * 0.245, -0.41, 0, { shadow: false, studs: false });
+    for (const arm of [armL, armR]) for (const sx of [-1, 1]) box(arm, 0.02, 0.76, 0.08, L.stripes, sx * (AW / 2 + 0.005), -0.36, 0, { shadow: false, studs: false });
+  }
+  if (L.whistle) {                                                         // свисток на шнурке
+    box(body, 0.02, 0.4, 0.02, 0x222222, 0, 1.78, 0.275, { shadow: false, studs: false }); box(body, 0.14, 0.08, 0.08, L.whistle, 0, 1.56, 0.29, { shadow: false });
   }
 
   // инструменты в правой руке: рукоять вдоль локальной оси z, рабочая часть смотрит в −y (туда, куда бьёт удар)

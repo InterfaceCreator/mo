@@ -67,6 +67,38 @@ export const B = {
   POTION_COST: 200, POTION_TIME: 30, POTION_MUL: 1.4,
   COMPASS_COST: 80, COMPASS_TIME: 60,
 
+  // --- Дорожка: звери по одному, каждый сильнее; последний — босс с особым яйцом ---
+  // Круг 1 — как было. С каждым кругом: звери другие и быстрее (+8% за круг, не больше +24%),
+  // яйца реже на ступень (не реже мифического), босс новый, монет за победу больше (+50% за круг).
+  // r — редкость яйца, chase — скорость погони
+  TRACK: [
+    { kind: 'capy', name: 'Капибара', r: 0, chase: 6.5 },
+    { kind: 'goose', name: 'Гусь', r: 1, chase: 7.4 },
+    { kind: 'boar', name: 'Кабан', r: 2, chase: 8.3 },
+    { kind: 'deer', name: 'Олень', r: 3, chase: 9.0 },
+    { kind: 'brownbear', name: 'Медведь', r: 3, chase: 9.6 },
+    { kind: 'lizard', name: 'Ящер', r: 4, chase: 10.0 },
+    { kind: 'dragon', name: 'Дракон', r: 5, chase: 10.6, boss: true, v: 'fire' },
+  ],
+  TRACK_ROSTER: {        // кто стоит на Дорожке во 2-м и в 3-м (и дальше) круге
+    2: [['peng', 'Пингвин'], ['boar', 'Кабан'], ['dino', 'Динозавр'], ['deer', 'Олень'], ['bear', 'Белый медведь'], ['lizard', 'Ящер'], ['icedragon', 'Ледяной дракон']],
+    3: [['dino', 'Динозавр'], ['deer', 'Олень'], ['brownbear', 'Медведь'], ['bear', 'Белый медведь'], ['lizard', 'Ящер'], ['dino', 'Большой динозавр'], ['golddragon', 'Золотой дракон']],
+  },
+  TRACK_BOSS_EGG: { 1: ['fire', 5], 2: ['ice', 5], 3: ['sun', 6] },     // какое яйцо у босса и какой редкости
+  trackStages: round => {
+    const R = Math.min(round, 3), roster = B.TRACK_ROSTER[R], speed = 1 + Math.min(0.08 * (round - 1), 0.24);
+    return B.TRACK.map((S, k) => {
+      const kind = roster ? roster[k][0] : S.kind, name = roster ? roster[k][1] : S.name;
+      if (S.boss) { const [v, r] = B.TRACK_BOSS_EGG[R]; return { kind, name, r, v, boss: true, chase: +(S.chase * speed).toFixed(2) }; }
+      return { kind, name, r: Math.min(S.r + round - 1, 5), chase: +(S.chase * speed).toFixed(2) };
+    });
+  },
+  TRACK_WIN: [60, 120, 200, 320, 480, 700, 2000],   // монеты за победу над зверем в 1-м круге (последний — босс)
+  trackWin: (k, round) => Math.round(B.TRACK_WIN[k] * (1 + 0.5 * (round - 1))),
+
+  // --- друзья: награда за 1-е…4-е сердечко; на 5-м — редкое яйцо (или кристаллы, если инкубаторы заняты) ---
+  FRIEND_GIFT: [50, 100, 200, 300], FRIEND_BEST_EGG: 3, FRIEND_BEST_CRYSTALS: 5,
+
   // --- какие места открываются с какого уровня скорости ---
   REQ: { forest: 1, desert: 8, ice: 16 },
 };
