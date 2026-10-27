@@ -171,27 +171,62 @@ export function clouds(p, n = 14) {
 }
 
 // портал: каменная арка с цветной «дымкой». face — куда смотрит лицевая сторона (входят навстречу ей)
+// воронка портала: светлая середина и четыре закрученных рукава
 const swirlTex = (() => {
-  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d');
-  for (let r = 64; r > 0; r -= 8) { c.fillStyle = r % 16 ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.15)'; c.beginPath(); c.arc(64, 64, r, 0, 7); c.fill(); }
-  const t = new T.CanvasTexture(cv); return t;
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256; const c = cv.getContext('2d');
+  const gr = c.createRadialGradient(128, 128, 4, 128, 128, 128); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,.2)');
+  c.fillStyle = gr; c.beginPath(); c.arc(128, 128, 128, 0, 7); c.fill();
+  c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineCap = 'round';
+  for (let k = 0; k < 4; k++) for (let i = 0; i < 60; i++) {
+    const t0 = i / 60, t1 = (i + 1) / 60, a = k * Math.PI / 2;
+    c.lineWidth = 3 + 14 * t0; c.beginPath();
+    c.moveTo(128 + Math.cos(a + t0 * 7) * t0 * 124, 128 + Math.sin(a + t0 * 7) * t0 * 124); c.lineTo(128 + Math.cos(a + t1 * 7) * t1 * 124, 128 + Math.sin(a + t1 * 7) * t1 * 124); c.stroke();
+  }
+  return new T.CanvasTexture(cv);
 })();
+const DISC = new T.CircleGeometry(1, 48); DISC.userData.cached = true;
+const RIM = new T.RingGeometry(0.93, 1, 48); RIM.userData.cached = true;
+const GEM = new T.OctahedronGeometry(1); GEM.userData.cached = true;
 export function portal(p, { x, z, w = 18, to, color, label, rot = 0, locked = false, req = 0 }) {
-  const g = group(p, x, 0, z); g.rotation.y = rot; g.userData.dynamic = true;
-  const half = w / 2 + 1.5;
-  for (const sx of [-1, 1]) box(g, 3.4, 10.4, 3.4, C.stone, sx * half, 5.2, 0, { studs: true });
-  box(g, w + 6.4, 2, 3, color, 0, 10, 0, { studs: true });
-  const swirl = new T.Mesh(new T.PlaneGeometry(w, 9.4), new T.MeshBasicMaterial({ color, map: swirlTex, transparent: true, opacity: 0.75, side: T.DoubleSide, depthWrite: false }));
-  swirl.position.y = 4.7; g.add(swirl);
+  const g = group(p, x, 0, z); g.rotation.y = rot;                 // каменная арка неподвижна — склеится с локацией; движется только то, что помечено dynamic
+  const half = w / 2 + 1.5, H = 10.4, ARCH = 2.6;
+  const light = new T.Color(color).lerp(new T.Color(0xffffff), 0.55), dark = new T.Color(color).multiplyScalar(0.62).getHex();
+  // столбы: подножие, ствол с цветными поясами, капитель
+  for (const sx of [-1, 1]) {
+    const px = sx * half;
+    box(g, 4.4, 1, 4.4, C.stone, px, 0.5, 0, { studs: true });
+    box(g, 3.4, H - 1, 3.4, C.stone, px, 0.5 + (H - 1) / 2, 0, { studs: true });
+    for (const y of [3.2, 6.6]) box(g, 3.7, 0.5, 3.7, color, px, y, 0);
+    box(g, 4.2, 0.8, 4.2, dark, px, H + 0.4, 0, { studs: true });
+  }
+  // арка: кирпичики дугой от столба к столбу
+  const n = 11;
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n, b = box(g, 2 * half / n + 0.35, 1.5, 2.8, i % 2 ? color : dark, -half + t * 2 * half, H + 0.9 + Math.sin(t * Math.PI) * ARCH, 0, { studs: true });
+    b.rotation.z = Math.atan(Math.cos(t * Math.PI) * Math.PI * ARCH / (2 * half));
+  }
+  // наверху — светящийся кристалл, медленно крутится
+  const gem = new T.Mesh(GEM, new T.MeshBasicMaterial({ color: light })); gem.scale.set(0.9, 1.3, 0.9); gem.position.set(0, H + ARCH + 2.6, 0); gem.userData.dynamic = true; g.add(gem);
+  // воронка: овал между столбами, по краю — светлый обод; крутится
+  const oval = group(g, 0, 4.9, 0); oval.scale.set(w / 2 - 0.1, 4.7, 1); oval.userData.dynamic = true;
+  const swirl = new T.Mesh(DISC, new T.MeshBasicMaterial({ color, map: swirlTex, transparent: true, opacity: 0.8, side: T.DoubleSide, depthWrite: false })); oval.add(swirl);
+  oval.add(new T.Mesh(RIM, new T.MeshBasicMaterial({ color: light, transparent: true, opacity: 0.9, side: T.DoubleSide, depthWrite: false })));
+  // искорки поднимаются сквозь портал
+  const N = 36, pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) { pos[i * 3] = (Math.random() - 0.5) * (w - 2); pos[i * 3 + 1] = Math.random() * 9.4; pos[i * 3 + 2] = (Math.random() - 0.5) * 1.6; }
+  const pg = new T.BufferGeometry(); pg.setAttribute('position', new T.BufferAttribute(pos, 3));
+  const sparks = new T.Points(pg, new T.PointsMaterial({ color: light, size: 0.4, transparent: true, opacity: 0.95, depthWrite: false })); sparks.position.y = 0.2; sparks.userData.dynamic = true; g.add(sparks);
+  // светлое пятно на земле под порталом
+  const glow = new T.Mesh(DISC, new T.MeshBasicMaterial({ color, transparent: true, opacity: 0.35, depthWrite: false })); glow.rotation.x = -Math.PI / 2; glow.scale.set(w / 2 + 1, 3, 1); glow.position.y = 0.06; glow.userData.dynamic = true; g.add(glow);
   // столбы твёрдые; портал стоит поперёк оси z (rot 0 или 180°) или поперёк оси x (rot ±90° — в боковой стене)
   const side = Math.abs(Math.sin(rot)) > 0.5;
   for (const sx of [-1, 1]) addCollider(side
     ? { x0: x - 1.7, x1: x + 1.7, y0: 0, y1: 10.4, z0: z + sx * half - 1.7, z1: z + sx * half + 1.7, cam: true }
     : { x0: x + sx * half - 1.7, x1: x + sx * half + 1.7, y0: 0, y1: 10.4, z0: z - 1.7, z1: z + 1.7, cam: true });
-  const pt = { x, z, w, to, g, swirl, label, req, locked, bars: null, col: null, side };
-  if (label) { pt.sign = makeLabel(7, 1.75); pt.sign.userData.set(label, { color: '#ffffff' }); pt.sign.position.set(0, 12.8, 0); g.add(pt.sign); }
+  const pt = { x, z, w, to, g, swirl, oval, gem, sparks, glow, label, req, locked, bars: null, col: null, side };
+  if (label) { pt.sign = makeLabel(7, 1.75); pt.sign.userData.set(label, { color: '#ffffff' }); pt.sign.position.set(0, H + ARCH + 5.2, 0); g.add(pt.sign); }
   if (locked) {
-    pt.bars = group(g);
+    pt.bars = group(g); pt.bars.userData.dynamic = true;
     for (let i = 0; i < 9; i++) box(pt.bars, 0.5, 7, 0.5, 0x666a7a, -w / 2 + 1 + i * (w - 2) / 8, 3.5, 0.9, { studs: false });
     box(pt.bars, w, 0.6, 0.6, 0x555a6a, 0, 6.6, 0.9, { studs: false }); box(pt.bars, w, 0.6, 0.6, 0x555a6a, 0, 2, 0.9, { studs: false });
     pt.col = addCollider({ x0: x - w / 2, x1: x + w / 2, y0: 0, y1: 7, z0: z - 0.5, z1: z + 1.5 });
@@ -205,8 +240,18 @@ export function unlockPortal(pt) { pt.locked = false; if (pt.col) pt.col.off = t
 
 export function updateWorld(dt) {
   for (const g of spinners) { g.position.x += g.userData.speed * dt; if (g.position.x > 150) g.position.x = -150; }
+  const t = performance.now() / 1000;
   for (const pt of portals) {
-    pt.swirl.material.opacity = 0.6 + Math.sin(performance.now() / 300) * 0.12;
+    pt.swirl.material.opacity = 0.7 + Math.sin(t * 3.3) * 0.12;
+    pt.swirl.rotation.z -= dt * (pt.locked ? 0.4 : 1.6);
+    pt.gem.rotation.y += dt * 1.2; pt.gem.position.y += Math.sin(t * 2) * 0.004;
+    pt.glow.material.opacity = 0.25 + Math.sin(t * 2.5) * 0.1;
+    if (!pt.locked) {
+      const a = pt.sparks.geometry.attributes.position;
+      for (let i = 0; i < a.count; i++) { let y = a.getY(i) + dt * (1.2 + (i % 5) * 0.3); if (y > 9.4) y = 0; a.setY(i, y); }
+      a.needsUpdate = true;
+    }
+    pt.sparks.visible = !pt.locked;
     if (!pt.locked && pt.bars && pt.bars.position.y > -7.5) pt.bars.position.y = Math.max(-7.5, pt.bars.position.y - dt * 6);
   }
 }

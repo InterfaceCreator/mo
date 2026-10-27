@@ -95,8 +95,18 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 #mapHint{display:block;text-align:center;color:#6a6280;margin-top:6px}
 #fsBtn svg{width:72%;height:72%;filter:drop-shadow(0 2px 0 rgba(0,0,0,.25))}
 .coin{display:inline-block;width:.95em;height:.95em;border-radius:50%;vertical-align:-.12em;background:radial-gradient(circle at 35% 30%,#fff6c0 0 12%,#ffc21a 14% 100%);box-shadow:inset 0 0 0 .1em #e09000,0 0 0 .08em #a86a00}
-#coins{right:max(12px,env(safe-area-inset-right));color:#ffe14d}
-#coins.pop{animation:pop .35s}
+/* справа сверху — одна плашка: монеты, скорость, звёзды; под ними ресурсы. Ниже — задание бобра */
+#topR{position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:none}
+#topR .pill{position:static}
+#hud{flex-direction:column;align-items:flex-end;gap:1px;padding:4px 12px;border-radius:16px;font-size:min(4.6vmin,22px)}
+#hud .row{display:flex;align-items:center;gap:10px}
+#coins{display:flex;align-items:center;gap:5px;color:#ffe14d}
+#speed{display:flex;align-items:center;gap:2px;color:#7fd4ff}
+#starsP{display:none;align-items:center;gap:2px;color:#ffe14d}
+#hud .ic{font-size:1em}
+#res{font-size:.8em;gap:7px;opacity:.95}
+#quest{font-size:min(4vmin,18px);padding:4px 12px;display:none}
+#coins.pop,#starsP.pop{animation:pop .35s}
 @keyframes pop{40%{transform:scale(1.2)}}
 .side{position:fixed;left:max(12px,env(safe-area-inset-left));width:min(16vmin,76px);height:min(16vmin,76px);border-radius:18px;border:4px solid #fff;
   font-size:min(9vmin,42px);display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;touch-action:manipulation;box-shadow:0 5px 0 rgba(0,0,0,.25)}
@@ -121,7 +131,6 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 #card .ok{margin-top:8px;border:none;border-radius:24px;background:#5fd35f;color:#fff;font-size:30px;font-weight:bold;padding:10px 40px;cursor:pointer;box-shadow:0 5px 0 rgba(0,0,0,.2)}
 
 /* скорость под монетами, банан над прыжком, смена игрока под книжкой */
-#speed{right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + min(13vmin,60px));color:#7fd4ff}
 #who{top:calc(max(12px,env(safe-area-inset-top)) + min(14vmin,70px) + var(--step));background:#9b6bff;font-size:min(7vmin,32px)}
 #items{position:fixed;right:max(30px,env(safe-area-inset-right));bottom:calc(max(30px,env(safe-area-inset-bottom)) + min(26vmin,130px) + 14px);display:flex;flex-direction:column-reverse;flex-wrap:wrap-reverse;max-height:calc(100vh - min(26vmin,130px) - 150px);max-height:calc(100dvh - min(26vmin,130px) - 150px);gap:12px;align-items:center}   /* много предметов — второй столбик левее */
 #items button{position:relative;width:min(16vmin,76px);height:min(16vmin,76px);
@@ -233,11 +242,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 #lock .hint{font-size:15px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.4)}
 
 /* ресурсы и инструменты — справа под скоростью */
-#res{right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + 2 * min(13vmin,60px));font-size:min(5vmin,24px);gap:10px;padding-left:12px}
 #res b{margin-left:2px}
 #res b.pop{animation:pop .35s;display:inline-block}
-#starsP{right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + 3 * min(13vmin,60px));color:#ffe14d;display:none}
-#quest{right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + 4 * min(13vmin,60px));font-size:min(4.6vmin,22px);display:none}
 #tools{right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + 4 * min(13vmin,60px));font-size:min(6vmin,28px);padding:4px 12px;display:none}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .chip{background:#fff;border-radius:12px;padding:2px 8px;font-size:min(4.5vw,19px);font-weight:bold;border:3px solid #5fd35f}
@@ -319,12 +325,17 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
   <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l7-7 7 7"/><path d="M5 20l7-7 7 7"/></svg>
 </button>
 <div id="topL"><div id="sun" class="pill"><span class="ic">🥚</span><span class="lbl"><small>новые яйца</small><span id="sunT">1:00</span></span></div><button id="fsBtn" aria-label="Во весь экран"></button></div>
-<div id="coins" class="pill"><i class="coin"></i><span id="coinsN">0</span></div>
+<div id="topR">
+  <div id="hud" class="pill">
+    <div class="row"><span id="coins"><i class="coin"></i><span id="coinsN">0</span></span><span id="speed"><span class="ic">👟</span><span id="speedN">1</span></span><span id="starsP"><span class="ic">⭐</span><span id="starsN">0</span></span></div>
+    <div id="res" class="row"><span>🪵<b id="r-wood">0</b></span><span>🪨<b id="r-stone">0</b></span><span>💎<b id="r-crystal">0</b></span><span>🌿<b id="r-leaf">0</b></span><span hidden>🌰<b id="r-acorn">0</b></span><span hidden>🎃<b id="r-pumpkin">0</b></span></div>
+  </div>
+  <div id="quest" class="pill"></div>
+</div>
 <button id="bookBtn" class="side" aria-label="Коллекция">📖<span class="dot"></span></button>
 <div id="book" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>Мои питомцы</h2><div id="grid"></div></div></div>
 <div id="map" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🗺️ Карта</h2><div id="mapTabs"></div><div class="mapbox"><canvas id="mapC"></canvas></div><small id="mapHint"></small></div></div>
 <div id="notes" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🔔 Новости</h2><div id="notesList"></div></div></div>
-<div id="speed" class="pill"><span class="ic">👟</span><span id="speedN">1</span></div>
 <button id="who" class="side" aria-label="Сменить игрока">👤</button>
 <button id="bellBtn" class="side" aria-label="Уведомления">🔔<b></b></button>
 <button id="invBtn" class="side" aria-label="Рюкзак">🎒</button>
@@ -366,9 +377,6 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
   <button id="heart">❤️</button>
   <div class="hint">мама: подержи сердечко 3 секунды</div>
 </div>
-<div id="res" class="pill"><span>🪵<b id="r-wood">0</b></span><span>🪨<b id="r-stone">0</b></span><span>💎<b id="r-crystal">0</b></span><span>🌿<b id="r-leaf">0</b></span><span hidden>🌰<b id="r-acorn">0</b></span><span hidden>🎃<b id="r-pumpkin">0</b></span></div>
-<div id="starsP" class="pill"><span class="ic">⭐</span><span id="starsN">0</span></div>
-<div id="quest" class="pill"></div>
 <div id="craft" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🔨 Верстак</h2><div id="craftList" style="display:flex;flex-direction:column;gap:10px;overflow-y:auto"></div></div></div>
 <div id="fade"></div>
 <div id="hint"></div>
