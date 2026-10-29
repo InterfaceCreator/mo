@@ -165,6 +165,7 @@ const FOREST = {
   sky: { x: 60, z: 22 },                                   // батут к парящему острову
   log: { x: -20, z: -62 },                                 // полое бревно
   spawn: { x: 0, z: 60 },
+  gorilla: { x: -70, z: 22 },                              // гнездо гориллы: из его яйца всегда вылупляется горилла
   // дальнее кольцо леса
   lake: { x: 82, z: 10, r: 16, island: 4.5 },               // озеро: на остров — по кочкам; в глубокую воду нельзя
   mush: { x: -78, z: -64 },                                // грибная роща
@@ -447,6 +448,7 @@ function buildForest(save) {
     ...F.nests.map(([x, z, r, guard, s]) => ({ x, z, r, guard, s, zone: { kind: 'ring', x, z } })),
     { x: -52, z: 48, r: 3, guard: null, s: 1.2, every: 2 },          // на тайной поляне — без сторожа
     { x: FOREST.lake.x - 1, z: FOREST.lake.z - 2.5, r: 3, guard: null, every: 2 },   // на острове
+    { x: F.gorilla.x, z: F.gorilla.z, r: 3, guard: 'gorilla', s: 1.3, pet: 'gorilla', zone: { kind: 'ring', x: F.gorilla.x, z: F.gorilla.z } },
     { x: FOREST.village.x - 7.5, z: FOREST.village.z - 10.2, y0: groundY(FOREST.village.x, FOREST.village.z) + 8, r: 4, guard: null, every: 3 },  // на домике на дереве
   ]);
 
@@ -483,7 +485,7 @@ function buildForest(save) {
   addStar(save, 'forest-island', F.river(9), 9, 0);
 
   // деревья, ресурсы, камни, зверушки — не в реке, не у построек, не у гнёзд и не у портала
-  const busy = [[F.plateau, P.r + 3], [F.bigTree, 9], [F.hill, 7], [F.fort, 13], [F.sky, 7], [F.log, 8], [F.mountain, 4], [F.cave, 6], [F.spawn, 13], [F.mush, 16], [F.village, 16], [F.circle, 12], [F.camp, 10], [F.zipTower, 8], [F.ship, 12], [F.well, 4], [F.race, 4], ...FRIEND_HOMES('forest').map(o => [o, o.area || 5]),
+  const busy = [[F.plateau, P.r + 3], [F.bigTree, 9], [F.hill, 7], [F.fort, 13], [F.sky, 7], [F.log, 8], [F.mountain, 4], [F.cave, 6], [F.spawn, 13], [F.mush, 16], [F.village, 16], [F.circle, 12], [F.camp, 10], [F.zipTower, 8], [F.ship, 12], [F.well, 4], [F.race, 4], [F.gorilla, 9], ...FRIEND_HOMES('forest').map(o => [o, o.area || 5]),
     ...F.race.rings.map(([x, z]) => [{ x, z }, 5]), ...F.digs.map(([x, z]) => [{ x, z }, 3]), ...F.arrows.map(([x, z]) => [{ x, z }, 3]), ...F.zipEnds.map(o => [o, 4])];
   const free = (x, z, pad = 0) => {
     if (Math.max(Math.abs(x), Math.abs(z)) > F.edge - 6) return false;
@@ -572,7 +574,7 @@ export function mapData(id) {
       ['🌀', 'На базу', F.spawn.x, F.spawn.z + 8], ['🌳', 'Дерево-великан', F.bigTree.x, F.bigTree.z], ['⛰️', 'Гора', F.mountain.x, F.mountain.z],
       ['🏡', 'Мельница', F.hill.x, F.hill.z], ['🏰', 'Крепость', F.fort.x, F.fort.z], ['☁️', 'Остров в небе', F.sky.x, F.sky.z], ['🪨', 'Плато', F.plateau.x, F.plateau.z],
       ['🪵', 'Бревно', F.log.x, F.log.z], ['🕳️', 'Пещерка', F.cave.x, F.cave.z], ['🍄', 'Грибы', F.mush.x, F.mush.z], ['🌿', 'Лабиринт', F.maze.x0 + 14, F.maze.z0 + 14],
-      ['🏘️', 'Деревня', F.village.x, F.village.z], ['🗿', 'Камни', F.circle.x, F.circle.z], ['⛺', 'Лагерь', F.camp.x, F.camp.z], ['🚡', 'Канатка', F.zipTower.x, F.zipTower.z],
+      ['🏘️', 'Деревня', F.village.x, F.village.z], ['🗿', 'Камни', F.circle.x, F.circle.z], ['🦍', 'Горилла', F.gorilla.x, F.gorilla.z], ['⛺', 'Лагерь', F.camp.x, F.camp.z], ['🚡', 'Канатка', F.zipTower.x, F.zipTower.z],
       ['🏴‍☠️', 'Корабль', F.ship.x, F.ship.z], ['🪙', 'Колодец', F.well.x, F.well.z], ['⭕', 'Гонка', F.race.x, F.race.z], ['💧', 'Озеро', F.lake.x, F.lake.z + F.lake.r - 3],
       ['🌼', 'Тайная поляна', (F.glade.x0 + F.glade.x1) / 2, (F.glade.z0 + F.glade.z1) / 2], ['🟥', 'Цветные плиты', -33, 51],
     ],

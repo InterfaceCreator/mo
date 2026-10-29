@@ -117,3 +117,31 @@ export function animateAnimal(m, dt, speed, { hop = false } = {}) {
   const bob = moving ? (hop ? Math.abs(s) * 0.25 : Math.abs(s) * 0.06) : Math.sin(m.phase) * 0.015;
   m.body.position.y = bob;
 }
+
+// горилла: широкая грудь, длинные руки до земли (ходит на костяшках), короткие ноги, светлая морда.
+// size — общий размер (питомец меньше сторожа). Ноги по порядку как у зверей: передние (руки), потом задние
+export function buildGorilla(p, o = {}) {
+  const fur = o.body ?? 0x2e2e36, face = o.face ?? 0x75707e, chest = o.chest ?? 0x4a4652;
+  const root = group(p), body = group(root), legs = [];
+  body.scale.setScalar(o.size || 1);
+  for (const sx of [-1, 1]) {
+    const A = group(body, sx * 0.7, 1.45, 0.3); legs.push(A);
+    box(A, 0.36, 1.3, 0.38, fur, 0, -0.65, 0); box(A, 0.4, 0.18, 0.44, face, 0, -1.33, 0.04);   // рука и кулак
+  }
+  for (const sx of [-1, 1]) {
+    const L = group(body, sx * 0.33, 0.55, -0.3); legs.push(L);
+    box(L, 0.34, 0.55, 0.36, fur, 0, -0.27, 0); box(L, 0.38, 0.12, 0.48, face, 0, -0.5, 0.06);
+  }
+  const tor = box(body, 1.15, 1.05, 0.85, fur, 0, 1.1, 0); tor.rotation.x = 0.3;               // наклонился вперёд
+  const ch = box(body, 0.8, 0.62, 0.06, chest, 0, 1.12, 0.44); ch.rotation.x = 0.3;
+  box(body, 0.95, 0.42, 0.65, fur, 0, 1.62, -0.12);                                            // загривок
+  const hd = 0.62, head = group(body, 0, 1.78, 0.55);
+  box(head, hd, hd * 0.92, hd * 0.9, fur);
+  box(head, hd * 1.04, hd * 0.2, hd * 0.3, fur, 0, hd * 0.3, hd * 0.38);                        // тяжёлые брови
+  box(head, hd * 0.74, hd * 0.48, hd * 0.3, face, 0, -hd * 0.18, hd * 0.46);                     // морда
+  box(head, hd * 0.3, hd * 0.08, 0.05, 0x1a1a1a, 0, -hd * 0.08, hd * 0.62, { shadow: false });  // ноздри
+  for (const sx of [-1, 1]) box(head, hd * 0.14, hd * 0.24, hd * 0.14, face, sx * hd * 0.55, hd * 0.05, 0);   // уши
+  const E = { open: [], closed: [] };
+  eyes(head, hd * 0.46, hd * 0.2, hd * 0.12, hd * 0.2, E);
+  return { root, body, head, legs, eyes: E, phase: Math.random() * 6, kind: 'beast' };
+}

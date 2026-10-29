@@ -7,7 +7,7 @@ import { stageZ } from './track.js';
 import { vasyaPos } from './vasya.js';
 
 const FACE = { pushinka: '🐿️', timosha: '🎃', ryaba: '🐔', galya: '👩‍🍳', gena: '🧔', misha: '🧢', vanya: '👦', sonya: '👧', kolya: '⚽', olya: '⚽', masha: '🎨', alisa: '🦆', timur: '🎳', petya: '🏃', vasya: '🐱', borya: '🦫', yosha: '🦔', uhu: '🦉', lisa: '🦊', tyoma: '🐻' };
-const BEAST = { capy: '🐹', goose: '🪿', boar: '🐗', deer: '🦌', brownbear: '🐻', lizard: '🦎', dragon: '🐉', peng: '🐧', dino: '🦖', bear: '🐻‍❄️', icedragon: '🐉', golddragon: '🐲' };
+const BEAST = { capy: '🐹', goose: '🪿', boar: '🐗', deer: '🦌', brownbear: '🐻', lizard: '🦎', dragon: '🐉', peng: '🐧', dino: '🦖', bear: '🐻‍❄️', icedragon: '🐉', golddragon: '🐲', gorilla: '🦍' };
 const TABS = [['base', '🏠 База'], ['forest', '🌲 Лес'], ['autumn', '🍂 Осень'], ['track', '🏁 Дорожка']];
 const $ = id => document.getElementById(id);
 

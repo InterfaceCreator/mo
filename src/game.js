@@ -431,7 +431,7 @@ export function updateGame(dt) {
     const inc = freeIncubator();
     if (inc) {
       const c = carry; c.mesh.getWorldPosition(tmp); dropCarry(); releaseNest(c.nest);
-      placeEgg(inc, c.r, now + hatchTime(c.r, c.v), tmp.clone(), c.nest.loc, c.v);
+      placeEgg(inc, c.r, now + hatchTime(c.r, c.v), tmp.clone(), c.nest.pet || c.nest.loc, c.v);   // pet — гнездо своего зверя (горилла)
       if (c.nest.loc === 'forest') stat('eggsForest');
       SFX.place(); saveInc();
     } else if (now > fullWarn) { fullWarn = now + 2500; puff('⏳', p.clone().setY(3.6), { size: 1.5 }); SFX.nope(); }

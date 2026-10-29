@@ -1,7 +1,7 @@
 // Питомцы: каталог, загон (гуляют и приносят монеты), копилка, картинки для коллекции.
 import { B } from './balance.js';
 import { T, scene, group, box, damp, dampAngle } from './engine.js';
-import { buildBeast, buildBird, buildDino, animateAnimal } from './animals.js';
+import { buildBeast, buildBird, buildDino, buildGorilla, animateAnimal } from './animals.js';
 import { makeLabel, puff, confetti } from './fx.js';
 import { PEN, onLevelReset } from './world.js';
 
@@ -30,6 +30,7 @@ export const SPECIES = {
   kitten:   { name: 'Котёнок', r: 2, home: F, build: p => buildBeast(p, { body: 0xff9f40, ear: 'point', tail: 'long', snout: 0xffe0b8, nose: 0xff6f91, w: 0.7, stripes: 0xe07a20 }) },
   lamb:     { name: 'Ягнёнок', r: 2, home: F, build: p => buildBeast(p, { body: 0xfafafa, head: 0x4a4048, wool: 0xffffff, ear: 'flop', earC: 0x4a4048, legC: 0x4a4048, tail: 'puff', w: 0.85 }) },
   hedgehog: { name: 'Ёжик', r: 2, home: F, build: p => buildBeast(p, { body: 0x9a7b5a, head: 0xd9b48c, quills: 0x5a4030, snout: 0xd9b48c, nose: 0x222222, ear: 'round', leg: 0.18, w: 0.8, h: 0.5, d: 0.85, tail: 'none' }) },
+  gorilla:  { name: 'Горилла', r: 3, home: ['forest'], own: true, build: p => buildGorilla(p, { size: 0.55 }) },   // только из яйца из гнезда гориллы в лесу
   fox:      { name: 'Лисёнок', r: 3, home: F, build: p => buildBeast(p, { body: 0xff7a1a, ear: 'point', earC: 0x3a2a2a, tail: 'big', snout: 0xffffff, belly: 0xffffff, legC: 0x3a2a2a }) },
   panda:    { name: 'Панда', r: 3, home: F, build: p => buildBeast(p, { body: 0xffffff, ear: 'round', earC: 0x222222, legC: 0x222222, patch: 0x222222, tail: 'puff', w: 0.95, h: 0.75, d: 1.05 }) },
   // Осенняя долина
@@ -71,8 +72,8 @@ const DRAGON_OF = { fire: 'firedragon', ice: 'icedragon', sun: 'golddragon' };
 export function rollPet(r, loc = 'forest', v = null) {
   if (DRAGON_OF[v]) return { s: DRAGON_OF[v], big: false, gold: false, rainbow: false };
   if (v === 'giant') r = Math.min(r + 1, RARITY.length - 1);
-  let pool = SPECIES_IDS.filter(id => SPECIES[id].r === r && SPECIES[id].home.includes(loc));
-  if (!pool.length) pool = SPECIES_IDS.filter(id => SPECIES[id].r === r && !SPECIES[id].home.includes('track'));   // дракончик — только из огненного яйца
+  let pool = loc === 'gorilla' ? ['gorilla'] : SPECIES_IDS.filter(id => SPECIES[id].r === r && SPECIES[id].home.includes(loc) && !SPECIES[id].own);
+  if (!pool.length) pool = SPECIES_IDS.filter(id => SPECIES[id].r === r && !SPECIES[id].home.includes('track') && !SPECIES[id].own);   // дракончик — только из огненного яйца
   const rainbow = v === 'rainbow' && Math.random() < 0.25;
   const gold = !rainbow && Math.random() < B.GOLD.chance * (v === 'gold' ? 5 : 1);
   const big = Math.random() < B.BIG.chance * (v === 'spots' ? 3 : 1);

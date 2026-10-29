@@ -5,7 +5,7 @@
 // или { kind: 'ring', x, z, R } — круг вокруг гнезда.
 import { B } from './balance.js';
 import { T, scene, group, box, damp, dampAngle, clamp } from './engine.js';
-import { buildBeast, buildBird, buildDino, setEyes, animateAnimal } from './animals.js';
+import { buildGorilla, buildBeast, buildBird, buildDino, setEyes, animateAnimal } from './animals.js';
 import { spawnZ, puff } from './fx.js';
 import { onLevelReset, groundY, level, nearColliders } from './world.js';
 
@@ -21,6 +21,7 @@ const KINDS = {
   dragon: { s: 3.6, build: p => buildDino(p, { body: 0xd8261a, belly: 0xffb020, spikes: 0xffd23f, wings: 0xff6a1a }) },   // босс Дорожки (1-й круг)
   icedragon: { s: 3.8, build: p => buildDino(p, { body: 0x5fb8f0, belly: 0xe8f8ff, spikes: 0xffffff, wings: 0xbfe9ff }) },   // 2-й круг
   golddragon: { s: 4.0, build: p => buildDino(p, { body: 0xffb81a, belly: 0xfff3a0, spikes: 0xff7a1a, wings: 0xffe14d }) },  // 3-й и дальше
+  gorilla: { s: 1.6, build: p => buildGorilla(p) },                                           // бьёт себя в грудь, когда заметит
   bear: { s: 2.1, build: p => buildBeast(p, { body: 0xf4f8ff, snout: 0xdfe8f5, ear: 'round', w: 1.1, h: 0.9, d: 1.5, hd: 0.8, leg: 0.4 }) },
 };
 
@@ -107,7 +108,8 @@ export function vanishGuard(nest) {
 export function wake(nest) {
   const gd = guards.find(g => g.nest === nest); if (!gd) return;
   gd.state = 'alert'; gd.t = 0.55; sleepPose(gd, false);
-  puff('❗', gd.g.position.clone().setY(gd.g.position.y + gd.s * 1.9), { size: 1.4, rise: 0.8, life: 0.9 });
+  puff(nest.guard === 'gorilla' ? '💪' : '❗', gd.g.position.clone().setY(gd.g.position.y + gd.s * 1.9), { size: 1.4, rise: 0.8, life: 0.9 });
+  if (nest.guard === 'gorilla') puff('🦍', gd.g.position.clone().setY(gd.g.position.y + gd.s * 2.6), { size: 1.8, rise: 1, life: 1.2 });
 }
 
 // hero: { pos, carrying }. Возвращает сторожа, который поймал героя, или null
