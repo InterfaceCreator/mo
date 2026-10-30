@@ -2,19 +2,24 @@
 export const T = window.THREE;
 
 export const canvas = document.getElementById('c');
-// на телефонах плотность пикселей ограничиваем — так держится 60 кадров
-const DPR = Math.min(window.devicePixelRatio || 1, Math.min(screen.width, screen.height) < 500 ? 1.75 : 2);
+// экономный режим на телефонах и планшетах (сенсорный экран): меньше пикселей, без сглаживания, простые тени,
+// не больше 40 кадров в секунду (main.js) — чтобы телефон не грелся и дольше держал заряд. ?hq — полное качество, ?eco — экономно и на компьютере
+const Q = new URLSearchParams(location.search);
+export const PHONE = Math.min(screen.width, screen.height) < 500;
+export const ECO = !Q.has('hq') && (Q.has('eco') || matchMedia('(pointer: coarse)').matches);
+const DPR = Math.min(window.devicePixelRatio || 1, ECO ? (PHONE ? 1.5 : 1.25) : 2);
 // слабый планшет может не дать 3D с полными настройками — пробуем попроще
 function makeRenderer() {
   let err;
-  for (const o of [{ antialias: true, powerPreference: 'high-performance' }, { antialias: false }, { antialias: false, powerPreference: 'low-power', depth: true, stencil: false }]) {
+  const first = ECO ? { antialias: false } : { antialias: true, powerPreference: 'high-performance' };
+  for (const o of [first, { antialias: false }, { antialias: false, powerPreference: 'low-power', depth: true, stencil: false }]) {
     try { return new T.WebGLRenderer({ canvas, ...o }); } catch (e) { err = e; }
   }
   throw new Error('3D (WebGL) не запускается на этом устройстве: ' + (err && err.message));
 }
 export const renderer = makeRenderer();
 renderer.setPixelRatio(DPR);
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = ECO ? T.PCFShadowMap : T.PCFSoftShadowMap;
 
 export const SKY = 0x8fd3ff;
 export const scene = new T.Scene();
@@ -49,7 +54,6 @@ export function followSky() { skyMesh.position.copy(camera.position); sunDisc.po
 
 const hemi = new T.HemisphereLight(0xe2f2ff, 0x8fae6a, 0.7); hemi.userData.keep = true; scene.add(hemi);
 export const sun = new T.DirectionalLight(0xfff1d8, 0.85);
-const PHONE = Math.min(screen.width, screen.height) < 500;
 sun.castShadow = true; sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048); sun.shadow.bias = -0.0005;
 const SUN_SIZE = 26, SUN_OFF = new T.Vector3(14, 30, 10), SUN_DIR = SUN_OFF.clone().normalize();
 Object.assign(sun.shadow.camera, { near: 1, far: 90, left: -SUN_SIZE, right: SUN_SIZE, top: SUN_SIZE, bottom: -SUN_SIZE });

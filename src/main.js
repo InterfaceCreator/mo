@@ -1,5 +1,5 @@
 // Запуск и главный цикл.
-import { renderer, scene, camera, resize, followSun, followSky } from './engine.js';
+import { renderer, scene, camera, resize, followSun, followSky, ECO } from './engine.js';
 import { updateWater } from './terrain.js';
 import { updateWorld } from './world.js';
 import { LOCS } from './locations.js';
@@ -87,15 +87,19 @@ function start(who) {
   const fpsEl = document.getElementById('fps'); let fpsN = 0, fpsT = 0;
   if (Q.has('fps')) fpsEl.style.display = 'block';
 
-  let last = performance.now(), stepT = 0, wasGrounded = true, lastVy = 0;
+  let last = performance.now(), stepT = 0, wasGrounded = true, lastVy = 0, pausedDrawn = false;
+  const MIN_FRAME = ECO ? 1000 / 40 - 2 : 0;          // экономный режим: не чаще 40 кадров в секунду
   function frame(now) {
     requestAnimationFrame(frame);
     window.__running = true;
+    if (now - last < MIN_FRAME) return;
     const dt = Math.min((now - last) / 1000, 0.05); last = now;
     if (!window.game?.frozen) update(dt);   // game.frozen — остановить время (для проверок)
   }
   function update(dt) {
-    if (locked || noteOpen()) { renderer.render(scene, camera); return; }    // отдых или записка — игра стоит
+    // отдых или записка — игра стоит; картинка не меняется, поэтому рисуем её один раз (под окном видно игру)
+    if (locked || noteOpen()) { if (!pausedDrawn) { renderer.render(scene, camera); pausedDrawn = true; } return; }
+    pausedDrawn = false;
     restCheck();
     pollInput();
     hero.holdJump = input.jumpHeld;
