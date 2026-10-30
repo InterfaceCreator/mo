@@ -2,16 +2,16 @@
 export const T = window.THREE;
 
 export const canvas = document.getElementById('c');
-// экономный режим на телефонах и планшетах (сенсорный экран): меньше пикселей, без сглаживания, простые тени,
-// не больше 40 кадров в секунду (main.js) — чтобы телефон не грелся и дольше держал заряд. ?hq — полное качество, ?eco — экономно и на компьютере
+// экономный режим на телефонах и планшетах (сенсорный экран): простые тени, не самый мощный режим видеочипа,
+// не больше 40 кадров в секунду (main.js); чёткость и сглаживание — как раньше, иначе картинка заметно хуже — чтобы телефон не грелся и дольше держал заряд. ?hq — полное качество, ?eco — экономно и на компьютере
 const Q = new URLSearchParams(location.search);
 export const PHONE = Math.min(screen.width, screen.height) < 500;
 export const ECO = !Q.has('hq') && (Q.has('eco') || matchMedia('(pointer: coarse)').matches);
-const DPR = Math.min(window.devicePixelRatio || 1, ECO ? (PHONE ? 1.5 : 1.25) : 2);
+const DPR = Math.min(window.devicePixelRatio || 1, PHONE ? 1.75 : 2);
 // слабый планшет может не дать 3D с полными настройками — пробуем попроще
 function makeRenderer() {
   let err;
-  const first = ECO ? { antialias: false } : { antialias: true, powerPreference: 'high-performance' };
+  const first = ECO ? { antialias: true } : { antialias: true, powerPreference: 'high-performance' };
   for (const o of [first, { antialias: false }, { antialias: false, powerPreference: 'low-power', depth: true, stencil: false }]) {
     try { return new T.WebGLRenderer({ canvas, ...o }); } catch (e) { err = e; }
   }
