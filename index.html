@@ -93,6 +93,15 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 #mapTabs button.on{background:#3fa7ff;color:#fff}
 #map .mapbox{overflow:auto;display:flex;justify-content:center}
 #mapHint{display:block;text-align:center;color:#6a6280;margin-top:6px}
+/* наблюдатель 👁 (?spy): никаких кнопок игры, сверху — за кем смотрим */
+body.spy .side,body.spy #jump,body.spy #fsBtn,body.spy #duoBtn,body.spy #hint,body.spy #joy{display:none!important}
+body.spy #topL,body.spy #topR,body.spy .ov:not(#pin),body.spy #note,body.spy #items,body.spy #effects,body.spy #kidhud,body.spy #toast{pointer-events:none!important}   /* только смотреть */
+body.spy #spyBar{top:auto;bottom:max(10px,env(safe-area-inset-bottom))}
+#spyBar{position:fixed;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;z-index:5;max-width:calc(100vw - 20px)}
+#spyBar b{font-size:26px}
+#spyBar button{font:inherit;font-weight:bold;border:3px solid #fff;border-radius:14px;padding:6px 12px;background:rgba(40,30,70,.75);color:#fff;display:flex;flex-direction:column;align-items:center;cursor:pointer;min-width:110px}
+#spyBar button.on{background:#3fa7ff}
+#spyBar small{font-weight:normal;font-size:.72em;opacity:.95;white-space:nowrap}
 /* вдвоём: кнопка рядом с «во весь экран»; ждём — мигает, играем вместе — зелёная */
 #duoBtn{flex:none;width:min(13vmin,60px);height:min(13vmin,60px);border-radius:16px;border:4px solid #fff;background:#9b6bff;color:#fff;padding:0;cursor:pointer;
   display:flex;align-items:center;justify-content:center;font-size:min(7vmin,30px);touch-action:manipulation;box-shadow:0 5px 0 rgba(0,0,0,.25)}

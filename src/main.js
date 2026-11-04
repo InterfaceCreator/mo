@@ -8,7 +8,7 @@ import { makePlayer, updatePlayer, WALK } from './player.js';
 import { makeCam, updateCam } from './camera.js';
 import { input, pollInput, takeLook, takeZoom, takeJump } from './input.js';
 import { initAudio, SFX } from './sfx.js';
-import { initGame, updateGame } from './game.js';
+import { initGame, updateGame, updateSpyGame, SPY } from './game.js';
 import { duoAfterAnimate } from './duo.js';
 import { updateFx, puff, dust } from './fx.js';
 import { loadProfile, save, persist, PROFILES } from './save.js';
@@ -28,13 +28,13 @@ const heroThumb = id => modelThumb('hero:' + id, s => buildHero(s, LOOK_OF[id]),
 const thumbs = {};
 for (const id of ['motya', 'mama']) { try { thumbs[id] = heroThumb(id); } catch (e) { thumbs[id] = ''; window.__bootErr?.('превью героя: ' + e.message); } }
 window.__menuReady = true;
-chooseProfile(thumbs, SFX).then(start).catch(e => window.__bootErr?.('запуск: ' + (e.stack || e.message)));
+(SPY ? Promise.resolve('spy').then(w => { document.getElementById('profiles').classList.remove('on'); return w; }) : chooseProfile(thumbs, SFX)).then(start).catch(e => window.__bootErr?.('запуск: ' + (e.stack || e.message)));
 
 // выбрали игрока — запускаем игру
 function start(who) {
   initAudio();
-  loadProfile(who);
-  const kid = PROFILES[who].kid;
+  if (!SPY) loadProfile(who);                     // наблюдатель ничего не сохраняет
+  const kid = !SPY && PROFILES[who].kid;
   if (kid) startRest(save);
 
   const SPAWN = LOCS.base.spawn;
@@ -101,6 +101,14 @@ function start(who) {
     // отдых или записка — игра стоит; картинка не меняется, поэтому рисуем её один раз (под окном видно игру)
     if (locked || noteOpen()) { if (!pausedDrawn) { renderer.render(scene, camera); pausedDrawn = true; } return; }
     pausedDrawn = false;
+    if (SPY) {                                     // наблюдатель: камера за выбранным игроком, больше ничего
+      pollInput();
+      updateCam(cam, dt, hero, { look: takeLook(), zoom: takeZoom(), lastLook: input.lastLook });
+      updateSpyGame(dt); duoAfterAnimate(dt);
+      updateWorld(dt); updateFx(dt); followSun(hero.pos); followSky(); updateWater(dt);
+      renderer.render(scene, camera);
+      return;
+    }
     restCheck();
     pollInput();
     hero.holdJump = input.jumpHeld;

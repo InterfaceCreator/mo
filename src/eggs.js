@@ -88,6 +88,19 @@ export function updateNests(dt) {
   return any;
 }
 
+// наблюдатель (duo.js): яйца в гнёздах — как у игрока. list[i]: [редкость, особое] — яйцо лежит; 1 — у игрока в руках; 0 — пусто
+export const nestSnap = () => nests.map(n => n.has ? [n.r1, n.v || 0] : n.away ? 1 : 0);
+export function nestApply(list) {
+  nests.forEach((n, i) => {
+    const v = list[i]; if (v === undefined) return;
+    if (Array.isArray(v)) {
+      if (n.has && n.egg && n.r1 === v[0] && (n.v || 0) === v[1]) return;
+      if (n.egg) n.g.remove(n.egg);
+      n.has = true; n.away = false; n.r1 = v[0]; n.v = v[1] || null; showEgg(n);
+    } else if (n.has || n.egg) { if (n.egg) n.g.remove(n.egg); n.egg = null; n.has = false; n.away = v === 1; }
+    else n.away = v === 1;
+  });
+}
 // новый забег на Дорожке: яйцо снова в гнезде сразу, не дожидаясь таймера
 export function refillNest(n) { if (!n.has && !n.away) roll(n); }
 // гнёзда одного места (Дорожке нужно знать, какие уже побеждены)

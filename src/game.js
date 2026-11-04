@@ -16,7 +16,7 @@ import { dressHero, ward, openWardrobe, wardOpen } from './clothes.js';
 import { buildHouse, updateHouse, onClothesPad, updateHome, onWardPad, onUpgradePad, openUpgrades } from './home.js';
 import { openSpot, openBasket } from './furniture.js';
 import { buildRareBox, updateRareBox } from './rarebox.js';
-import { initDuo, duoToggle, duoState, together, houseFor, homeSave, visiting, applySide, buildDuoBase, updateDuo, duoAt, duoWhere, duoResume } from './duo.js';
+import { initDuo, duoToggle, duoState, together, houseFor, homeSave, visiting, applySide, buildDuoBase, updateDuo, duoAt, duoWhere, duoResume, duoMe, initSpy, spyTarget, spyInfo } from './duo.js';
 import { panel } from './furniture.js';
 import { openMap } from './map.js';
 import { questNow, questNext } from './quests.js';
@@ -37,6 +37,7 @@ import { SFX } from './sfx.js';
 const { SPEED_MAX, PEN_MAX, INC_MAX, speedCost, treadNeed, INC_COST, penCost, BANANA_COST, BANANA_PACK, SURPRISE_COST, POTION_COST, COMPASS_COST } = B;
 export const speedMul = lv => 1 + B.SPEED_STEP * (lv - 1);
 
+export const SPY = new URLSearchParams(location.search).has('spy');   // наблюдатель 👁 (duo.js)
 let hero, carry = null, fullWarn = 0, wasOnPad = false, wasOnBench = false, wasOnPlot = null, wasMail = false, wasOnCloth = false, wasOnWard = false, wasOnUp = false;
 const tmp = new T.Vector3();
 
@@ -64,9 +65,12 @@ export function initGame(h, camera) {
       tip: f.special || `любит ${f.k === 'banana' ? '🍌' : RES[f.k]}`, thumb: modelThumb('friend:' + f.id, s => f.build(s), { yaw: 0.5, size: 160, dist: 1.6 }) })) });
   bindInventory(inventory);
   dressHero(hero.model, ward(save).wear);          // купленная одежда — на героя
-  initDuo({ hero, save, profile, onLayout: relayout, onEvent: duoEvent });
-  document.getElementById('duoBtn').onclick = () => { SFX.tap(); duoPanel(); };
-  duoResume();
+  if (SPY) initSpyMode();
+  else {
+    initDuo({ hero, save, profile, onLayout: relayout, onEvent: duoEvent });
+    document.getElementById('duoBtn').onclick = () => { SFX.tap(); duoPanel(); };
+    duoResume();
+  }
   enter('base', LOCS.base.spawn);
 }
 
@@ -97,7 +101,7 @@ const EGG_KINDS = RARITY.flatMap((R, r) => [null, ...Object.keys(B.VARIANTS)].ma
 // Яйцо в руках остаётся в руках (оно — часть героя)
 function enter(id, spawn, owner = null) {
   clearLevel(); level.id = id;
-  level.owner = id === 'home' || id === 'loft' ? owner || profile : null;     // чей дом (вдвоём можно зайти в гости)
+  level.owner = id === 'home' || id === 'loft' ? owner || duoMe() : null;     // чей дом (вдвоём можно зайти в гости)
   const L = LOCS[id];
   sky(L.sky);
   if (id === 'base') applySide();                   // вдвоём Мотин загон — справа
@@ -106,7 +110,7 @@ function enter(id, spawn, owner = null) {
   if (id === 'base') { buildBase(); buildIncubators(); setIncSlots(save.incSlots); buildPen(save.pets, save.penCap); buildPlots(save); buildMailbox(); spawnVasya(); }
   spawnFriends(id, save);                          // друзья: Ряба на базе, Ёжик, Совёнок, Лисичка, Медвежонок в лесу
   buildKids(id, w);                                // места для игр детей: футбол, боулинг, цветные плиты, челнок
-  if (id === 'base') { buildPlayground(w || scene); buildHouse(w || scene, profile, save, houseFor(profile)); buildDuoBase(w || scene); }
+  if (id === 'base') { buildPlayground(w || scene); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
   buildRareBox(id, save);                          // сундучок с редкой одеждой (база, лес, осень)   // качели, карусель, пузыри, мяч; свой домик и ларёк одежды
   if (w) bake(w);                                  // неподвижное склеиваем — меньше работы видеокарте
   hero.pos.set(spawn.x, groundY(spawn.x, spawn.z), spawn.z); hero.vel.set(0, 0, 0);
@@ -684,10 +688,9 @@ function duoPanel() {
     on: [`✅ Играем вместе с ${O.tv}!<br><small>${profile === 'mama' ? 'Загон и домик Моти — справа' : 'Твой загон и домик — справа, мамины — слева'}. В домик можно зайти в гости.</small>`, 'Закончить', 'off'],
   }[st];
   panel('👫 Вдвоём', null, `${body[0]}<br><br><button id="duoGo" style="font:inherit;font-weight:bold;font-size:1.1em;padding:10px 22px;border:none;border-radius:16px;background:${st === 'off' ? '#5fd35f' : '#ff7a6b'};color:#fff;cursor:pointer">${body[1]}</button>`);
-  document.getElementById('duoGo').onclick = async () => {
+  document.getElementById('duoGo').onclick = () => {
     SFX.tap();
-    const r = await duoToggle();
-    if (r === 'nolib') toast('📶 Нет интернета — играть вдвоём не получится');
+    duoToggle();
     duoBtn(); duoPanel();
   };
 }
@@ -704,9 +707,57 @@ function duoEvent(e) {
 // второй загон и домик появились / убрались — перестраиваем базу на том же месте
 function relayout(on) {
   duoBtn();
-  if (!on && level.owner && level.owner !== profile) { if (!moving) { moving = true; fade(true, () => { enter('base', backFrom('home')); fade(false); moving = false; }); } return; }
+  if (!on && level.owner && level.owner !== duoMe()) { if (!moving) { moving = true; fade(true, () => { enter('base', backFrom('home')); fade(false); moving = false; }); } return; }
   if (level.id !== 'base' || moving) return;
   moving = true;
   const at = { x: hero.pos.x, z: hero.pos.z, face: hero.face };
   fade(true, () => { enter('base', at); fade(false); moving = false; });
+}
+
+// ---------- наблюдатель 👁 (?spy) ----------
+// смотрит за Мотей или мамой: камера летит за выбранным, мир — как у него. Сам невидим, ничего не трогает.
+function initSpyMode() {
+  document.body.classList.add('spy');
+  hero.model.root.visible = false;
+  askPin(pin => {
+    initSpy({ hero, save, pin, onLayout: relayout, onGo: spyGo, onEvent: () => spyBar() });
+    const bar = document.createElement('div'); bar.id = 'spyBar'; document.body.appendChild(bar);
+    bar.onclick = e => { const b = e.target.closest('button[data-w]'); if (b) { spyTarget(b.dataset.w); spyBar(); } };
+    spyBar(); setInterval(spyBar, 1000);
+  });
+}
+// мамин PIN — та же клавиатура, что при входе мамы
+function askPin(done) {
+  const ov = document.getElementById('pin'); let pin = '';
+  const dots = () => ov.querySelectorAll('.dots span').forEach((d, i) => d.classList.toggle('on', i < pin.length));
+  ov.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
+    const k = b.dataset.k;
+    if (k === 'x') return;
+    if (k === 'b') { pin = pin.slice(0, -1); dots(); return; }
+    if (pin.length >= 3) return;
+    pin += k; dots();
+    if (pin.length < 3) return;
+    if (pin === '132') { ov.classList.remove('on'); done(pin); }
+    else { SFX.nope(); setTimeout(() => { pin = ''; dots(); }, 400); }
+  });
+  dots(); ov.classList.add('on');
+}
+function spyBar() {
+  const bar = document.getElementById('spyBar'); if (!bar) return;
+  bar.innerHTML = '<b>👁</b>' + spyInfo().map(i => {
+    const [loc, owner] = (i.loc || '').split(':');
+    const where = !i.on ? 'не в игре' : (LOCS[loc]?.name || '…') + (owner && owner !== i.who ? ' (в гостях)' : '');
+    return `<button data-w="${i.who}" class="${i.me ? 'on' : ''}">${i.who === 'mama' ? '👩' : '👦'} ${i.name}${i.duo ? ' 👫' : ''}<small>${where}${i.on ? ` · 🪙 ${fmt(i.coins || 0)} · 👟 ${i.speed}` : ''}</small></button>`;
+  }).join('');
+}
+function spyGo(id, owner, at) {
+  if (moving || !LOCS[id]) return;
+  moving = true;
+  fade(true, () => { enter(id, at, owner); fade(false); moving = false; });
+}
+// раз в кадр у наблюдателя: только то, что видно (никаких гнёзд, порталов, кнопок)
+export function updateSpyGame(dt) {
+  updateDuo(dt);                                   // яйца в гнёздах, сторожа, табло — приходят от игрока
+  if (level.id === 'base') { updatePen(dt, { x: 1e4, y: 0, z: 1e4 }); updateHouse(dt); }
+  if (level.id === 'home' || level.id === 'loft') updateHome(dt, hero);
 }

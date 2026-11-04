@@ -112,6 +112,34 @@ export function wake(nest) {
   if (nest.guard === 'gorilla') puff('🦍', gd.g.position.clone().setY(gd.g.position.y + gd.s * 2.6), { size: 1.8, rise: 1, life: 1.2 });
 }
 
+// наблюдатель (duo.js): сторожа — как у игрока. [x, z, поворот, состояние]
+const GST = ['sleep', 'alert', 'chase', 'slip', 'stomp', 'search', 'return', 'charge', 'vanish', 'gone'];
+export const guardSnap = () => guards.map(gd => [+gd.g.position.x.toFixed(2), +gd.g.position.z.toFixed(2), +gd.face.toFixed(2), GST.indexOf(gd.state)]);
+export function guardApply(list) {
+  guards.forEach((gd, i) => {
+    const v = list[i]; if (!v) return;
+    gd.tx = v[0]; gd.tz = v[1]; gd.tf = v[2];
+    const st = GST[v[3]] || 'sleep';
+    if (st === gd.state) return;
+    if ((st === 'sleep') !== (gd.state === 'sleep')) sleepPose(gd, st === 'sleep');
+    if (st === 'alert') puff('❗', gd.g.position.clone().setY(gd.g.position.y + gd.s * 1.9), { size: 1.4, rise: 0.8, life: 0.9 });
+    gd.state = st; gd.g.visible = st !== 'gone';
+  });
+}
+// раз в кадр у наблюдателя: плавно к тому, где сторож у игрока
+export function guardFollow(dt) {
+  for (const gd of guards) {
+    if (gd.tx === undefined || gd.state === 'gone') continue;
+    const p = gd.g.position, dx = gd.tx - p.x, dz = gd.tz - p.z, d = Math.hypot(dx, dz);
+    if (d > 6) { p.x = gd.tx; p.z = gd.tz; } else { p.x = damp(p.x, gd.tx, 10, dt); p.z = damp(p.z, gd.tz, 10, dt); }
+    p.y = damp(p.y, groundY(p.x, p.z), 14, dt);
+    gd.face = dampAngle(gd.face, gd.tf, 12, dt); gd.g.rotation.y = gd.face;
+    if (gd.state === 'slip') gd.m.body.rotation.z = Math.sin(performance.now() / 110) * 0.35; else gd.m.body.rotation.z = 0;
+    if (gd.state === 'stomp') gd.m.body.position.y = Math.abs(Math.sin(performance.now() / 70)) * 0.25;
+    else if (gd.state !== 'sleep') animateAnimal(gd.m, dt, Math.min(d * 10, gd.speed * 1.3) / gd.s);
+    else gd.m.body.position.y = damp(gd.m.body.position.y, 0, 5, dt);
+  }
+}
 // hero: { pos, carrying }. Возвращает сторожа, который поймал героя, или null
 export function updateGuards(dt, hero) {
   let caught = null;
