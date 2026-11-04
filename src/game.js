@@ -718,7 +718,7 @@ function relayout(on) {
 // смотрит за Мотей или мамой: камера летит за выбранным, мир — как у него. Сам невидим, ничего не трогает.
 function initSpyMode() {
   document.body.classList.add('spy');
-  hero.model.root.visible = false;
+  hero.model.root.visible = false; hero.ghost = true;
   askPin(pin => {
     initSpy({ hero, save, pin, onLayout: relayout, onGo: spyGo, onEvent: () => spyBar() });
     const bar = document.createElement('div'); bar.id = 'spyBar'; document.body.appendChild(bar);

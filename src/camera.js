@@ -50,5 +50,5 @@ export function updateCam(c, dt, hero, { look, zoom, lastLook }) {
   camera.lookAt(target);
 
   // камера почти в голове — прячем героя, чтобы не смотреть изнутри
-  hero.model.root.visible = c.cur > 1.6;
+  if (!hero.ghost) hero.model.root.visible = c.cur > 1.6;                 // ghost — наблюдатель: своего героя нет
 }
