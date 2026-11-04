@@ -15,7 +15,7 @@ self.addEventListener('activate', e => e.waitUntil((async () => {
 
 async function copy(from, to) {
   const a = await caches.open(from), b = await caches.open(to);
-  for (const req of await a.keys()) { const res = await a.match(req); if (res) await b.put(keyOf(req.url), res); }
+  for (const req of await a.keys()) { if (req.url.endsWith('__part')) continue; const res = await a.match(req); if (res) await b.put(keyOf(req.url), res); }
 }
 // новая версия скачана целиком (files.json кладётся последним) — делаем её текущей
 async function swap() {
@@ -49,25 +49,54 @@ const tell = async msg => { for (const c of await self.clients.matchAll({ includ
 // сравниваем с версией своей копии; если она неизвестна (копия собрана по файлу) — тихо скачиваем полный комплект
 async function check() {
   let man;
-  try { man = await (await fetch(new URL('files.json?fresh=' + Date.now(), ROOT), { cache: 'no-store' })).json(); }
+  try { man = await (await get('files.json')).json(); }
   catch (e) { return tell({ type: 'offline' }); }                    // нет связи — играем в сохранённой версии
   if (man.version === await curVersion()) { await caches.delete(NEXT); return tell({ type: 'latest', version: man.version }); }
+  // (NEXT не стираем: там может лежать недокачанная прошлая попытка — check() продолжит её)
   const next = await caches.open(NEXT), ready = await next.match(keyOf('files.json'));
   if (ready && (await ready.json()).version === man.version) return tell({ type: 'ready', version: man.version });
   if (job) return tell({ type: 'progress', ...job });
   job = { version: man.version, done: 0, total: man.files.length };
   try {
-    await caches.delete(NEXT); const c = await caches.open(NEXT);
+    const c = await caches.open(NEXT), cur = await caches.open(CUR), H = man.hash || {};
+    await c.delete(keyOf('files.json'));                                // пока не докачано — включать нечего (swap смотрит на files.json)
+    // прошлая попытка не докачала — продолжаем с того же места (уже скачанное с тем же отпечатком не трогаем)
+    const PART = ROOT + '__part';
+    let part = {}; try { part = (await (await c.match(PART))?.json()) || {}; } catch (e) {}
+    if (!man.hash) { await caches.delete(NEXT); part = {}; }
+    const old = await manifest(cur);
     for (const f of man.files) {
-      const res = await fetch(new URL(f + (f.includes('?') ? '&' : '?') + 'fresh=' + Date.now(), ROOT), { cache: 'no-store' });
-      if (!res.ok) throw new Error(f);
-      await c.put(keyOf(f), res); job.done++;
-      tell({ type: 'progress', ...job });
+      const k = keyOf(f), h = H[f];
+      if (!(h && part[f] === h && await c.match(k))) {
+        const same = h && old?.hash?.[f] === h && await cur.match(k);          // файл не менялся — берём из своей копии, не качаем
+        await c.put(k, same || await get(f));
+        if (h) { part[f] = h; await c.put(PART, new Response(JSON.stringify(part))); }
+      }
+      job.done++; tell({ type: 'progress', ...job });
     }
+    await c.delete(PART);
     await c.put(keyOf('files.json'), new Response(JSON.stringify(man), { headers: { 'Content-Type': 'application/json' } }));
     tell({ type: 'ready', version: man.version });
-  } catch (e) { tell({ type: 'failed', ...job }); }                  // связь пропала — в следующий раз попробуем снова
+  } catch (e) { tell({ type: 'failed', ...job }); }                  // связь пропала — в следующий раз продолжим с того же места
   job = null;
+}
+const manifest = async cache => { try { return await (await cache.match(keyOf('files.json')))?.json(); } catch (e) { return null; } };
+// скачать файл: зависло дольше 25 секунд — обрываем и пробуем ещё (до 3 раз)
+async function get(f) {
+  for (let i = 0; ; i++) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 25000);
+    try {
+      const res = await fetch(new URL(f + (f.includes('?') ? '&' : '?') + 'fresh=' + Date.now(), ROOT), { cache: 'no-store', signal: ctl.signal });
+      if (!res.ok) throw new Error(f);
+      const body = await res.blob();                                  // дочитали целиком, пока таймер не сработал
+      clearTimeout(t);
+      return new Response(body, { headers: { 'Content-Type': res.headers.get('Content-Type') || '' } });
+    } catch (e) {
+      clearTimeout(t);
+      if (i >= 2) throw e;
+      await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+    }
+  }
 }
 
 self.addEventListener('message', e => {

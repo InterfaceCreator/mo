@@ -1,12 +1,17 @@
 #!/bin/sh
 # Перед каждым коммитом: номер сборки (виден внизу стартового экрана) и список файлов версии для обновления на устройствах (files.json).
+# hash — отпечаток каждого файла: телефон качает только изменившиеся, остальные берёт из своей копии (sw.js).
 n=$(( $(git rev-list --count HEAD 2>/dev/null || echo 0) + 1 ))
 d=$(date '+%d.%m %H:%M')
 v="сборка $n · $d"
 printf "// Номер сборки — пишется сам перед каждым коммитом (.githooks/pre-commit)\nexport const VERSION = '%s';\n" "$v" > src/version.js
+git add src/version.js
+h() { git hash-object "$1" | cut -c1-12; }
 {
   printf '{"version":"%s","files":["./","vendor/three.min.js","vendor/peerjs.min.js"' "$v"
   for f in src/*.js; do printf ',"%s"' "$f"; done
-  printf ']}\n'
+  printf '],"hash":{"./":"%s","vendor/three.min.js":"%s","vendor/peerjs.min.js":"%s"' "$(h index.html)" "$(h vendor/three.min.js)" "$(h vendor/peerjs.min.js)"
+  for f in src/*.js; do printf ',"%s":"%s"' "$f" "$(h "$f")"; done
+  printf '}}\n'
 } > files.json
-git add src/version.js files.json
+git add files.json
