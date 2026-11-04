@@ -7,6 +7,7 @@ import { addZip, addRace, addDig, addWell, addArrow, addBeaver } from './extras.
 import { buildTrack } from './track.js';
 import { buildAutumn, AUTUMN } from './autumn.js';
 import { FRIEND_HOMES } from './friends.js';
+import { HOUSE, CLOTHES_SHOP, buildHome, buildLoft } from './home.js';
 import { makeLabel } from './fx.js';
 import { addStar, addScroll, addPad, addBunny, addCritter, addDuck, addButterfly, addRotor, addWaterfall, addMushroom, addPlates } from './fun.js';
 import { buildTerrain, water } from './terrain.js';
@@ -57,7 +58,7 @@ function buildBase(save) {
   if (save.tools.house) petHouse();
 
   // деревья и площадка с лесенкой
-  for (const [x, z, s, k] of [[-44, 0, 1, 'apple'], [-40, 52, 1.2, 'pine'], [38, 58, 1, 'birch'], [40, 6, 1.1, 'oak'], [-22, 58, 0.9, 'pine'], [24, 60, 1, 'apple'], [-36, 30, 0.9, 'birch']]) tree(w, x, z, s, 0, k);
+  for (const [x, z, s, k] of [[-44, 0, 1, 'apple'], [-25, 44, 1.2, 'pine'], [38, 58, 1, 'birch'], [40, 6, 1.1, 'oak'], [-22, 58, 0.9, 'pine'], [24, 60, 1, 'apple'], [-36, 30, 0.9, 'birch']]) tree(w, x, z, s, 0, k);
   for (let i = 0; i < 5; i++) solid(w, 3, 1 + i, 3, [0x3fa7ff, 0xff5a5a, 0xffd93b, 0x9b6bff, 0x40e0d0][i], 38 - i * 3, 0, 46, { cam: true });
   solid(w, 6, 5, 6, 0x3fa7ff, 21.5, 0, 46, { cam: true });
 
@@ -82,7 +83,7 @@ function buildBase(save) {
   addChest('tower', TOWER.x + 0.6, TOWER.h, TOWER.z);
 
   // ресурсы на базе
-  for (const [x, z] of [[-38, 0], [-36, 46], [-26, 56], [6, 64], [30, 52], [42, 42], [-40, 26], [4, 40]]) addLoose(x, z, 'wood');
+  for (const [x, z] of [[-38, 0], [-36, 46], [-16, 56], [6, 64], [30, 52], [42, 42], [-40, 26], [4, 40]]) addLoose(x, z, 'wood');
   for (const [x, z] of [[-10, 12], [-4, 46], [30, 2], [44, 24], [-28, 52], [-4, 64], [-56, 40], [-55, 58], [-62, 44]]) addLoose(x, z, 'stone');
   for (const [x, z] of [[-30, 50], [28, 4]]) addRock(x, z);
   for (const [x, z] of [[-42, 30], [-14, 44], [36, 30], [-12, 5], [22, 64], [42, 50]]) addLoose(x, z, 'leaf');
@@ -522,6 +523,8 @@ export const STARS_IN = { forest: 19, autumn: 6 };
 export const LOCS = {
   autumn: { name: 'Осень', icon: '🍂', build: buildAutumn, spawn: { x: AUTUMN.spawn.x, z: AUTUMN.spawn.z, face: Math.PI }, sky: 0xffcf9a },
   track: { name: 'Дорожка', icon: '🏁', build: buildTrack, spawn: { x: 0, z: 6, face: Math.PI }, sky: 0xbfe6ff },
+  home: { name: 'Дом', icon: '🏠', build: (save, profile) => buildHome(save, profile), spawn: { x: 0, z: 5.5, face: Math.PI }, sky: 0xbfe6ff },
+  loft: { name: 'Дом, 2 этаж', icon: '🏠', build: (save, profile) => buildLoft(save, profile), spawn: { x: -6, z: 0, face: Math.PI / 2 }, sky: 0xbfe6ff },
   base: { name: 'База', icon: '🏠', build: buildBase, spawn: { x: 0, z: 34, face: Math.PI }, sky: 0x8fd3ff },
   forest: { name: 'Лес', icon: '🌲', req: B.REQ.forest, build: buildForest, spawn: { x: FOREST.spawn.x, z: FOREST.spawn.z, face: Math.PI }, sky: 0x9fdcff },
   desert: {
@@ -538,7 +541,7 @@ export const LOCS = {
   },
 };
 // куда ставить героя на базе, когда он вернулся из локации
-export const backFrom = id => id === 'autumn' ? { x: AUTUMN_PORTAL.x + 7, z: AUTUMN_PORTAL.z, face: Math.PI / 2 } : id === 'track' ? { x: TRACK_PORTAL.x - 6, z: TRACK_PORTAL.z, face: -Math.PI / 2 } : { x: BASE_PORTALS[id] ?? 0, z: 0, face: 0 };
+export const backFrom = id => id === 'home' ? { x: HOUSE.door.x, z: HOUSE.door.z - 2.4, face: Math.PI } : id === 'autumn' ? { x: AUTUMN_PORTAL.x + 7, z: AUTUMN_PORTAL.z, face: Math.PI / 2 } : id === 'track' ? { x: TRACK_PORTAL.x - 6, z: TRACK_PORTAL.z, face: -Math.PI / 2 } : { x: BASE_PORTALS[id] ?? 0, z: 0, face: 0 };
 // все гнёзда описываются сразу — их таймеры идут, даже если в локации ни разу не были
 export function defineAllNests() {
   // (гнездо в пещере переехало: в бывшей пещере теперь портал в Осеннюю долину)
@@ -559,7 +562,7 @@ export function mapData(id) {
     marks: [
       ['🌲', 'Лес', 0, -6], ['🏜️', 'Пустыня', -26, -6], ['❄️', 'Лёд', 26, -6], ['🏁', 'Дорожка', 46, 34],
       ['🐣', 'Загон', -19, 28], ['🛒', 'Магазин', 8, 52], ['🔨', 'Верстак', 0, 57], ['👟', 'Тренировка', -8, 49],
-      ['📬', 'Почта', 5, 30], ['🗼', 'Башня', 38, 24], ['🎠', 'Площадка', 22, 6], ['🥅', 'Футбол', -35, 5], ['🍂', 'Осень (за валуном)', -62, 49],
+      ['📬', 'Почта', 5, 30], ['🗼', 'Башня', 38, 24], ['🎠', 'Площадка', 22, 6], ['🏠', 'Мой дом', HOUSE.x, HOUSE.z], ['👕', 'Одежда', CLOTHES_SHOP.x, CLOTHES_SHOP.z], ['🥅', 'Футбол', -35, 5], ['🍂', 'Осень (за валуном)', -62, 49],
     ],
   };
   if (id === 'forest') return {

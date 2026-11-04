@@ -29,7 +29,7 @@
   addEventListener('error', function (e) { if (e.message) window.__bootErr(e.message + ' @ ' + String(e.filename || '').split('/').pop() + ':' + (e.lineno || '')); });
   addEventListener('unhandledrejection', function (e) { var r = e.reason; window.__bootErr('promise: ' + (r && (r.stack || r.message) || r)); });
   // полоска загрузки на стартовом экране: сколько файлов игры уже скачано; встала надолго — подсказываем про сеть
-  var FILES = 33, lastN = 0, lastT = Date.now();
+  var FILES = 37, lastN = 0, lastT = Date.now();
   function tick() {
     var box = document.getElementById('loading'); if (!box) return setTimeout(tick, 200);
     if (window.__menuReady) { box.style.display = 'none'; document.querySelector('#profiles .cards').classList.remove('wait'); return; }
@@ -200,6 +200,25 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 
 /* магазин */
 #shopList{display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+/* магазин одежды и шкаф: слева — как ты выглядишь, справа — вкладки; ниже — вещи карточками */
+.wardTop{display:flex;gap:10px;align-items:center}
+#wardPic{width:min(28vw,130px);aspect-ratio:1;background:#f4f1ff;border-radius:18px;flex:none}
+#wardTabs{display:flex;flex-wrap:wrap;gap:6px}
+#wardTabs button{border:none;border-radius:14px;background:#ece8fb;font:inherit;font-weight:bold;font-size:min(3.8vw,16px);padding:8px 10px;cursor:pointer;touch-action:manipulation}
+#wardTabs button.on{background:#9b6bff;color:#fff}
+#wardList{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(40vw,150px),1fr));gap:8px;overflow-y:auto;padding:4px;margin-top:8px}
+.wcard{background:#f4f1ff;border-radius:18px;padding:8px 6px;text-align:center;border:4px solid transparent;display:flex;flex-direction:column;align-items:center;gap:4px}
+.wcard.on{border-color:#5fd35f;background:#eafbe6}
+.wcard.off{opacity:.55}
+.wcard.rare{background:linear-gradient(160deg,#fff6c8,#f4e1ff);border-color:#ffd23f}
+.wcard.rare.on{border-color:#5fd35f}
+.wcard .ic{font-size:min(10vw,40px);line-height:1.1}
+.wcard .n{font-weight:bold;font-size:min(3.6vw,15px)}
+.wcard button{border:none;border-radius:14px;background:#5fd35f;color:#fff;font:inherit;font-weight:bold;font-size:min(4.2vw,18px);padding:8px 10px;width:100%;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.2);touch-action:manipulation}
+.wcard button.no{background:#c9c4d6}
+.wcard button.shake{animation:shake .3s}
+.wcard button.take{background:#ffb020}
+.wcard button small{display:block;font-size:.65em;font-weight:normal}
 .item{display:flex;align-items:center;gap:12px;background:#f4f1ff;border-radius:20px;padding:8px 10px}
 .item .ic{font-size:min(10vw,46px);width:1.3em;text-align:center}
 .item .t{flex:1;font-weight:bold;font-size:min(5vw,22px)}
@@ -347,6 +366,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 <div id="effects"></div>
 <div id="kidhud"></div>
 <div id="toast"></div>
+<div id="ward" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2 id="wardT">👕 Магазин одежды</h2><div class="wardTop"><img id="wardPic" alt=""><div id="wardTabs"></div></div><div id="wardList"></div></div></div>
 <div id="shop" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🛒 Магазин</h2><div id="shopList"></div></div></div>
 <div id="profiles" class="ov on">
   <i class="cl c1"></i><i class="cl c2"></i><i class="cl c3"></i>

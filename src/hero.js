@@ -158,7 +158,7 @@ export function buildHero(parent, lookId = 'boy') {
   [[2.2, 0.18, 0], [1.6, 0.18, 0.18], [0.9, 0.18, 0.36]].forEach(([w, h, y], i) => box(umbrella, w, h, w, i % 2 ? 0xffffff : 0xff4a6a, 0, 0.8 + y, 0, { studs: false }));
   umbrella.visible = false;
 
-  return { root, body, legL, legR, armL, armR, head, torso, tools, umbrella, phase: 0, lean: 0 };
+  return { root, body, legL, legR, armL, armR, head, hair, torso, tools, umbrella, phase: 0, lean: 0, dims: { TW, TH, TY, AW } };
 }
 
 // замах инструментом: p — от 0 до 1. Замах над головой → удар вперёд → назад в «готовность»
@@ -172,6 +172,7 @@ function swingArm(p) {
 // анимация: speed — скорость по земле, air — в воздухе
 export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 0, carry = false, stun = false, tool = null, swing = -1, glide = false } = {}) {
   animMove(m, dt, speed, maxSpeed, air, vy);
+  if (m.outfit) m.outfit.animate(dt, speed, air);                         // одежда из магазина: плащ развевается, крылья машут (clothes.js)
   // планирует на зонтике: держит его обеими руками над головой, ноги болтаются
   m.umbrella.visible = glide; m.umbrella.position.y = carry ? 4.4 : 3.0;     // с яйцом в руках зонтик выше яйца
   if (glide) {

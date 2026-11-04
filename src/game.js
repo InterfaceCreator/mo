@@ -12,6 +12,10 @@ import { FRIENDS, spawnFriends, updateFriends, befriend, heartsOf, metFriend, me
 import { startKidGame, updateKidGame, kidGameOn } from './kidgames.js';
 import { buildKids, updateKidSpots, startMini, updateMini, miniGame, miniOn } from './kids.js';
 import { buildPlayground, updatePlayground } from './playground.js';
+import { dressHero, ward, openWardrobe, wardOpen } from './clothes.js';
+import { buildHouse, updateHouse, onClothesPad, updateHome, onWardPad, onUpgradePad, openUpgrades } from './home.js';
+import { openSpot, openBasket } from './furniture.js';
+import { buildRareBox, updateRareBox } from './rarebox.js';
 import { openMap } from './map.js';
 import { questNow, questNext } from './quests.js';
 import { nests, buildNests, updateNests, nestNear, takeEgg, returnEgg, releaseNest, refillLeft,
@@ -31,7 +35,7 @@ import { SFX } from './sfx.js';
 const { SPEED_MAX, PEN_MAX, INC_MAX, speedCost, treadNeed, INC_COST, penCost, BANANA_COST, BANANA_PACK, SURPRISE_COST, POTION_COST, COMPASS_COST } = B;
 export const speedMul = lv => 1 + B.SPEED_STEP * (lv - 1);
 
-let hero, carry = null, fullWarn = 0, wasOnPad = false, wasOnBench = false, wasOnPlot = null, wasMail = false;
+let hero, carry = null, fullWarn = 0, wasOnPad = false, wasOnBench = false, wasOnPlot = null, wasMail = false, wasOnCloth = false, wasOnWard = false, wasOnUp = false;
 const tmp = new T.Vector3();
 
 let cam = null, portalCool = 0, moving = false;
@@ -57,6 +61,7 @@ export function initGame(h, camera) {
     { list: () => FRIENDS.map(f => ({ name: f.name, place: f.place, met: metFriend(save, f.id), hearts: heartsOf(save, f.id), max: MAX_HEARTS,
       tip: f.special || `любит ${f.k === 'banana' ? '🍌' : RES[f.k]}`, thumb: modelThumb('friend:' + f.id, s => f.build(s), { yaw: 0.5, size: 160, dist: 1.6 }) })) });
   bindInventory(inventory);
+  dressHero(hero.model, ward(save).wear);          // купленная одежда — на героя
   enter('base', LOCS.base.spawn);
 }
 
@@ -89,12 +94,13 @@ function enter(id, spawn) {
   clearLevel(); level.id = id;
   const L = LOCS[id];
   sky(L.sky);
-  const w = L.build(save);
+  const w = L.build(save, profile);
   buildNests(id); buildGuards(nests);
   if (id === 'base') { buildBase(); buildIncubators(); setIncSlots(save.incSlots); buildPen(save.pets, save.penCap); buildPlots(save); buildMailbox(); spawnVasya(); }
   spawnFriends(id, save);                          // друзья: Ряба на базе, Ёжик, Совёнок, Лисичка, Медвежонок в лесу
   buildKids(id, w);                                // места для игр детей: футбол, боулинг, цветные плиты, челнок
-  if (id === 'base') buildPlayground(w || scene);  // качели, карусель, пузыри, надувной мяч
+  if (id === 'base') { buildPlayground(w || scene); buildHouse(w || scene, profile, save); }
+  buildRareBox(id, save);                          // сундучок с редкой одеждой (база, лес, осень)   // качели, карусель, пузыри, мяч; свой домик и ларёк одежды
   if (w) bake(w);                                  // неподвижное склеиваем — меньше работы видеокарте
   hero.pos.set(spawn.x, groundY(spawn.x, spawn.z), spawn.z); hero.vel.set(0, 0, 0);
   hero.face = spawn.face; hero.model.root.rotation.y = spawn.face; hero.safe = hero.pos.clone();
@@ -107,7 +113,7 @@ function goThrough(pt) {
   moving = true; SFX.portal();
   const from = level.id;
   fade(true, () => {
-    enter(pt.to, pt.to === 'base' ? backFrom(from) : LOCS[pt.to].spawn); fade(false); moving = false;
+    enter(pt.to, pt.spawn || (pt.to === 'base' ? backFrom(from) : LOCS[pt.to].spawn)); fade(false); moving = false;
     // маме на входе в лес — записка от Василия
     if (pt.to === 'forest' && profile === 'mama') {
       // если игра открыта ещё в одной вкладке и та ушла по запискам дальше — продолжаем с её места, а не повторяем
@@ -545,6 +551,29 @@ export function updateGame(dt) {
   const ks = updateKidSpots(dt, hero);           // футбольный мяч на базе — можно пинать и без игры
   if (ks.sfx) SFX.kick();
   if (ks.goal) { SFX.fanfare(); toast('⚽ ГОЛ!<small>позови Колю и Олю — сыграем на счёт</small>'); }
+  // магазин одежды на базе и шкаф дома: встал на коврик — открылось окно
+  const onCloth = atBase && onClothesPad(p), onWard = level.id === 'home' && onWardPad(p);
+  if ((onCloth && !wasOnCloth || onWard && !wasOnWard) && !wardOpen()) { SFX.tap(); openWardrobe({ save, profile, hero: hero.model, shop: onCloth, sfx: SFX, persist }); }
+  wasOnCloth = onCloth; wasOnWard = onWard;
+  // сундучок с нарядом: редкая одежда, которой нет в магазине
+  const rb = updateRareBox(dt, hero);
+  if (rb.item) {
+    SFX.chest(); stat('rareFound'); persist();
+    toast(`🎁 Сундучок! Редкая вещь: ${rb.item.icon} ${rb.item.name}<small>надень её в магазине одежды 👕 или в шкафу дома${rb.left ? '' : ' · здесь ты нашёл всё — следующие сундучки с монетами'}</small>`);
+    notify({ icon: rb.item.icon, title: `🎁 Редкая вещь: ${rb.item.name}`, text: 'такой нет в магазине — надень её в шкафу или в магазине одежды' });
+    setTimeout(kidMoment, 2500);
+  }
+  if (rb.coins) { save.coins += rb.coins; SFX.coins(); persist(); toast(`🎁 Сундучок! +${rb.coins} монет<small>все редкие вещи этого места уже твои</small>`); }
+  if (atBase) updateHouse(dt);
+  if (level.id === 'home' || level.id === 'loft') {   // мебель: встал на кнопку места — выбираешь, что поставить; на лежанке — питомцы
+    const he = updateHome(dt, hero);
+    const onUp = level.id === 'home' && onUpgradePad(p);                       // доска «Улучшения дома»: второй этаж
+    if (onUp && !wasOnUp && !wardOpen()) { SFX.tap(); openUpgrades({ save, sfx: SFX, persist, onBuy: () => { toast('🪜 Второй этаж построен!<small>лестница наверх — слева от двери</small>'); confetti(p, 80); } }); }
+    wasOnUp = onUp;
+    for (const k of he.sfx || []) k.startsWith('note') ? SFX.note(+k.slice(4)) : SFX[k]?.();
+    if (!wardOpen() && he.spot) { SFX.tap(); openSpot(he.spot - 1, { save, sfx: SFX, persist }); }
+    if (!wardOpen() && he.basket) { SFX.tap(); openBasket({ save, sfx: SFX, persist }); }
+  }
   if (atBase) {
     const pg = updatePlayground(dt, hero);
     for (const k of new Set(pg.sfx)) SFX[k]();

@@ -236,12 +236,16 @@ export function portal(p, { x, z, w = 18, to, color, label, rot = 0, locked = fa
   portals.push(pt);
   return pt;
 }
+// дверь: проход в другую локацию — как портал, только без арки (её рисует тот, кто ставит дверь)
+// spawn — где появиться (иначе — как обычно для этой локации); side — проход поперёк оси x (люк, боковая дверь)
+export function door({ x, z, w = 2.4, to, label, spawn = null, side = false }) { const pt = { x, z, w, to, label, spawn, locked: false, side, door: true }; portals.push(pt); return pt; }
 export function unlockPortal(pt) { pt.locked = false; if (pt.col) pt.col.off = true; if (pt.lockSign) pt.lockSign.visible = false; }
 
 export function updateWorld(dt) {
   for (const g of spinners) { g.position.x += g.userData.speed * dt; if (g.position.x > 150) g.position.x = -150; }
   const t = performance.now() / 1000;
   for (const pt of portals) {
+    if (pt.door) continue;
     pt.swirl.material.opacity = 0.7 + Math.sin(t * 3.3) * 0.12;
     pt.swirl.rotation.z -= dt * (pt.locked ? 0.4 : 1.6);
     pt.gem.rotation.y += dt * 1.2; pt.gem.position.y += Math.sin(t * 2) * 0.004;

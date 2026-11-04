@@ -1,2 +1,2 @@
 // Номер сборки — пишется сам перед каждым коммитом (.githooks/pre-commit)
-export const VERSION = 'сборка 22 · 30.10 14:01';
+export const VERSION = 'сборка 23 · 04.11 11:38';

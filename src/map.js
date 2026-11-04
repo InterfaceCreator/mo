@@ -76,6 +76,9 @@ function draw(id, st) {
     icon(FACE[f.id] || '🙂', px, py, fs * 0.95);
     label(met ? f.name : f.name + ' ❔', px, py - fs * 0.95, '#ffd0e4', 9);
   }
+  // сундучок с нарядом 🎁 — если он сейчас лежит
+  const rb = (st.save.rareBox || {})[id];
+  if (rb && rb.x !== undefined && Date.now() >= rb.at) { const [px, py] = P(rb.x, rb.z); icon('🎁', px, py, fs * 1.1); label('Сундучок', px, py + fs * 0.95, '#ffe14d', 10); }
   // ты: красная стрелка — куда смотришь
   if (st.loc === id && st.hero) {
     const [px, py] = P(st.hero.x, st.hero.z), dx = Math.sin(st.hero.face), dz = Math.cos(st.hero.face);
