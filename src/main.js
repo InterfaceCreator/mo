@@ -9,6 +9,7 @@ import { makeCam, updateCam } from './camera.js';
 import { input, pollInput, takeLook, takeZoom, takeJump } from './input.js';
 import { initAudio, SFX } from './sfx.js';
 import { initGame, updateGame } from './game.js';
+import { duoAfterAnimate } from './duo.js';
 import { updateFx, puff, dust } from './fx.js';
 import { loadProfile, save, persist, PROFILES } from './save.js';
 import { modelThumb } from './pets.js';
@@ -108,6 +109,7 @@ function start(who) {
     updateGame(dt);
     animateHero(hero.model, dt, { speed: hero.animSpeed ?? hero.speed, maxSpeed: WALK, air: !hero.grounded, vy: hero.vel.y, carry: !!hero.carrying || !!hero.climb, stun: hero.stun > 0,
       tool: hero.toolOut, swing: hero.swing ? hero.swing.t : -1, glide: hero.gliding });
+    duoAfterAnimate(dt);                // вдвоём: рядом — сердечки
     updateWorld(dt);
     updateFx(dt);
     followSun(hero.pos); followSky(); updateWater(dt);

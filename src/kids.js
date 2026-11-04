@@ -4,7 +4,7 @@
 //   Маша (Лес) — «повтори за мной» на цветных плитах; Петя (Дорожка) — челнок до флажка наперегонки.
 // Тут же — общие мячи: катятся, подпрыгивают, отскакивают от стен; толкнул — полетел.
 import { T, scene, group, box, mat, clamp, damp, dampAngle } from './engine.js';
-import { groundY, solid, nearColliders, onLevelReset, PEN } from './world.js';
+import { groundY, solid, nearColliders, onLevelReset, PEN_L, PEN_R } from './world.js';
 import { buildBird } from './animals.js';
 import { animateHero } from './hero.js';
 import { nodeOf } from './friends.js';
@@ -195,7 +195,7 @@ const GAMES = {
       for (let i = 0; i < 400 && g.balls.length < 12; i++) {
         const x = h.x + rnd(-26, 26), z = h.z + rnd(-30, 10);
         if (Math.abs(x) > 42 || z < 3 || z > 62 || Math.hypot(x - h.x, z - h.z) < 5) continue;
-        if ([PEN, { x0: 8, x1: 30, z0: 16, z1: 40 }].some(R => x > R.x0 - 2 && x < R.x1 + 2 && z > R.z0 - 2 && z < R.z1 + 2)) continue;   // не за заборами загонов
+        if ([PEN_L, PEN_R].some(R => x > R.x0 - 2 && x < R.x1 + 2 && z > R.z0 - 2 && z < R.z1 + 2)) continue;   // не за заборами загонов
         if (nearColliders(x - 1, x + 1, z - 1, z + 1).some(c => !c.off && c.y1 > 0.2 && c.y0 < 3 && x > c.x0 - 1 && x < c.x1 + 1 && z > c.z0 - 1 && z < c.z1 + 1)) continue;
         if (g.balls.some(b => Math.hypot(b.x - x, b.z - z) < 4)) continue;
         const m = new T.Mesh(SPHERE, mat(cols[g.balls.length % cols.length])); m.scale.setScalar(0.45); m.position.set(x, groundY(x, z) + 0.6, z); scene.add(m);

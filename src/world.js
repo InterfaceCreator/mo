@@ -238,7 +238,8 @@ export function portal(p, { x, z, w = 18, to, color, label, rot = 0, locked = fa
 }
 // дверь: проход в другую локацию — как портал, только без арки (её рисует тот, кто ставит дверь)
 // spawn — где появиться (иначе — как обычно для этой локации); side — проход поперёк оси x (люк, боковая дверь)
-export function door({ x, z, w = 2.4, to, label, spawn = null, side = false }) { const pt = { x, z, w, to, label, spawn, locked: false, side, door: true }; portals.push(pt); return pt; }
+// owner — чей дом за дверью (игра вдвоём: можно зайти в гости)
+export function door({ x, z, w = 2.4, to, label, spawn = null, side = false, owner = null }) { const pt = { x, z, w, to, label, spawn, locked: false, side, door: true, owner }; portals.push(pt); return pt; }
 export function unlockPortal(pt) { pt.locked = false; if (pt.col) pt.col.off = true; if (pt.lockSign) pt.lockSign.visible = false; }
 
 export function updateWorld(dt) {
@@ -269,6 +270,21 @@ export const PEN = {
   pad: { x: -19, z: 19.5 },                                    // копилка у входа
   incubators: [[-11.5, 20], [-11.5, 23.5], [-11.5, 27], [-11.5, 30.5], [-11.5, 34], [-11.5, 37.5]],
 };
+// два загона: левый (обычный) и правый (пустой, пока играешь один). Вдвоём мама — слева, Мотя — справа:
+// тогда Мотин загон на время игры вдвоём переезжает направо (setPenSide), а в левом гуляют мамины питомцы
+export const PEN_L = { x0: -30, x1: -8, z0: 16, z1: 40 }, PEN_R = { x0: 8, x1: 30, z0: 16, z1: 40 };
+const PEN0 = JSON.parse(JSON.stringify(PEN));
+export const penSide = { right: false };
+export function setPenSide(right) {
+  const k = right ? -1 : 1, B = PEN0;
+  penSide.right = right;
+  PEN.x0 = right ? -B.x1 : B.x0; PEN.x1 = right ? -B.x0 : B.x1;
+  PEN.roam.x0 = right ? -B.roam.x1 : B.roam.x0; PEN.roam.x1 = right ? -B.roam.x0 : B.roam.x1;
+  PEN.pad.x = B.pad.x * k;
+  PEN.incubators.forEach((c, i) => { c[0] = B.incubators[i][0] * k; });
+}
+// где гуляют питомцы в другом загоне (не в своём)
+export const otherRoam = () => { const R = PEN0.roam, k = penSide.right ? 1 : -1; return { x0: Math.min(R.x0 * k, R.x1 * k), x1: Math.max(R.x0 * k, R.x1 * k), z0: R.z0, z1: R.z1 }; };
 export const SHOP = { x: 8, z: 52, pad: { x: 8, z: 48.5 } };
 export const TREADMILL = { x: -8, z: 51, w: 3, d: 6 };
 export const CAVE = { x0: -76, x1: -45, z0: 36, z1: 62, gap: [46, 52] };   // кристальная пещера за валуном (кирка)

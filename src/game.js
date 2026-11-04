@@ -16,6 +16,8 @@ import { dressHero, ward, openWardrobe, wardOpen } from './clothes.js';
 import { buildHouse, updateHouse, onClothesPad, updateHome, onWardPad, onUpgradePad, openUpgrades } from './home.js';
 import { openSpot, openBasket } from './furniture.js';
 import { buildRareBox, updateRareBox } from './rarebox.js';
+import { initDuo, duoToggle, duoState, together, houseFor, homeSave, visiting, applySide, buildDuoBase, updateDuo, duoAt, duoWhere, duoResume } from './duo.js';
+import { panel } from './furniture.js';
 import { openMap } from './map.js';
 import { questNow, questNext } from './quests.js';
 import { nests, buildNests, updateNests, nestNear, takeEgg, returnEgg, releaseNest, refillLeft,
@@ -48,7 +50,7 @@ export function initGame(h, camera) {
   setIncSlots(save.incSlots);
   rebuildPen(save.pets, save.penCap);
   if (!save.notes) save.notes = []; bindNotes(save.notes, persist);
-  document.getElementById('mapBtn').onclick = () => { SFX.tap(); openMap({ loc: level.id, hero: { x: hero.pos.x, z: hero.pos.z, face: hero.face }, save }); };
+  document.getElementById('mapBtn').onclick = () => { SFX.tap(); const d = duoAt(); openMap({ loc: level.id, hero: { x: hero.pos.x, z: hero.pos.z, face: hero.face }, save, duo: d && { ...d, loc: duoWhere(), name: profile === 'mama' ? 'Мотя' : 'Мама' } }); };
   // маме: держать 🔔 3 секунды — записки Василия с нуля (для проверки)
   if (profile === 'mama') onBellHold(() => {
     if (!confirm('Сбросить записки Василия и начать с первой?')) return;
@@ -62,6 +64,9 @@ export function initGame(h, camera) {
       tip: f.special || `любит ${f.k === 'banana' ? '🍌' : RES[f.k]}`, thumb: modelThumb('friend:' + f.id, s => f.build(s), { yaw: 0.5, size: 160, dist: 1.6 }) })) });
   bindInventory(inventory);
   dressHero(hero.model, ward(save).wear);          // купленная одежда — на героя
+  initDuo({ hero, save, profile, onLayout: relayout, onEvent: duoEvent });
+  document.getElementById('duoBtn').onclick = () => { SFX.tap(); duoPanel(); };
+  duoResume();
   enter('base', LOCS.base.spawn);
 }
 
@@ -90,16 +95,18 @@ const EGG_KINDS = RARITY.flatMap((R, r) => [null, ...Object.keys(B.VARIANTS)].ma
 
 // перейти в локацию: всё старое убираем, строим новое, героя ставим на точку появления.
 // Яйцо в руках остаётся в руках (оно — часть героя)
-function enter(id, spawn) {
+function enter(id, spawn, owner = null) {
   clearLevel(); level.id = id;
+  level.owner = id === 'home' || id === 'loft' ? owner || profile : null;     // чей дом (вдвоём можно зайти в гости)
   const L = LOCS[id];
   sky(L.sky);
-  const w = L.build(save, profile);
+  if (id === 'base') applySide();                   // вдвоём Мотин загон — справа
+  const w = level.owner ? L.build(homeSave(level.owner), level.owner) : L.build(save, profile);
   buildNests(id); buildGuards(nests);
   if (id === 'base') { buildBase(); buildIncubators(); setIncSlots(save.incSlots); buildPen(save.pets, save.penCap); buildPlots(save); buildMailbox(); spawnVasya(); }
   spawnFriends(id, save);                          // друзья: Ряба на базе, Ёжик, Совёнок, Лисичка, Медвежонок в лесу
   buildKids(id, w);                                // места для игр детей: футбол, боулинг, цветные плиты, челнок
-  if (id === 'base') { buildPlayground(w || scene); buildHouse(w || scene, profile, save); }
+  if (id === 'base') { buildPlayground(w || scene); buildHouse(w || scene, profile, save, houseFor(profile)); buildDuoBase(w || scene); }
   buildRareBox(id, save);                          // сундучок с редкой одеждой (база, лес, осень)   // качели, карусель, пузыри, мяч; свой домик и ларёк одежды
   if (w) bake(w);                                  // неподвижное склеиваем — меньше работы видеокарте
   hero.pos.set(spawn.x, groundY(spawn.x, spawn.z), spawn.z); hero.vel.set(0, 0, 0);
@@ -112,8 +119,11 @@ function goThrough(pt) {
   if (moving) return;
   moving = true; SFX.portal();
   const from = level.id;
+  const owner = pt.owner || ((pt.to === 'home' || pt.to === 'loft') ? level.owner : null), wasOwner = level.owner;
   fade(true, () => {
-    enter(pt.to, pt.spawn || (pt.to === 'base' ? backFrom(from) : LOCS[pt.to].spawn)); fade(false); moving = false;
+    const H = houseFor(wasOwner), out = from === 'home' ? { x: H.door.x, z: H.door.z - 2.4, face: Math.PI } : null;   // из дома — к его двери
+    enter(pt.to, pt.spawn || (pt.to === 'base' ? out || backFrom(from) : LOCS[pt.to].spawn), owner); fade(false); moving = false;
+    if (pt.to === 'home' && visiting() && pt.owner) toast(`🏠 В гостях у ${profile === 'mama' ? 'Моти' : 'мамы'}!<small>смотреть можно, а мебель переставляет хозяин</small>`);
     // маме на входе в лес — записка от Василия
     if (pt.to === 'forest' && profile === 'mama') {
       // если игра открыта ещё в одной вкладке и та ушла по запискам дальше — продолжаем с её места, а не повторяем
@@ -381,6 +391,7 @@ const arrowLabel = (() => { const l = makeLabel(3.6, 0.9); l.userData.keep = tru
 
 export function updateGame(dt) {
   const now = Date.now(), p = hero.pos;
+  updateDuo(dt);
   if (updateNests(dt)) SFX.refill();
   setSun(refillLeft());
 
@@ -552,7 +563,7 @@ export function updateGame(dt) {
   if (ks.sfx) SFX.kick();
   if (ks.goal) { SFX.fanfare(); toast('⚽ ГОЛ!<small>позови Колю и Олю — сыграем на счёт</small>'); }
   // магазин одежды на базе и шкаф дома: встал на коврик — открылось окно
-  const onCloth = atBase && onClothesPad(p), onWard = level.id === 'home' && onWardPad(p);
+  const onCloth = atBase && onClothesPad(p), onWard = level.id === 'home' && !visiting() && onWardPad(p);
   if ((onCloth && !wasOnCloth || onWard && !wasOnWard) && !wardOpen()) { SFX.tap(); openWardrobe({ save, profile, hero: hero.model, shop: onCloth, sfx: SFX, persist }); }
   wasOnCloth = onCloth; wasOnWard = onWard;
   // сундучок с нарядом: редкая одежда, которой нет в магазине
@@ -567,10 +578,11 @@ export function updateGame(dt) {
   if (atBase) updateHouse(dt);
   if (level.id === 'home' || level.id === 'loft') {   // мебель: встал на кнопку места — выбираешь, что поставить; на лежанке — питомцы
     const he = updateHome(dt, hero);
-    const onUp = level.id === 'home' && onUpgradePad(p);                       // доска «Улучшения дома»: второй этаж
+    const onUp = level.id === 'home' && !visiting() && onUpgradePad(p);                       // доска «Улучшения дома»: второй этаж
     if (onUp && !wasOnUp && !wardOpen()) { SFX.tap(); openUpgrades({ save, sfx: SFX, persist, onBuy: () => { toast('🪜 Второй этаж построен!<small>лестница наверх — слева от двери</small>'); confetti(p, 80); } }); }
     wasOnUp = onUp;
     for (const k of he.sfx || []) k.startsWith('note') ? SFX.note(+k.slice(4)) : SFX[k]?.();
+    if (visiting()) he.spot = he.basket = null;          // в гостях — только смотреть
     if (!wardOpen() && he.spot) { SFX.tap(); openSpot(he.spot - 1, { save, sfx: SFX, persist }); }
     if (!wardOpen() && he.basket) { SFX.tap(); openBasket({ save, sfx: SFX, persist }); }
   }
@@ -661,3 +673,40 @@ export function updateGame(dt) {
   setRes(save.res, level.id === 'autumn');
 }
 
+
+// ---------- вдвоём 👫 ----------
+const OTHER = () => profile === 'mama' ? { im: 'Мотя', vin: 'Мотю', tv: 'Мотей', he: 'он' } : { im: 'Мама', vin: 'маму', tv: 'мамой', he: 'она' };
+function duoPanel() {
+  const st = duoState(), O = OTHER();
+  const body = {
+    off: [`Нажми — и пусть ${profile === 'mama' ? 'Мотя' : 'мама'} на своём телефоне тоже нажмёт 👫.<br>Телефоны найдут друг друга сами.<br><small>Каждый играет со своим загоном, домиком и монетами — всё добытое остаётся у тебя.</small>`, '👫 Играть вместе', ''],
+    wait: [`⏳ Ждём ${O.vin}…<br><small>пусть ${O.he} откроет игру на своём телефоне и нажмёт 👫</small>`, 'Отмена', 'off'],
+    on: [`✅ Играем вместе с ${O.tv}!<br><small>${profile === 'mama' ? 'Загон и домик Моти — справа' : 'Твой загон и домик — справа, мамины — слева'}. В домик можно зайти в гости.</small>`, 'Закончить', 'off'],
+  }[st];
+  panel('👫 Вдвоём', null, `${body[0]}<br><br><button id="duoGo" style="font:inherit;font-weight:bold;font-size:1.1em;padding:10px 22px;border:none;border-radius:16px;background:${st === 'off' ? '#5fd35f' : '#ff7a6b'};color:#fff;cursor:pointer">${body[1]}</button>`);
+  document.getElementById('duoGo').onclick = async () => {
+    SFX.tap();
+    const r = await duoToggle();
+    if (r === 'nolib') toast('📶 Нет интернета — играть вдвоём не получится');
+    duoBtn(); duoPanel();
+  };
+}
+function duoBtn() { const b = document.getElementById('duoBtn'); b.dataset.st = duoState(); }
+function duoEvent(e) {
+  duoBtn();
+  const O = OTHER();
+  if (e === 'on') { SFX.fanfare(); toast(profile === 'mama' ? '👫 Мотя пришёл! Играем вместе' : '👫 Ты у мамы! Играем вместе'); }
+  if (e === 'left') toast(`👋 ${O.im} ${profile === 'mama' ? 'ушёл' : 'ушла'}`);
+  if (e === 'lost') toast(`📶 Связь с ${O.tv} пропала — пробуем снова…`);
+  const pOpen = document.getElementById('ward').classList.contains('on') && document.getElementById('wardT').textContent === '👫 Вдвоём';
+  if (pOpen) { if (e === 'on') document.querySelector('#ward [data-close]').click(); else duoPanel(); }
+}
+// второй загон и домик появились / убрались — перестраиваем базу на том же месте
+function relayout(on) {
+  duoBtn();
+  if (!on && level.owner && level.owner !== profile) { if (!moving) { moving = true; fade(true, () => { enter('base', backFrom('home')); fade(false); moving = false; }); } return; }
+  if (level.id !== 'base' || moving) return;
+  moving = true;
+  const at = { x: hero.pos.x, z: hero.pos.z, face: hero.face };
+  fade(true, () => { enter('base', at); fade(false); moving = false; });
+}

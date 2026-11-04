@@ -10,6 +10,7 @@ import { hatOn } from './clothes.js';
 import { buildRoom, updateRoom, homeOf, panel } from './furniture.js';
 
 export const HOUSE = { x: -37, z: 58.5, w: 9, d: 7, door: { x: -37, z: 54.4 } };   // домик на базе — в северо-западном углу у завала; дверь смотрит на юг
+export const HOUSE2 = { x: 38, z: 58.5, w: 9, d: 7, door: { x: 38, z: 54.4 } };     // второй домик — в северо-восточном углу; стоит, только пока играют вдвоём
 export const CLOTHES_SHOP = { x: -26.5, z: 60, pad: { x: -26.5, z: 57.2 } };          // ларёк одежды — рядом с домиком
 const ROOM = { w: 24, d: 18, h: 5 };                                                  // комната: от −12 до 12 по x, от −9 до 9 по z
 const WARD = { x: -6, z: -8.2, pad: { x: -6, z: -5.8 } }, MIRROR = { x: -1.6, z: -8.9, w: 2.4, h: 3.4 };
@@ -32,9 +33,10 @@ export const FLOOR2_PRICE = 5000;
 const STAIRS = { x: -3, z0: 3.6, n: 7 };                                               // лестница на второй этаж: у южной стены, левее двери
 const UPGRADE = { x: 3.6, z: 7.4 };                                                    // доска «Улучшения дома» — правее двери
 
-export function buildHouse(w, profile, save) {
-  st = { smokeT: 0 };
-  const H = HOUSE, x0 = H.x, z0 = H.z, front = z0 - H.d / 2;
+// owner — чей дом; H — где стоит (вдвоём у Моти — второй участок); shop — строить ли рядом ларёк одежды
+export function buildHouse(w, owner, save, H = HOUSE, shop = true) {
+  if (!st?.chimneys) st = { smokeT: 0, chimneys: [] };
+  const x0 = H.x, z0 = H.z, front = z0 - H.d / 2;
   solid(w, H.w + 0.6, 0.4, H.d + 0.6, 0x9aa4ad, x0, 0, z0);                              // фундамент
   const two = !!save?.home?.floor2, up = two ? 3.6 : 0;                                 // второй этаж — дом выше на этаж
   solid(w, H.w, 4 + up, H.d, 0xfff0d0, x0, 0.4, z0);                                      // стены (дом внутри — отдельная комната)
@@ -48,7 +50,7 @@ export function buildHouse(w, profile, save) {
   // крыша: красные ступеньки к коньку, на ней труба
   for (let i = 0; i < 5; i++) box(w, H.w + 1.2, 0.62, H.d + 1.4 - i * 1.7, i % 2 ? 0xd8261a : 0xe8442a, x0, 4.7 + up + i * 0.6, z0, { studs: true });
   solid(w, 1, 2.6, 1, 0xb5523a, x0 + 2.6, 5.2 + up, z0 + 1.2); box(w, 1.2, 0.3, 1.2, 0x8a3a2a, x0 + 2.6, 7.9 + up, z0 + 1.2);
-  st.chimney = new T.Vector3(x0 + 2.6, 8.3 + up, z0 + 1.2);
+  st.chimneys.push(new T.Vector3(x0 + 2.6, 8.3 + up, z0 + 1.2));
   // дверь с рамкой и ручкой, ступенька, коврик
   box(w, 2.6, 3.4, 0.2, 0xffffff, x0, 2.1, front - 0.05); box(w, 2.1, 3.0, 0.24, 0x9a5a2a, x0, 1.95, front - 0.08);
   for (let i = 0; i < 3; i++) box(w, 1.7, 0.08, 0.26, 0x7a4220, x0, 0.9 + i * 0.9, front - 0.1, { shadow: false });
@@ -61,8 +63,9 @@ export function buildHouse(w, profile, save) {
     box(w, 1.6, 0.4, 0.8, 0x8a5a2b, x0 + sx * 2.9, 0.2, front - 0.6);
     for (let i = 0; i < 3; i++) box(w, 0.3, 0.3, 0.3, [0xff5a8a, 0xffd23f, 0xff7ac8][i], x0 + sx * 2.9 - 0.5 + i * 0.5, 0.55, front - 0.6, { shadow: false });
   }
-  const lab = makeLabel(6, 1.5); lab.position.set(x0, 9.4 + up, z0); scene.add(lab); lab.userData.set('🏠 ' + nameOf(profile), { color: '#ffe14d' });
-  door({ x: x0, z: H.door.z, w: 2.4, to: 'home', label: '🏠 Дом' });
+  const lab = makeLabel(6, 1.5); lab.position.set(x0, 9.4 + up, z0); scene.add(lab); lab.userData.set('🏠 ' + nameOf(owner), { color: '#ffe14d' });
+  door({ x: x0, z: H.door.z, w: 2.4, to: 'home', label: '🏠 Дом', owner });
+  if (!shop) return;
 
   // ларёк одежды: прилавок под полосатым навесом, на прилавке головы-манекены в шляпах, сзади — футболки на вешалке
   const S = CLOTHES_SHOP;
@@ -79,8 +82,8 @@ export function buildHouse(w, profile, save) {
 export const onClothesPad = p => near(p, CLOTHES_SHOP.pad, 1.5, 1.1) && p.y < 1;
 // раз в кадр на базе: из трубы идёт дымок
 export function updateHouse(dt) {
-  if (!st?.chimney) return;
-  if ((st.smokeT -= dt) <= 0) { st.smokeT = 0.9; puff('☁️', st.chimney.clone(), { size: 1.2, rise: 1.4, life: 2.4, dx: 0.4 }); }
+  if (!st?.chimneys) return;
+  if ((st.smokeT -= dt) <= 0) { st.smokeT = 0.9; for (const c of st.chimneys) puff('☁️', c.clone(), { size: 1.2, rise: 1.4, life: 2.4, dx: 0.4 }); }
 }
 
 // ---------- комната ----------

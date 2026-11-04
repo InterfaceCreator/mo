@@ -5,7 +5,7 @@ d=$(date '+%d.%m %H:%M')
 v="сборка $n · $d"
 printf "// Номер сборки — пишется сам перед каждым коммитом (.githooks/pre-commit)\nexport const VERSION = '%s';\n" "$v" > src/version.js
 {
-  printf '{"version":"%s","files":["./","vendor/three.min.js"' "$v"
+  printf '{"version":"%s","files":["./","vendor/three.min.js","vendor/peerjs.min.js"' "$v"
   for f in src/*.js; do printf ',"%s"' "$f"; done
   printf ']}\n'
 } > files.json

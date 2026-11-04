@@ -2,7 +2,7 @@
 // Подбежал — открыл: редкая вещь этого места, которой нет в магазине (clothes.js, rare). Всё собрал — внутри монеты.
 // Открыл — через 15 минут сундучок появится снова, уже в другом месте.
 import { T, scene, group, box } from './engine.js';
-import { groundY, nearColliders, onLevelReset, level, PEN } from './world.js';
+import { groundY, nearColliders, onLevelReset, level, PEN_L, PEN_R } from './world.js';
 import { puff, confetti } from './fx.js';
 import { rareOf, ward } from './clothes.js';
 import { PLOTS } from './buildings.js';
@@ -10,7 +10,7 @@ import { PLOTS } from './buildings.js';
 const AGAIN = 15 * 60 * 1000, COINS = 300;
 // где искать место: границы локации и запретные зоны (вода, загоны)
 const AREA = {
-  base: { x0: -42, x1: 42, z0: 3, z1: 62, no: [PEN, { x0: 8, x1: 30, z0: 16, z1: 40 }] },
+  base: { x0: -42, x1: 42, z0: 3, z1: 62, no: [PEN_L, PEN_R, { x0: 33, x1: 43, z0: 53, z1: 63 }] },   // и место под второй домик (игра вдвоём)
   forest: { x0: -90, x1: 90, z0: -90, z1: 90, no: [] },
   autumn: { x0: -62, x1: 62, z0: -62, z1: 62, no: [] },
 };

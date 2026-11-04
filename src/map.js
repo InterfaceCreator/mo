@@ -79,6 +79,12 @@ function draw(id, st) {
   // сундучок с нарядом 🎁 — если он сейчас лежит
   const rb = (st.save.rareBox || {})[id];
   if (rb && rb.x !== undefined && Date.now() >= rb.at) { const [px, py] = P(rb.x, rb.z); icon('🎁', px, py, fs * 1.1); label('Сундучок', px, py + fs * 0.95, '#ffe14d', 10); }
+  // второй игрок (игра вдвоём)
+  if (st.duo && st.duo.loc === id) {
+    const [px, py] = P(st.duo.x, st.duo.z);
+    c.fillStyle = '#fff'; c.strokeStyle = '#3fbf5f'; c.lineWidth = 3; c.beginPath(); c.arc(px, py, fs * 0.8, 0, 7); c.fill(); c.stroke();
+    icon(st.duo.who === 'mama' ? '👩' : '👦', px, py, fs); label(st.duo.name, px, py - fs * 1.05, '#9dffb0', 11);
+  }
   // ты: красная стрелка — куда смотришь
   if (st.loc === id && st.hero) {
     const [px, py] = P(st.hero.x, st.hero.z), dx = Math.sin(st.hero.face), dz = Math.cos(st.hero.face);
