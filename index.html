@@ -2,6 +2,22 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
+<script>
+// ремонт обновлений: …/?fresh&update — стереть копию игры на устройстве и скачать заново.
+// Прогресс (сохранения) лежит отдельно (localStorage) и не трогается.
+(function () {
+  var q = location.search;
+  if (!/[?&]update\b/.test(q)) return;
+  document.write('<p style="font:20px sans-serif;text-align:center;margin-top:40vh">🔧 Обновляем игру…</p>');
+  var done = function () { location.replace(location.pathname + (/[?&]test\b/.test(q) ? '?test' : '')); };
+  var jobs = [];
+  if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
+  if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }));
+  Promise.all(jobs).then(done, done);
+  setTimeout(done, 5000);
+  window.stop && window.stop();
+})();
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
