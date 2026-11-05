@@ -16,8 +16,10 @@ import { dressHero, ward, openWardrobe, wardOpen } from './clothes.js';
 import { buildHouse, updateHouse, onClothesPad, updateHome, onWardPad, onUpgradePad, openUpgrades } from './home.js';
 import { openSpot, openBasket } from './furniture.js';
 import { buildRareBox, updateRareBox } from './rarebox.js';
-import { initDuo, duoToggle, duoState, together, houseFor, homeSave, visiting, applySide, buildDuoBase, updateDuo, duoAt, duoWhere, duoResume, duoMe, initSpy, spyTarget, spyInfo } from './duo.js';
+import { initDuo, duoToggle, duoState, together, houseFor, homeSave, visiting, applySide, buildDuoBase, updateDuo, duoAt, duoWhere, duoResume, duoMe, initSpy, spyTarget, spyInfo, duoLink, duoPartner } from './duo.js';
 import { panel } from './furniture.js';
+import { net, qrHost, qrAccept, duoOff } from './net.js';
+import { makeQR, scanQR } from './qr.js';
 import { openMap } from './map.js';
 import { questNow, questNext } from './quests.js';
 import { nests, buildNests, updateNests, nestNear, takeEgg, returnEgg, releaseNest, refillLeft,
@@ -37,7 +39,8 @@ import { SFX } from './sfx.js';
 const { SPEED_MAX, PEN_MAX, INC_MAX, speedCost, treadNeed, INC_COST, penCost, BANANA_COST, BANANA_PACK, SURPRISE_COST, POTION_COST, COMPASS_COST } = B;
 export const speedMul = lv => 1 + B.SPEED_STEP * (lv - 1);
 
-export const SPY = new URLSearchParams(location.search).has('spy');   // наблюдатель 👁 (duo.js)
+export const SPY = new URLSearchParams(location.search).has('spy');
+const SPY_ON = false;                                   // наблюдатель вернётся, когда будет сервер-посредник   // наблюдатель 👁 (duo.js)
 let hero, carry = null, fullWarn = 0, wasOnPad = false, wasOnBench = false, wasOnPlot = null, wasMail = false, wasOnCloth = false, wasOnWard = false, wasOnUp = false;
 const tmp = new T.Vector3();
 
@@ -680,29 +683,44 @@ export function updateGame(dt) {
 
 // ---------- вдвоём 👫 ----------
 const OTHER = () => profile === 'mama' ? { im: 'Мотя', vin: 'Мотю', tv: 'Мотей', he: 'он' } : { im: 'Мама', vin: 'маму', tv: 'мамой', he: 'она' };
-function duoPanel() {
-  const st = duoState(), O = OTHER();
-  const body = {
-    off: [`Нажми — и пусть ${profile === 'mama' ? 'Мотя' : 'мама'} на своём телефоне тоже нажмёт 👫.<br>Телефоны найдут друг друга сами.<br><small>Каждый играет со своим загоном, домиком и монетами — всё добытое остаётся у тебя.</small>`, '👫 Играть вместе', ''],
-    wait: [`⏳ Ждём ${O.vin}…<br><small>пусть ${O.he} откроет игру на своём телефоне и нажмёт 👫</small>`, 'Отмена', 'off'],
-    on: [`✅ Играем вместе с ${O.tv}!<br><small>${profile === 'mama' ? 'Загон и домик Моти — справа' : 'Твой загон и домик — справа, мамины — слева'}. В домик можно зайти в гости.</small>`, 'Закончить', 'off'],
-  }[st];
-  panel('👫 Вдвоём', null, `${body[0]}<br><br><button id="duoGo" style="font:inherit;font-weight:bold;font-size:1.1em;padding:10px 22px;border:none;border-radius:16px;background:${st === 'off' ? '#5fd35f' : '#ff7a6b'};color:#fff;cursor:pointer">${body[1]}</button>`);
-  document.getElementById('duoGo').onclick = () => {
-    SFX.tap();
-    duoToggle();
+// игра вдвоём по QR: один показывает код, второй сканирует и показывает свой, первый сканирует ответ
+let duoMsg = '', duoQR = '', duoQRfor = '';
+async function duoPanel() {
+  const st = duoState(), O = OTHER(), step = net.step;
+  const btn = (id, text, bg) => `<button id="${id}" style="font:inherit;font-weight:bold;font-size:1.05em;padding:10px 18px;margin:4px;border:none;border-radius:16px;background:${bg};color:#fff;cursor:pointer">${text}</button>`;
+  const err = duoMsg ? `<div style="color:#d8261a;margin:6px 0"><b>${duoMsg}</b></div>` : '';
+  let html;
+  if (st === 'on') html = `✅ Играем вместе с ${O.tv}!<br><small>${profile === 'mama' ? 'Загон и домик Моти — справа' : 'Твой загон и домик — справа, мамины — слева'}. В домик можно зайти в гости.</small><br><br>${btn('duoEnd', 'Закончить', '#ff7a6b')}`;
+  else if (step === 'offer' || step === 'answer') {
+    if (duoQRfor !== net.code) { duoQRfor = net.code; duoQR = await makeQR(net.code); }
+    html = step === 'offer'
+      ? `<b>1.</b> Пусть ${O.im.toLowerCase() === 'мама' ? 'мама' : 'Мотя'} нажмёт 👫 → «📷 Сканировать код» и наведёт камеру сюда:<br><img src="${duoQR}" style="width:min(64vw,300px);image-rendering:pixelated;margin:8px auto;display:block;background:#fff;border-radius:8px"><b>2.</b> Потом на экране у ${O.im === 'Мама' ? 'мамы' : 'Моти'} появится ответный код — отсканируй его:<br>${err}${btn('duoScan', '📷 Сканировать ответ', '#3fa7ff')}${btn('duoEnd', 'Отмена', '#9aa0aa')}`
+      : `Почти готово! Пусть ${O.im === 'Мама' ? 'мама' : 'Мотя'} нажмёт «📷 Сканировать ответ» и наведёт камеру сюда:<br><img src="${duoQR}" style="width:min(64vw,300px);image-rendering:pixelated;margin:8px auto;display:block;background:#fff;border-radius:8px">${err}<small>соединимся сами, как только ${O.he} отсканирует</small><br>${btn('duoEnd', 'Отмена', '#9aa0aa')}`;
+  } else if (step === 'joining') html = `⏳ Соединяемся…<br><small>телефоны должны быть в одной Wi-Fi</small><br><br>${btn('duoEnd', 'Отмена', '#9aa0aa')}`;
+  else html = `Играть вместе с ${O.tv} — оба телефона в одной домашней Wi-Fi.<br><small>Один показывает код, второй сканирует его камерой — и наоборот. Каждый играет со своим загоном, домиком и монетами.</small><br>${err}<br>${btn('duoShow', '📱 Показать код', '#5fd35f')}${btn('duoScan', '📷 Сканировать код', '#3fa7ff')}`;
+  panel('👫 Вдвоём', null, html);
+  const on = (id, f) => { const b = document.getElementById(id); if (b) b.onclick = () => { SFX.tap(); f(); }; };
+  on('duoShow', async () => { duoMsg = ''; document.getElementById('wardList').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px">⏳ Готовим код…</div>'; await qrHost(); duoBtn(); duoPanel(); });
+  on('duoScan', async () => {
+    duoMsg = '';
+    const r = await scanQR(net.step === 'offer' ? `Наведи камеру на код на телефоне ${O.im === 'Мама' ? 'мамы' : 'Моти'}` : 'Наведи камеру на QR-код на другом телефоне');
+    if (!r) { duoPanel(); return; }
+    if (r.error) duoMsg = r.error === 'camera' ? 'Разреши игре камеру: Safari спросит «Разрешить доступ к камере?» — нажми «Разрешить»' : 'Камера не включилась';
+    else duoMsg = await qrAccept(r.text);
     duoBtn(); duoPanel();
-  };
+  });
+  on('duoEnd', () => { duoMsg = ''; duoOff(); duoBtn(); duoPanel(); });
 }
 function duoBtn() { const b = document.getElementById('duoBtn'); b.dataset.st = duoState(); }
 function duoEvent(e) {
   duoBtn();
   const O = OTHER();
   if (e === 'on') { SFX.fanfare(); toast(profile === 'mama' ? '👫 Мотя пришёл! Играем вместе' : '👫 Ты у мамы! Играем вместе'); }
-  if (e === 'left') toast(`👋 ${O.im} ${profile === 'mama' ? 'ушёл' : 'ушла'}`);
-  if (e === 'lost') toast(`📶 Связь с ${O.tv} пропала — пробуем снова…`);
+  if (e === 'left') toast(`👋 ${O.im} ${profile === 'mama' ? 'закончил' : 'закончила'} игру вдвоём`);
+  if (e === 'lost') toast(`📶 Связь с ${O.tv} пропала<small>чтобы играть дальше, нажмите 👫 и снова обменяйтесь кодами</small>`);
+  if (e === 'fail') { duoMsg = 'Не получилось соединиться. Проверь, что оба телефона в одной Wi-Fi, и начните заново'; }
   const pOpen = document.getElementById('ward').classList.contains('on') && document.getElementById('wardT').textContent === '👫 Вдвоём';
-  if (pOpen) { if (e === 'on') document.querySelector('#ward [data-close]').click(); else duoPanel(); }
+  if (pOpen) { if (e === 'on') document.querySelector('#ward [data-close]').click(); else if (e !== 'card') duoPanel(); }
 }
 // второй загон и домик появились / убрались — перестраиваем базу на том же месте
 function relayout(on) {
@@ -719,6 +737,8 @@ function relayout(on) {
 function initSpyMode() {
   document.body.classList.add('spy');
   hero.model.root.visible = false; hero.ghost = true;
+  // наблюдателю нужен сервер-посредник, а игра вдвоём сейчас идёт напрямую по QR — пока выключен
+  if (!SPY_ON) { const d = document.createElement('div'); d.id = 'spyBar'; d.innerHTML = '<b>👁</b><button>Наблюдатель пока выключен<small>игра вдвоём идёт напрямую по QR-кодам, без сервера — смотреть со стороны не через что</small></button>'; document.body.appendChild(d); return; }
   askPin(pin => {
     initSpy({ hero, save, pin, onLayout: relayout, onGo: spyGo, onEvent: () => spyBar() });
     const bar = document.createElement('div'); bar.id = 'spyBar'; document.body.appendChild(bar);

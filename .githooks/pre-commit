@@ -8,9 +8,9 @@ printf "// Номер сборки — пишется сам перед кажд
 git add src/version.js
 h() { git hash-object "$1" | cut -c1-12; }
 {
-  printf '{"version":"%s","files":["./","vendor/three.min.js","vendor/peerjs.min.js"' "$v"
+  printf '{"version":"%s","files":["./","vendor/three.min.js","vendor/qrcode.js","vendor/jsQR.js"' "$v"
   for f in src/*.js; do printf ',"%s"' "$f"; done
-  printf '],"hash":{"./":"%s","vendor/three.min.js":"%s","vendor/peerjs.min.js":"%s"' "$(h index.html)" "$(h vendor/three.min.js)" "$(h vendor/peerjs.min.js)"
+  printf '],"hash":{"./":"%s","vendor/three.min.js":"%s","vendor/qrcode.js":"%s","vendor/jsQR.js":"%s"' "$(h index.html)" "$(h vendor/three.min.js)" "$(h vendor/qrcode.js)" "$(h vendor/jsQR.js)"
   for f in src/*.js; do printf ',"%s":"%s"' "$f" "$(h "$f")"; done
   printf '}}\n'
 } > files.json

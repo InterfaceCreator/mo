@@ -33,6 +33,8 @@ const lastOf = who => { const b = R[who]?.buf; return b && b[b.length - 1]; };
 
 export const duoName = (who = other) => PROFILES[who]?.name || '';
 export const duoState = () => net.state;
+export const duoLink = () => net.link;                     // связь с посредником: on / off / connecting / kicked
+export const duoPartner = () => net.partnerOnline;          // второй игрок открыл игру
 export const duoMe = () => me;
 export const together = () => layout;                       // раскладка «вдвоём» (второй загон и домик стоят)
 export const myRight = () => layout && me === 'motya';      // мой загон справа?
@@ -46,11 +48,16 @@ const locKey = () => (level.id === 'home' || level.id === 'loft') ? `${level.id}
 export function initDuo(o) {
   ({ hero, save } = o); me = o.profile; other = me === 'mama' ? 'motya' : 'mama';
   onLayout = o.onLayout; onEvent = o.onEvent;
+  let prev = 'off', prevLink = 'off';
   net.onState(s => {
-    if (s === 'on') { lostT = 0; lastSent = ''; sendCard(true); onEvent('on'); }
+    const was = prev, link = net.link; prev = s;
+    if (link === 'kicked' && prevLink !== 'kicked') onEvent('kicked');
+    prevLink = link;
+    if (s === was) { onEvent('state'); return; }     // поменялась только связь — обновить кнопку и окно
+    if (s === 'on') { lostT = 0; lastSent = ''; sendCard(true); onEvent('on'); return; }
     if (s === 'off') setLayout(false);
     if (s === 'wait' && layout) lostT = LOST_KEEP;
-    if (s !== 'on') onEvent('state');                 // кнопка 👫: мигает / серая
+    onEvent('state');                                 // кнопка 👫: мигает / серая
   });
   net.onSpy(c => { try { c.send(card()); c.send({ t: 'ui', u: uiSnap(true) }); c.send(world()); } catch (e) {} });   // подключился наблюдатель — сразу всё о себе
   net.onMsg((m, who) => {
@@ -60,6 +67,7 @@ export function initDuo(o) {
     else if (m.t === 'p') { if (layout) push(r, m); }
     else if (m.t === 'left') { onEvent('left'); setLayout(false); }
     else if (m.t === 'lost') onEvent('lost');
+    else if (m.t === 'fail') onEvent('fail');
   });
   netStart(me);                                       // на связь — чтобы второй игрок и наблюдатель могли найти
   // экран — наблюдателю, 4 раза в секунду; отдельным таймером: пока открыта записка или замок отдыха, игра стоит, а экран всё равно нужен
@@ -73,7 +81,7 @@ export function duoToggle() {
 // страница перезагрузилась посреди игры вдвоём — подключаемся снова сами
 const SK = 'egg-duo';
 function mark(on) { try { on ? sessionStorage.setItem(SK, me) : sessionStorage.removeItem(SK); } catch (e) {} }
-export function duoResume() { let w = null; try { w = sessionStorage.getItem(SK); } catch (e) {} if (w === me) duoOn(); }
+export function duoResume() {}                     // по QR само не переподключиться — коды показывают заново
 export const duoStop = () => { if (net.state !== 'off') duoOff(); mark(false); };
 
 function setLayout(on) {

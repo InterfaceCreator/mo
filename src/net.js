@@ -1,117 +1,130 @@
-// Связь между телефонами напрямую (WebRTC через PeerJS).
-// Знакомит телефоны бесплатный сервер PeerJS: у каждого игрока постоянное имя в сети («eggthief-…-mama», «…-motya»).
-// Пока игра открыта, телефон «на связи» с сервером (одно лёгкое соединение) — данные никуда не идут, пока никто не подключился.
-//   Вдвоём 👫: Мотин телефон сам находит мамин по имени (мама только ждёт). Принимают друг друга, только если оба нажали 👫.
-//   Наблюдатель 👁 (?spy): подключается к обоим, видит, где они и что на них надето. Его никто не видит, ему ничего не шлют, кроме этого.
-// Что передаём: где герой и что на нём надето, питомцы в загоне, мебель в доме, постройки, монеты. Больше ничего.
-const TEST = new URLSearchParams(location.search).has('test');
-const ROOM = 'eggthief-m7q2k9' + (TEST ? '-test' : '');          // семейная «комната»: случайная приставка, чтобы не совпасть с чужими
-const idOf = who => `${ROOM}-${who}`;
+// Связь для игры вдвоём 👫 — напрямую между телефонами (WebRTC), без серверов.
+// Как телефоны находят друг друга: обмен QR-кодами.
+//   1) Один показывает код («приглашение»: адрес телефона в домашней Wi-Fi и ключи шифрования).
+//   2) Второй сканирует его камерой и показывает свой код («ответ»).
+//   3) Первый сканирует ответ — соединились. Дальше данные идут напрямую по Wi-Fi.
+// Связь пропала (телефон уснул, ушли из Wi-Fi) — обменяться кодами заново.
+// Код короткий: из описания соединения берём только нужное (ключи, отпечаток, адреса), остальное собираем обратно сами.
 export const PLAYERS = ['mama', 'motya'];
-const SPY_PIN = '132';                                           // наблюдателя пускают только с маминым PIN
+const ICE = [{ urls: 'stun:stun.l.google.com:19302' }];         // вдруг пригодится (разные подсети); в одной Wi-Fi хватает и без него
 
-let peer = null, me = null, lib = null, partner = null, wantDuo = false;
-const spies = new Set(), watch = {}, tm = {};
+let me = null, pc = null, dc = null, paired = false, lostT = 0;
 const H = { state: () => {}, msg: () => {}, spy: () => {} };
 export const net = {
-  state: 'off',                                  // вдвоём: off — один; wait — ждём второго; on — играем вместе
+  state: 'off',                                  // off — один; wait — обмениваемся кодами; on — играем вместе
+  step: null,                                    // что показываем: 'offer' (приглашение) / 'answer' (ответ) / null
+  code: '',                                      // текст кода для QR
+  link: 'on', spies: 0, partnerOnline: false,
   onState(f) { H.state = f; }, onMsg(f) { H.msg = f; }, onSpy(f) { H.spy = f; },
-  // игрок: второму игроку и наблюдателю
-  send(m) { if (partner?.open) put(partner, m); for (const c of spies) put(c, m); },
-  sendSpy(m) { for (const c of spies) put(c, m); },                    // только наблюдателю (его экран)
-  get spies() { return spies.size; },
-  get listening() { return !!partner?.open || spies.size > 0; },          // кто-то смотрит — тогда и шлём
-  get online() { return !!peer?.open; },
-  watching: who => !!watch[who]?.open,
+  send(m) { if (dc?.readyState === 'open') try { dc.send(JSON.stringify(m)); } catch (e) {} },
+  sendSpy() {},                                  // наблюдателя без сервера нет
+  get listening() { return paired; },
+  get online() { return true; },
+  watching: () => false,
 };
-const put = (c, m) => { try { c.send(m); } catch (e) {} };
-const set = s => { if (net.state !== s) { net.state = s; H.state(s); } };
-const later = (k, f, ms) => { clearTimeout(tm[k]); tm[k] = setTimeout(f, ms); };
+const set = s => { net.state = s; H.state(s); };
+const other = () => me === 'mama' ? 'motya' : 'mama';
+export function netStart(who) { me = who; }
 
-// библиотеку грузим после запуска игры, в фоне
-function load() {
-  if (window.Peer) return Promise.resolve();
-  return lib || (lib = new Promise((ok, no) => {
-    const s = document.createElement('script'); s.src = 'vendor/peerjs.min.js';
-    s.onload = ok; s.onerror = () => { lib = null; no(new Error('peerjs')); }; document.head.appendChild(s);
-  }));
+// ---------- код: короткая запись описания соединения ----------
+// EGG1~o|a~кто~ufrag~pwd~отпечаток~setup~кандидаты (h|s,адрес,порт;…)
+const b64 = hex => btoa(String.fromCharCode(...hex.split(':').map(h => parseInt(h, 16)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64 = s => [...atob(s.replace(/-/g, '+').replace(/_/g, '/'))].map(c => c.charCodeAt(0).toString(16).padStart(2, '0').toUpperCase()).join(':');
+function encode(type, sdp) {
+  const g = re => (sdp.match(re) || [])[1] || '';
+  const cands = [];
+  for (const m of sdp.matchAll(/a=candidate:\S+ 1 udp \d+ (\S+) (\d+) typ (host|srflx)/gi)) {
+    const k = `${m[3][0]},${m[1]},${m[2]}`;
+    if (!cands.includes(k) && cands.length < 5) cands.push(k);
+  }
+  return ['EGG1', type, me === 'mama' ? 'm' : 't', g(/a=ice-ufrag:(\S+)/), g(/a=ice-pwd:(\S+)/), b64(g(/a=fingerprint:sha-256 (\S+)/)), { actpass: 'x', active: 'c', passive: 'p' }[g(/a=setup:(\w+)/)] || 'c', cands.join(';')].join('~');
 }
-
-// выйти на связь: who — 'mama', 'motya' или 'spy' (наблюдатель)
-let spyPin = '';
-export async function netStart(who, pin = '') {
-  me = who; spyPin = pin;
-  try { await load(); } catch (e) { later('open', () => netStart(who), 15000); return; }
-  open();
-}
-function open() {
-  try { peer?.destroy(); } catch (e) {}
-  const p = peer = new window.Peer(idOf(me), { debug: 0 });
-  p.on('open', () => { if (me === 'spy') spyCall(); else if (wantDuo && me !== 'mama') call(); });
-  p.on('connection', c => {
-    if (c.metadata?.spy) { if (c.metadata.pin === SPY_PIN) addSpy(c); else c.on('open', () => { try { c.close(); } catch (e) {} }); return; }
-    if (me !== 'spy' && wantDuo && (me === 'mama' || !partner?.open)) use(c);
-    else c.on('open', () => { try { c.close(); } catch (e) {} });          // 👫 не нажат — не принимаем
+function decode(text) {
+  const p = String(text).split('~');
+  if (p[0] !== 'EGG1' || p.length < 8) return null;
+  const [, type, who, ufrag, pwd, fp, setup, cl] = p;
+  const S = { x: 'actpass', c: 'active', p: 'passive' }[setup] || 'active';
+  const lines = ['v=0', 'o=- 4611731400430051336 2 IN IP4 127.0.0.1', 's=-', 't=0 0', 'a=group:BUNDLE 0', 'a=msid-semantic: WMS',
+    'm=application 9 UDP/DTLS/SCTP webrtc-datachannel', 'c=IN IP4 0.0.0.0',
+    `a=ice-ufrag:${ufrag}`, `a=ice-pwd:${pwd}`, 'a=ice-options:trickle', `a=fingerprint:sha-256 ${unb64(fp)}`, `a=setup:${S}`, 'a=mid:0', 'a=sctp-port:5000', 'a=max-message-size:262144'];
+  (cl ? cl.split(';') : []).forEach((c, i) => {
+    const [t, ip, port] = c.split(',');
+    lines.push(t === 's' ? `a=candidate:${i + 1} 1 udp 1686052607 ${ip} ${port} typ srflx raddr 0.0.0.0 rport 0` : `a=candidate:${i + 1} 1 udp 2122260223 ${ip} ${port} typ host`);
   });
-  p.on('disconnected', () => { if (peer === p) later('re', () => { try { if (!p.destroyed) p.reconnect(); } catch (e) {} }, 2000); });
-  p.on('error', e => {
-    if (peer !== p) return;
-    if (e.type === 'peer-unavailable') { if (me === 'spy') later('spy', spyCall, 4000); else if (wantDuo) later('call', call, 3000); return; }   // того ещё нет
-    if (e.type === 'unavailable-id') { later('open', open, 4000); return; }         // наше имя ещё «занято» прошлым заходом — подождём
-    later('open', open, 5000);                                                       // нет сети и прочее — заново
-  });
+  lines.push('a=end-of-candidates');
+  return { type: type === 'o' ? 'offer' : 'answer', who: who === 'm' ? 'mama' : 'motya', sdp: lines.join('\r\n') + '\r\n' };
 }
+// ждём, пока телефон соберёт свои адреса (не дольше 2.5 с)
+const gather = p => new Promise(ok => {
+  if (p.iceGatheringState === 'complete') return ok();
+  const t = setTimeout(ok, 2500);
+  p.addEventListener('icegatheringstatechange', () => { if (p.iceGatheringState === 'complete') { clearTimeout(t); ok(); } });
+});
 
-// ---------- вдвоём ----------
-export function duoOn() {
-  wantDuo = true; set('wait');
-  if (!peer) netStart(me); else if (me !== 'mama' && peer.open) call();
+function fresh() {
+  close();
+  const p = pc = new RTCPeerConnection({ iceServers: ICE });
+  p.onconnectionstatechange = () => {
+    if (pc !== p) return;
+    const s = p.connectionState;
+    clearTimeout(lostT);
+    if (s === 'failed' || s === 'closed') lost();
+    else if (s === 'disconnected') lostT = setTimeout(() => { if (pc === p && p.connectionState !== 'connected') lost(); }, 6000);   // вдруг вернётся
+  };
+  p.ondatachannel = e => use(e.channel);
+  return p;
 }
-export function duoOff() {
-  wantDuo = false; clearTimeout(tm.call);
-  if (partner?.open) put(partner, { t: 'bye' });
-  const c = partner; partner = null; try { c?.close(); } catch (e) {}
+function use(ch) {
+  dc = ch;
+  ch.onopen = () => { if (dc === ch) { paired = true; net.step = null; net.code = ''; set('on'); } };
+  ch.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (x) { return; } if (m?.t === 'bye') { lost(true); return; } if (m?.t) H.msg(m, other()); };
+  ch.onclose = () => { if (dc === ch) lost(); };
+}
+function lost(bye) {
+  if (!paired && net.state !== 'wait') return;
+  const was = paired;
+  paired = false; close(); net.step = null; net.code = '';
+  if (was) H.msg({ t: bye ? 'left' : 'lost' }, other());
   set('off');
 }
-function call() {
-  if (!wantDuo || !peer || peer.destroyed || partner?.open) return;
-  if (peer.disconnected || !peer.open) { later('call', call, 2000); return; }
-  use(peer.connect(idOf(me === 'mama' ? 'motya' : 'mama'), { reliable: true }));
-  later('call', () => { if (!partner?.open) call(); }, 6000);       // не соединилось — ещё раз
-}
-function use(c) {
-  if (partner && partner !== c) try { partner.close(); } catch (e) {}
-  partner = c;
-  c.on('open', () => { if (partner === c) { c.was = true; clearTimeout(tm.call); set('on'); } });
-  c.on('data', m => { if (partner === c && m && m.t) { if (m.t === 'bye') drop(c, true); else H.msg(m, me === 'mama' ? 'motya' : 'mama'); } });
-  c.on('close', () => drop(c));
-  c.on('error', () => drop(c));
-}
-// связь пропала: ждём снова (Мотя сам звонит маме ещё раз)
-function drop(c, bye) {
-  if (partner !== c) return;
-  partner = null; try { c.close(); } catch (e) {}
-  if (!wantDuo) return;
-  set('wait');
-  if (c.was) H.msg({ t: bye ? 'left' : 'lost' }, me === 'mama' ? 'motya' : 'mama');
-  if (me !== 'mama') later('call', call, 3000);
+function close() {
+  clearTimeout(lostT);
+  const p = pc, c = dc; pc = dc = null;
+  try { c?.close(); } catch (e) {} try { p?.close(); } catch (e) {}
 }
 
-// ---------- наблюдатель ----------
-function addSpy(c) {
-  c.on('open', () => { spies.add(c); H.spy(c); });
-  c.on('close', () => spies.delete(c)); c.on('error', () => spies.delete(c));
+// ---------- шаги ----------
+// 1) показать приглашение
+export async function qrHost() {
+  const p = fresh();
+  use(p.createDataChannel('egg', { ordered: true }));
+  await p.setLocalDescription(await p.createOffer());
+  await gather(p);
+  if (pc !== p) return;
+  net.code = encode('o', p.localDescription.sdp); net.step = 'offer'; set('wait');
 }
-function spyCall() {
-  if (!peer?.open) return;
-  for (const who of PLAYERS) {
-    if (watch[who]?.open || watch[who]?.pending) continue;
-    const c = watch[who] = peer.connect(idOf(who), { reliable: true, metadata: { spy: 1, pin: spyPin } }); c.pending = true;
-    c.on('open', () => { c.pending = false; H.msg({ t: 'hello' }, who); });
-    c.on('data', m => { if (watch[who] === c && m?.t) H.msg(m, who); });
-    const gone = () => { if (watch[who] !== c) return; delete watch[who]; H.msg({ t: 'gone' }, who); };
-    c.on('close', gone); c.on('error', gone);
-    setTimeout(() => { if (watch[who] === c && c.pending) { delete watch[who]; try { c.close(); } catch (e) {} } }, 6000);
-  }
-  later('spy', spyCall, 4000);                    // раз в 4 секунды — проверить, не появился ли кто-то
+// 2) / 3) отсканировали чужой код: приглашение — отвечаем; ответ — соединяемся. Вернёт ошибку текстом или ''
+export async function qrAccept(text) {
+  const d = decode(text);
+  if (!d) return 'Это не код игры — наведи камеру на QR-код в игре на другом телефоне';
+  if (d.who === me) return `Это код с телефона, где тоже ${me === 'mama' ? 'Мама' : 'Мотя'} — на втором телефоне выбери другого игрока`;
+  try {
+    if (d.type === 'offer') {
+      const p = fresh();
+      await p.setRemoteDescription({ type: 'offer', sdp: d.sdp });
+      await p.setLocalDescription(await p.createAnswer());
+      await gather(p);
+      if (pc !== p) return '';
+      net.code = encode('a', p.localDescription.sdp); net.step = 'answer'; set('wait');
+      return '';
+    }
+    if (!pc || pc.signalingState !== 'have-local-offer') return 'Это ответ — его сканирует тот, кто показывал первый код. Начни заново: «Показать код»';
+    await pc.setRemoteDescription({ type: 'answer', sdp: d.sdp });
+    net.step = 'joining'; set('wait');
+    setTimeout(() => { if (net.step === 'joining' && !paired) { close(); net.step = null; set('off'); H.msg({ t: 'fail' }, other()); } }, 12000);   // не соединились
+    return '';
+  } catch (e) { return 'Код не подошёл — начните заново: «Показать код»'; }
 }
+// закончить / отменить
+export function duoOff() { if (paired) net.send({ t: 'bye' }); paired = false; close(); net.step = null; net.code = ''; set('off'); }
+export const duoOn = qrHost;

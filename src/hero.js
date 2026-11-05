@@ -158,7 +158,7 @@ export function buildHero(parent, lookId = 'boy') {
   [[2.2, 0.18, 0], [1.6, 0.18, 0.18], [0.9, 0.18, 0.36]].forEach(([w, h, y], i) => box(umbrella, w, h, w, i % 2 ? 0xffffff : 0xff4a6a, 0, 0.8 + y, 0, { studs: false }));
   umbrella.visible = false;
 
-  return { root, body, legL, legR, armL, armR, head, hair, torso, tools, umbrella, phase: 0, lean: 0, dims: { TW, TH, TY, AW } };
+  return { root, body, legL, legR, armL, armR, head, hair, torso, tools, umbrella, phase: 0, lean: 0, dims: { TW, TH, TY, AW }, skin: L.skin };
 }
 
 // замах инструментом: p — от 0 до 1. Замах над головой → удар вперёд → назад в «готовность»
