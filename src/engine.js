@@ -53,6 +53,8 @@ paintSky();
 export function followSky() { skyMesh.position.copy(camera.position); sunDisc.position.copy(camera.position).addScaledVector(SUN_DIR, 300); }
 
 const hemi = new T.HemisphereLight(0xe2f2ff, 0x8fae6a, 0.7); hemi.userData.keep = true; scene.add(hemi);
+// ночь (0 — день, 1 — ночь): тусклее свет, солнце прячется. Небо красит тот, кто зовёт (sky)
+export function setNight(n) { hemi.intensity = 0.7 * (1 - 0.55 * n); sun.intensity = 0.85 * (1 - 0.75 * n); sunDisc.material.opacity = 1 - n; }
 export const sun = new T.DirectionalLight(0xfff1d8, 0.85);
 sun.castShadow = true; sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048); sun.shadow.bias = -0.0005;
 const SUN_SIZE = 26, SUN_OFF = new T.Vector3(14, 30, 10), SUN_DIR = SUN_OFF.clone().normalize();

@@ -159,6 +159,7 @@ export function nest(p, x, z, s = 1, y = 0) {
 }
 
 const cloudMat = new T.MeshBasicMaterial({ color: 0xffffff, fog: false }); cloudMat.userData.cached = true;   // облака не темнеют снизу
+export const cloudNight = k => cloudMat.color.setScalar(1 - 0.75 * k);   // ночью облака тёмные
 export function clouds(p, n = 14) {
   for (let i = 0; i < n; i++) {
     const g = group(p, Math.random() * 280 - 140, 40 + Math.random() * 18, Math.random() * 280 - 140);

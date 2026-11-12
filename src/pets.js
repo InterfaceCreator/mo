@@ -40,6 +40,9 @@ export const SPECIES = {
   firedragon: { name: 'Огненный дракончик', r: 5, home: TR, build: p => buildDino(p, { body: 0xff4a1a, belly: 0xffd23f, spikes: 0xffe14d, wings: 0xff8a1a }) },   // только из огненного яйца босса
   icedragon: { name: 'Ледяной дракончик', r: 5, home: TR, build: p => buildDino(p, { body: 0x5fb8f0, belly: 0xe8f8ff, spikes: 0xffffff, wings: 0xbfe9ff }) },   // из ледяного яйца (2-й круг)
   golddragon: { name: 'Золотой дракончик', r: 6, home: TR, build: p => buildDino(p, { body: 0xffb81a, belly: 0xfff3a0, spikes: 0xff7a1a, wings: 0xffe14d }) },  // из солнечного яйца (3-й круг и дальше)
+  // подарки из тайных комнат — больше нигде не бывают
+  spacedragon: { name: 'Космический дракончик', r: 6, home: [], own: true, build: p => buildDino(p, { body: 0x2a2f8a, belly: 0x9b6bff, spikes: 0x7fe8ff, wings: 0xff7ac8 }) },
+  starfox:  { name: 'Звёздная лисичка', r: 6, home: [], own: true, build: p => buildBeast(p, { body: 0xff8ad0, ear: 'point', earC: 0x9b6bff, tail: 'big', tailC: 0xffffff, snout: 0xffe6f4, belly: 0xffe6f4, spots: 0xffd23f, nose: 0x9b6bff, legC: 0x9b6bff }) },
   owl:      { name: 'Совёнок', r: 3, home: F, build: p => buildBird(p, { body: 0x9c7a54, head: 0xb08a60, belly: 0xe8d4b0, eye: 1.5, tufts: true, beak: 0xffc21a, legC: 0xffc21a }) },
   fawn:     { name: 'Оленёнок', r: 3, home: F, build: p => buildBeast(p, { body: 0xc98a4a, spots: 0xffffff, antlers: 0x8a5a2b, ear: 'point', tail: 'stub', snout: 0xe0b080, leg: 0.5, w: 0.7, d: 1.0 }) },
   unicorn:  { name: 'Единорог', r: 4, home: F, build: p => buildBeast(p, { body: 0xffffff, horn: 0xffd23f, ear: 'point', mane: RAINBOW, tail: 'long', tailC: 0xff7ac8, leg: 0.5, d: 1.15 }) },

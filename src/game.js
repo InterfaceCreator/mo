@@ -658,7 +658,13 @@ export function updateGame(dt) {
   // тайная комната за зеркалом: письмо маме, сокровище Моти
   if (level.id === 'secret') {
     const se = updateSecret(dt, hero);
-    if (se.letter) showNote({ t: se.letter, from: '<b>🏮 Письмо</b>', paw: '🐾' }, SFX);
+    if (se.letter) showNote(se.letter, SFX);
+    if (se.gift) {                                       // редкий подарок: уникальный питомец сразу в загон
+      const data = { s: se.gift, big: false, gold: false, rainbow: false };
+      save.secretGift = true; save.found[data.s] = true; save.pets.push(data); rebuildPen(save.pets, save.penCap); persist();
+      SFX.hatch(); fireworks(hero.pos.clone().setY(3), 6); petNote(data, 0, true);
+      toast(`🎁 Редчайший подарок: ${SPECIES[data.s].name}!<small>такого больше ни у кого нет — он уже в загоне</small>`);
+    }
     if (se.coins) { save.coins += se.coins; SFX.chest(); persist(); toast(`💰 Сокровище дня! +${se.coins} монет<small>завтра здесь будет новое</small>`); }
     if (se.note !== undefined) SFX.note(se.note);
     if (se.purr) SFX.purr?.();

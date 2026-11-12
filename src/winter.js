@@ -6,8 +6,8 @@
 //   🛷 горка — наверху красная площадка: садишься на санки и мчишь вниз.
 //   ⛸️ каток — на льду скользко, разгоняйся и катайся.
 // Вдвоём (duo.js): снежки летят и попадают во второго игрока, снеговиков лепите вместе (видно у обоих), ком и санки видно у второго.
-import { T, scene, group, box, camera, ECO, mat } from './engine.js';
-import { level, groundY, solid, portal, clouds, onLevelReset, addCollider } from './world.js';
+import { T, scene, group, box, camera, ECO, mat, sky, setNight } from './engine.js';
+import { level, groundY, solid, portal, clouds, cloudNight, onLevelReset, addCollider } from './world.js';
 import { buildTerrain } from './terrain.js';
 import { defineNests } from './eggs.js';
 import { makeLabel, puff, confetti } from './fx.js';
@@ -53,7 +53,7 @@ function color(x, z, h) {
 }
 
 let st = null;
-onLevelReset(() => { st = null; ballTargets.length = 0; });
+onLevelReset(() => { if (st?.night) { setNight(0); cloudNight(0); } st = null; ballTargets.length = 0; });
 // что ещё можно сбить снежком (winterfun.js): { x, y0, y1, z, r, on(), hit() }
 export const ballTargets = [];
 
@@ -72,7 +72,7 @@ export function buildWinter(save) {
 
   defineNests('winter', W.nests.map(([x, z, r, guard, s]) => ({ x, z, r, guard, s, zone: { kind: 'ring', x, z } })));
 
-  hill(w); rink(w); yard(w, save); range(w); igloo(w); cocoa(w);
+  hill(w); buildNight(); rink(w); yard(w, save); range(w); igloo(w); cocoa(w);
   // ёлки в снегу — не на площадках и не у гнёзд
   const busy = [[W.spawn, 15], [W.yard, 20], [{ x: -33, z: -27 }, 15], [W.igloo, 8], [W.cocoa, 7], ...W.nests.map(([x, z]) => [{ x, z }, 7]),
     ...W.ponds.map(o => [o, 12]), [W.simon, 10], [W.lake, W.lake.r + 5], [W.gate, 11], [W.fort, 13], [W.mama, 7]];
@@ -108,6 +108,10 @@ function hill(w) {
     box(w, 0.12, 1.4, 0.12, 0x6a3f1e, x, y + 0.7, z); box(w, 0.5, 0.35, 0.04, i % 2 ? 0xff4a4a : 0x3fa7ff, x + sx * 0.25, y + 1.25, z, { shadow: false });
   }
   label('🛷 Горка — встань на красное', H.x, topZ, 3.4, '#ffffff', 6);
+  // табличка-секрет у вершины: подсказка про зеркало дома
+  const sx = H.x - 3.4, sy = groundY(sx, topZ);
+  box(w, 0.18, 1.6, 0.18, 0x6a3f1e, sx, sy + 0.8, topZ); box(w, 1.6, 0.9, 0.12, 0x9a6a3a, sx, sy + 1.7, topZ + 0.1);
+  label('🪞 Тсс… секрет!', sx, topZ, 3.2, '#ffe0b0', 5);
   label('🛷 Горка ↑', H.x + 6, H.z0 + 2, 2.6, '#ffffff', 4);
   st.sled = { x: H.x, z: topZ, y: yTop };
 }
@@ -217,6 +221,53 @@ function snowfall() {
   const pts = new T.Points(g, m); pts.frustumCulled = false; pts.userData.dynamic = true; scene.add(pts);
   st.flakes = { pts, pos, N, R, drift: new Float32Array(N).map(() => Math.random() * 6) };
 }
+// ---------- ночь на вершине горки: темнеет, загораются звёзды, северное сияние ----------
+function buildNight() {
+  const N = ECO ? 250 : 500, pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const a = Math.random() * Math.PI * 2, y = 0.12 + Math.random() * 0.88, r = Math.sqrt(1 - y * y);
+    pos.set([Math.cos(a) * r * 300, y * 300, Math.sin(a) * r * 300], i * 3);
+  }
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3));
+  const stars = new T.Points(g, new T.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false }));
+  stars.userData.dynamic = true; stars.renderOrder = 0; scene.add(stars);
+  // сияние: полупрозрачные ленты-занавески, светятся (складываются с небом)
+  const cv = document.createElement('canvas'); cv.width = 8; cv.height = 128; const c = cv.getContext('2d');
+  const gr = c.createLinearGradient(0, 128, 0, 0);
+  gr.addColorStop(0, 'rgba(60,255,160,0)'); gr.addColorStop(0.12, 'rgba(60,255,160,.95)'); gr.addColorStop(0.5, 'rgba(80,220,200,.45)'); gr.addColorStop(1, 'rgba(170,90,255,0)');
+  c.fillStyle = gr; c.fillRect(0, 0, 8, 128);
+  const tex = new T.CanvasTexture(cv), ribbons = [];
+  // со всех сторон — куда ни посмотри с вершины, где-то переливается
+  for (const [dx, dy, dz, w, h, tint, ry] of [[-30, 95, -230, 260, 70, 0xffffff, 0], [70, 120, -260, 200, 55, 0xc8a0ff, 0], [20, 100, 230, 260, 70, 0xffffff, 0], [-60, 125, 260, 200, 55, 0xa0ffd0, 0], [230, 105, 0, 240, 65, 0xc8ffe8, Math.PI / 2], [-230, 110, 30, 240, 65, 0xd8b0ff, Math.PI / 2]]) {
+    const geo = new T.PlaneGeometry(w, h, 48, 1);
+    const m = new T.Mesh(geo, new T.MeshBasicMaterial({ map: tex, color: tint, transparent: true, opacity: 0, blending: T.AdditiveBlending, side: T.DoubleSide, fog: false, depthWrite: false }));
+    m.userData.dynamic = true; m.rotation.y = ry; m.userData.off = new T.Vector3(dx, dy, dz); m.userData.base = Float32Array.from(geo.attributes.position.array); m.renderOrder = 0;
+    scene.add(m); ribbons.push(m);
+  }
+  st.night = { k: 0, stars, ribbons, day: null };
+}
+function updateNight(dt, p) {
+  const NT = st.night, H = W.hill;
+  // от середины склона к вершине — всё темнее; ушёл с горки — снова день
+  const onIt = Math.abs(p.x - H.x) < H.w / 2 + 4 && p.z < H.z0 && p.z > H.z1 - 12;
+  const want = onIt ? Math.min(1, Math.max(0, (H.z0 - 12 - p.z) / (H.z0 - 12 - H.z1))) : 0;
+  const k0 = NT.k; NT.k += (want - NT.k) * Math.min(1, dt * 1.5);
+  if (NT.day === null) NT.day = scene.background.getHex();
+  if (Math.abs(NT.k - k0) > 0.002 || (want === 0 && NT.k > 0 && NT.k < 0.003)) {
+    if (NT.k < 0.003) NT.k = want === 0 ? 0 : NT.k;
+    sky(new T.Color(NT.day).lerp(new T.Color(0x0b1030), NT.k).getHex()); setNight(NT.k); cloudNight(NT.k);
+  }
+  const vis = NT.k > 0.01, t = performance.now() / 1000;
+  NT.stars.visible = vis; NT.stars.position.copy(camera.position); NT.stars.material.opacity = NT.k;
+  for (const [i, m] of NT.ribbons.entries()) {
+    m.visible = vis; if (!vis) continue;
+    m.position.copy(camera.position).add(m.userData.off); m.material.opacity = NT.k * (0.55 + 0.25 * Math.sin(t * 0.7 + i * 2));
+    const pa = m.geometry.attributes.position, B = m.userData.base;
+    for (let j = 0; j < pa.count; j++) { const x = B[j * 3]; pa.array[j * 3 + 2] = Math.sin(x * 0.025 + t * 0.5 + i) * 18 + Math.sin(x * 0.07 - t * 0.9) * 5; }
+    pa.needsUpdate = true;
+  }
+}
+
 function updateSnow(dt) {
   const F = st.flakes; if (!F) return;
   const c = camera.position, P = F.pos, t = performance.now() / 1000, R = F.R;
@@ -318,6 +369,7 @@ export function updateWinter(dt, hero, partner) {
   if (!st) return {};
   const ev = { sfx: [] }, p = hero.pos, t = performance.now() / 1000;
   updateSnow(dt);
+  updateNight(dt, p);
   // снежки в руках лепятся сами: по одному в секунду, до пяти
   if (st.ammo < 5 && (st.ammoT += dt) > 1) { st.ammoT = 0; st.ammo++; }
   updateBalls(dt, ev, partner);

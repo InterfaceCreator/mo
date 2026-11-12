@@ -21,6 +21,11 @@ export const LETTER = `Нашла всё-таки 🙂
 
 Вот. Теперь ты знаешь ❤️`;
 
+export const KID_LETTER = `Ну привет, чемпион!
+Я знал, что ты найдёшь эту комнату.
+Ты сильный, смелый и добрый, и даже зомби тебя не пугают. Мама тобой гордится, и я тоже.
+Открою секрет: ты её самая большая радость. Обнимай её почаще ❤️`;
+
 let st = null;
 onLevelReset(() => { st = null; });
 const glow = c => mat(c, { emissive: c });
@@ -44,6 +49,7 @@ export function buildSecret(save, who) {
   const w = group(scene);
   st = { who, save, lanterns: [], tiles: [], train: null, cat: null, letter: null, chest: null, readT: 0, purrT: 0, zT: 0 };
   if (who === 'mama') mamaRoom(w); else motyaRoom(w, save);
+  giftBox(w, save, who);
   return w;
 }
 
@@ -109,9 +115,28 @@ function motyaRoom(w, save) {
   const ch = group(scene, 6, 0, -5); ch.userData.dynamic = true;
   box(ch, 1.8, 1, 1.2, 0x9a5a2a, 0, 0.5, 0); const lid = group(ch, 0, 1, -0.6); box(lid, 1.9, 0.45, 1.3, 0x7a4220, 0, 0.2, 0.6); box(ch, 0.3, 0.4, 0.08, 0xffd23f, 0, 0.8, 0.62);
   st.chest = { g: ch, lid, x: 6, z: -5 };
+  // столик с письмом для Моти: зелёный конверт со звездой
+  solid(w, 1.4, 0.8, 1, 0x8a5a3a, -5.5, 0, -4.5);
+  const letter = group(scene, -5.5, 0.82, -4.5); letter.userData.dynamic = true;
+  box(letter, 0.9, 0.04, 0.65, 0xeaffea, 0, 0, 0); box(letter, 0.22, 0.06, 0.22, 0xffd23f, 0, 0.03, 0.1);
+  st.letter = { g: letter, x: -5.5, z: -4.5, flame: null };
+  const ll = makeLabel(3, 0.75); ll.position.set(-5.5, 2.2, -4.5); scene.add(ll); ll.userData.set('✉️ Письмо тебе', { color: '#9dffb0' });
   const cl = makeLabel(3.2, 0.8); cl.position.set(6, 2.6, -5); scene.add(cl); st.chestLabel = cl;
   chestLabel(save);
   const hi = makeLabel(6, 1.5); hi.position.set(0, 5.6, -hd + 0.5); scene.add(hi); hi.userData.set('🚀 Секретная база Моти', { color: '#9dffb0' });
+}
+// редкий подарок: светящаяся коробка, открывается один раз — внутри питомец, которого больше нигде нет
+const GIFT = { mama: { s: 'starfox', x: 4.5, z: 1.5, c: 0xff8ab0 }, motya: { s: 'spacedragon', x: 6, z: -1.5, c: 0x6a5aff } };
+function giftBox(w, save, who) {
+  if (save.secretGift) return;
+  const G = GIFT[who === 'mama' ? 'mama' : 'motya'];
+  solid(w, 1.2, 0.5, 1.2, 0x8a5a3a, G.x, 0, G.z);                                  // подставка
+  const g = group(scene, G.x, 1.2, G.z); g.userData.dynamic = true;
+  box(g, 0.9, 0.9, 0.9, G.c, 0, 0, 0).material = glow(G.c);
+  box(g, 0.95, 0.95, 0.2, 0xffd23f, 0, 0, 0); box(g, 0.2, 0.95, 0.95, 0xffd23f, 0, 0, 0);   // лента
+  box(g, 0.45, 0.25, 0.12, 0xffd23f, -0.18, 0.55, 0); box(g, 0.45, 0.25, 0.12, 0xffd23f, 0.18, 0.55, 0);   // бантик
+  const lb = makeLabel(3.4, 0.85); lb.position.set(G.x, 2.6, G.z); scene.add(lb); lb.userData.set('🎁 Редкий подарок!', { color: '#ffe14d' });
+  st.gift = { g, lb, ...G };
 }
 const today = () => new Date().toDateString();
 function chestLabel(save) { const done = save.secret?.day === today(); st.chestLabel.userData.set(done ? '🎁 Завтра — новое сокровище' : '🎁 Сокровище дня!', { color: done ? '#cfd6ff' : '#ffe14d' }); }
@@ -121,12 +146,21 @@ export function updateSecret(dt, hero) {
   if (!st) return {};
   const ev = {}, p = hero.pos, t = performance.now() / 1000;
   for (const L of st.lanterns) { L.g.position.y = L.y0 + Math.sin(t * 0.6 + L.ph) * 0.35; L.g.rotation.y = t * 0.2 + L.ph; }
+  const Gf = st.gift;
+  if (Gf) {
+    Gf.g.rotation.y = t * 0.8; Gf.g.position.y = 1.2 + Math.sin(t * 2) * 0.15;
+    if (Math.random() < dt * 3) puff('✨', new T.Vector3(Gf.x + (Math.random() - 0.5), 1.8, Gf.z + (Math.random() - 0.5)), { size: 0.6, rise: 0.8 });
+    if (Math.hypot(p.x - Gf.x, p.z - Gf.z) < 1.7) {
+      scene.remove(Gf.g); scene.remove(Gf.lb); confetti(new T.Vector3(Gf.x, 1.4, Gf.z), 140);
+      st.gift = null; ev.gift = Gf.s;
+    }
+  }
+  const nearL = Math.hypot(p.x - st.letter.x, p.z - st.letter.z) < 1.7;
+  if (nearL && !st.wasL) ev.letter = st.who === 'mama' ? { t: LETTER, from: '<b>🏮 Письмо</b>', paw: '🐾' } : { t: KID_LETTER, from: '<b>✉️ Письмо</b>', paw: '⭐' };
+  st.wasL = nearL;
   if (st.who === 'mama') {
     if ((st.zT -= dt) <= 0) { st.zT = 1.6; spawnZ(new T.Vector3(st.cat.x, 1.9, st.cat.z), 0.7); }      // Василий спит
     st.letter.flame.scale.y = 1 + Math.sin(t * 13) * 0.25;
-    const nearL = Math.hypot(p.x - st.letter.x, p.z - st.letter.z) < 1.7;
-    if (nearL && !st.wasL) ev.letter = LETTER;
-    st.wasL = nearL;
     if (Math.hypot(p.x - st.cat.x, p.z - st.cat.z) < 2 && (st.purrT -= dt) <= 0) { st.purrT = 2.5; puff('💤', new T.Vector3(st.cat.x, 2.2, st.cat.z), { size: 0.9, rise: 0.6 }); ev.purr = true; }
   } else {
     for (const Tl of st.tiles) {
