@@ -280,11 +280,13 @@ function updateRoll(dt, hero, ev) {
   const p = hero.pos;
   if (!st.roll) {
     if (hero.carrying || hero.climb || hero.sled) return;
+    const nearHeap = st.heaps.some(H => Math.hypot(p.x - H.x, p.z - H.z) < 2.6);
+    if (st.leaveHeap) { if (!nearHeap) st.leaveHeap = false; return; }   // бросил ком у сугроба — новый начнётся, когда отойдёшь и подойдёшь снова
     for (const H of st.heaps) if (Math.hypot(p.x - H.x, p.z - H.z) < 2 && Math.abs(p.y - H.y) < 1.5) {
       const g = group(scene); g.userData.dynamic = true;
       box(g, 1, 1, 1, 0xffffff, 0, 0, 0); box(g, 0.8, 1.2, 0.8, 0xf4f8ff, 0, 0, 0); box(g, 1.2, 0.8, 0.8, 0xf9fcff, 0, 0, 0);
       st.roll = { g, r: 0.3, dist: 0, last: p.clone() };
-      ev.say = '⛄ Катай ком — бегай по снегу, он растёт!<small>прикати его к синему кругу во дворе</small>'; ev.sfx.push('collect');
+      ev.say = '⛄ Катай ком — бегай по снегу, он растёт!<small>прикати его к синему кругу во дворе · передумал — прыгни, и ком рассыплется</small>'; ev.sfx.push('collect');
       break;
     }
     return;
@@ -295,6 +297,10 @@ function updateRoll(dt, hero, ev) {
   R.g.scale.setScalar(s * 2); R.g.position.set(p.x + Math.sin(f) * (0.8 + s), groundY(p.x + Math.sin(f) * (0.8 + s), p.z + Math.cos(f) * (0.8 + s)) + s, p.z + Math.cos(f) * (0.8 + s));
   R.g.rotation.x += d * 1.2 / Math.max(0.3, s); R.g.rotation.y = f;
   if (hero.carrying || hero.climb) { dropRoll(); return; }
+  if (hero.jumped) {                                                // передумал лепить: прыжок — ком рассыпался
+    puff('💨', R.g.position.clone(), { size: 1.4 + R.r, rise: 0.6 }); puff('❄️', R.g.position.clone().setY(R.g.position.y + 0.6), { size: 1, rise: 1 });
+    dropRoll(); ev.say = '💨 Ком рассыпался'; ev.sfx.push('pop'); st.leaveHeap = true; return;
+  }
   // прикатил к кругу
   st.snowmen.forEach((S, i) => {
     if (!st.roll || S.n >= 3 || Math.hypot(R.g.position.x - S.x, R.g.position.z - S.z) > 1.9) return;
