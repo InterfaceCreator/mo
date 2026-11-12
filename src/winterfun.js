@@ -221,24 +221,40 @@ const pickN = (arr, n) => { const a = [...arr]; for (let i = a.length - 1; i > 0
 function question() {
   const k = Math.floor(Math.random() * 5), R = n => Math.floor(Math.random() * n);
   const nums = (a, lo = 0) => { const s = new Set([a]); while (s.size < 3) { const v = Math.max(lo, a + R(5) - 2); s.add(v); } return pickN([...s], 3); };
-  if (k === 0) { const a = 1 + R(4), b = 1 + R(4), e = pickN(['⛄', '🐧', '❄️', '🍪'], 1)[0]; return { q: `${e.repeat(a)} + ${e.repeat(b)} = ?`, a: String(a + b), opts: nums(a + b, 1).map(String) }; }
+  if (k === 0) { const a = 1 + R(4), b = 1 + R(4), e = pickN(['⛄', '🐧', '❄️', '🍪'], 1)[0]; return { q: `Сложи!  ${e.repeat(a)} + ${e.repeat(b)} = ?`, a: String(a + b), opts: nums(a + b, 1).map(String) }; }
   if (k === 1) { const n = 2 + R(6), e = pickN(['🐧', '⛄', '🦌', '🎄'], 1)[0]; return { q: `Сколько тут ${e}?  ${e.repeat(n)}`, a: String(n), opts: nums(n, 1).map(String) }; }
   if (k === 2) { const w = pickN(WIN_ODD, 3), o = pickN(ODD, 1)[0]; return { q: `Что лишнее зимой?  ${pickN([...w, o], 4).join(' ')}`, a: o, opts: pickN([o, w[0], w[1]], 3) }; }
   if (k === 3) { const step = 1 + R(2), s = 1 + R(3), seq = [s, s + step, s + 2 * step]; return { q: `Что дальше?  ${seq.join(', ')}, ?`, a: String(s + 3 * step), opts: nums(s + 3 * step, 1).map(String) }; }
-  const a = 3 + R(4), b = 1 + R(a - 1), e = pickN(['🍪', '🐟', '🍎'], 1)[0]; return { q: `${e.repeat(a)} − ${e.repeat(b)} = ?`, a: String(a - b), opts: nums(a - b, 0).map(String) };
+  const a = 3 + R(4), b = 1 + R(a - 1), e = pickN(['🍪', '🐟', '🍎'], 1)[0]; return { q: `Сколько останется?  ${e.repeat(a)} − ${e.repeat(b)} = ?`, a: String(a - b), opts: nums(a - b, 0).map(String) };
+}
+// строка на табличке: эмодзи рисуем по одному, каждому — своё место (Safari на iPhone неверно меряет ширину эмодзи,
+// и строка обрезалась: «❄️❄️ + ❄️❄️❄️» превращалось в «❄️❄️ + ❄️❄️», и ответ казался другим). Не влезает — шрифт меньше
+const EMO = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
+const graphemes = t => typeof Intl !== 'undefined' && Intl.Segmenter ? [...new Intl.Segmenter('ru', { granularity: 'grapheme' }).segment(t)].map(x => x.segment) : Array.from(t);
+function drawLine(c, text, fs0, y) {
+  const g = graphemes(text), font = fs => `bold ${fs}px "Arial Rounded MT Bold","Trebuchet MS",sans-serif`;
+  let fs = fs0, ws;
+  for (;;) {
+    c.font = font(fs);
+    ws = g.map(ch => EMO.test(ch) ? fs * 1.18 : ch === ' ' ? fs * 0.32 : c.measureText(ch).width);
+    if (ws.reduce((a, b) => a + b, 0) <= 940 || fs <= 26) break;
+    fs -= 4;
+  }
+  let x = 512 - ws.reduce((a, b) => a + b, 0) / 2;
+  c.textAlign = 'center';
+  g.forEach((ch, i) => { c.fillText(ch, x + ws[i] / 2, y); x += ws[i]; });
 }
 function sign() {
   const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 384;
   const m = new T.Mesh(new T.PlaneGeometry(8, 3), new T.MeshBasicMaterial({ map: new T.CanvasTexture(cv), fog: false }));
   m.userData.draw = (q, done) => {
     const c = cv.getContext('2d'); c.fillStyle = '#2b4a7a'; c.fillRect(0, 0, 1024, 384); c.strokeStyle = '#bfe8ff'; c.lineWidth = 14; c.strokeRect(7, 7, 1010, 370);
-    c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle';
-    const fit = (t, fs, y) => { const f = () => `bold ${fs}px "Arial Rounded MT Bold","Trebuchet MS",sans-serif`; c.font = f(); while (c.measureText(t).width > 960 && fs > 30) { fs -= 4; c.font = f(); } c.fillText(t, 512, y); };
-    // вопрос и картинки — двумя строками (крупнее), если они разделены двумя пробелами
+    c.fillStyle = '#fff'; c.textBaseline = 'middle';
     const [q1, q2] = q.split('  ');
-    if (q2) { fit(q1, 66, 82); fit(q2, 92, 178); } else fit(q1, 96, 140);
-    c.fillStyle = '#bfe8ff'; fit('Встань на плиту с ответом 👇', 38, 266);
-    c.font = 'bold 50px sans-serif'; c.fillText('✅'.repeat(done) + '⬜'.repeat(5 - done), 512, 332);
+    drawLine(c, q1, q2 ? 66 : 92, q2 ? 82 : 140);
+    if (q2) drawLine(c, q2, 92, 180);
+    c.fillStyle = '#bfe8ff'; drawLine(c, 'Встань на плиту с ответом 👇', 38, 266);
+    drawLine(c, '✅'.repeat(done) + '⬜'.repeat(5 - done), 50, 332);
     m.material.map.needsUpdate = true;
   };
   return m;
