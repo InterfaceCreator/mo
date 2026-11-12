@@ -178,9 +178,9 @@ let noteShown = false;
 export const noteOpen = () => noteShown;
 // note: { t, love?, kid? } — kid: Моте записка от мамы, иначе маме от Василия
 export function showNote(note, sfx) {
-  const n = $('note'); $('noteTxt').textContent = note.t; n.classList.toggle('love', !!note.love); n.classList.toggle('kid', !!note.kid);
-  $('noteFrom').innerHTML = note.kid ? '<b>💌 Записка от мамы</b>' : '<b>Перед тем, как ты начнёшь…</b><br>🐱 записка от Василия';
-  $('notePaw').textContent = note.kid ? '❤️' : '🐾';
+  const n = $('note'); $('noteTxt').textContent = note.t; n.classList.toggle('love', !!note.love); n.classList.toggle('kid', !!note.kid); n.classList.toggle('long', note.t.length > 120);   // длинное письмо — мельче, с абзацами
+  $('noteFrom').innerHTML = note.from || (note.kid ? '<b>💌 Записка от мамы</b>' : '<b>Перед тем, как ты начнёшь…</b><br>🐱 записка от Василия');
+  $('notePaw').textContent = note.paw || (note.kid ? '❤️' : '🐾');
   noteShown = true; n.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => n.classList.add('open'))); sfx.rustle();
   n.onclick = () => { if (!n.classList.contains('open')) return; n.classList.remove('open', 'on'); noteShown = false; sfx.tap(); };
 }

@@ -9,6 +9,7 @@ import { spawnVasya, updateVasya } from './vasya.js';
 import { updateTrack } from './track.js';
 import { updateAutumn } from './autumn.js';
 import { updatePlane } from './easter.js';
+import { updateSecret } from './secret.js';
 import { buildWinterFun, updateWinterFun, atHole, fishButton, inPond } from './winterfun.js';
 import { FOOD, kitchen, buildPickups, updatePickups, openKitchen, kitchenOpen, dishFx, RECIPES as DISHES, openHelper, coopMsg, bestDish, dishOf } from './food.js';
 import { updateWinter, throwBall, remoteBall, setSnowman, winterAmmo, sled as sledMesh } from './winter.js';
@@ -606,7 +607,8 @@ export function updateGame(dt) {
   if (atBase) updateHouse(dt);
   if (atBase && profile === 'mama') updatePlane(dt);   // пасхалка для мамы: самолётик с растяжкой «Бубнилка ❤️»
   if (level.id === 'home' || level.id === 'loft') {   // мебель: встал на кнопку места — выбираешь, что поставить; на лежанке — питомцы
-    const he = updateHome(dt, hero, profile);
+    const he = updateHome(dt, hero, profile, !visiting());
+    if (he.secret && !moving) { SFX.portal(); moving = true; fade(true, () => { enter('secret', LOCS.secret.spawn); fade(false); moving = false; toast(profile === 'mama' ? '🏮 Тайная комната…' : '🚀 Тайная комната! Секретная база!'); }); }
     const onUp = level.id === 'home' && !visiting() && onUpgradePad(p);                       // доска «Улучшения дома»: второй этаж
     if (onUp && !wasOnUp && !wardOpen()) { SFX.tap(); openUpgrades({ save, sfx: SFX, persist, onBuy: () => { toast('🪜 Второй этаж построен!<small>лестница наверх — слева от двери</small>'); confetti(p, 80); } }); }
     wasOnUp = onUp;
@@ -653,6 +655,14 @@ export function updateGame(dt) {
   if (xe.well) wish();
   if (xe.dash !== undefined) { hero.dashT = 1.2; hero.vel.x = Math.sin(xe.dash) * 22; hero.vel.z = Math.cos(xe.dash) * 22; hero.face = xe.dash; SFX.boing(); }
 
+  // тайная комната за зеркалом: письмо маме, сокровище Моти
+  if (level.id === 'secret') {
+    const se = updateSecret(dt, hero);
+    if (se.letter) showNote({ t: se.letter, from: '<b>🏮 Письмо</b>', paw: '🐾' }, SFX);
+    if (se.coins) { save.coins += se.coins; SFX.chest(); persist(); toast(`💰 Сокровище дня! +${se.coins} монет<small>завтра здесь будет новое</small>`); }
+    if (se.note !== undefined) SFX.note(se.note);
+    if (se.purr) SFX.purr?.();
+  }
   // Зимняя долина: снегопад, снежки, снеговики, горка на санках, каток
   if (level.id === 'winter') {
     const we = updateWinter(dt, hero, partnerPos);

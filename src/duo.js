@@ -44,7 +44,7 @@ export const visiting = () => !SPY && !!level.owner && level.owner !== me;
 // сохранение хозяина дома, в котором я сейчас (своё или второго игрока — только посмотреть)
 const asSave = c => ({ home: c.home, pets: c.pets || [], track: c.track, stars: c.stars || {} });
 export const homeSave = owner => !owner || owner === me ? save : R[owner]?.card ? asSave(R[owner].card) : save;
-const locKey = () => (level.id === 'home' || level.id === 'loft') ? `${level.id}:${level.owner || me}` : level.id;
+const locKey = () => (level.id === 'home' || level.id === 'loft') ? `${level.id}:${level.owner || me}` : level.id === 'secret' ? `secret:${me}` : level.id;   // у каждого своя тайная комната
 
 export function initDuo(o) {
   ({ hero, save } = o); me = o.profile; other = me === 'mama' ? 'motya' : 'mama';

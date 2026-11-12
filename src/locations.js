@@ -9,6 +9,7 @@ import { buildAutumn, AUTUMN } from './autumn.js';
 import { FRIEND_HOMES } from './friends.js';
 import { HOUSE, CLOTHES_SHOP, buildHome, buildLoft } from './home.js';
 import { buildWinter, WINTER } from './winter.js';
+import { buildSecret, SECRET } from './secret.js';
 import { makeLabel } from './fx.js';
 import { addStar, addScroll, addPad, addBunny, addCritter, addDuck, addButterfly, addRotor, addWaterfall, addMushroom, addPlates } from './fun.js';
 import { buildTerrain, water } from './terrain.js';
@@ -526,6 +527,7 @@ export const STARS_IN = { forest: 19, autumn: 6, winter: 10 };
 
 // ================= СПИСОК =================
 export const LOCS = {
+  secret: { name: 'Тайная комната', icon: '🏮', build: (save, profile) => buildSecret(save, profile), spawn: SECRET.spawn, sky: 0x2a2850 },
   winter: { name: 'Зима', icon: '⛄', build: buildWinter, spawn: { x: WINTER.spawn.x, z: WINTER.spawn.z, face: Math.PI }, sky: 0xcfe6f7 },
   autumn: { name: 'Осень', icon: '🍂', build: buildAutumn, spawn: { x: AUTUMN.spawn.x, z: AUTUMN.spawn.z, face: Math.PI }, sky: 0xffcf9a },
   track: { name: 'Дорожка', icon: '🏁', build: buildTrack, spawn: { x: 0, z: 6, face: Math.PI }, sky: 0xbfe6ff },

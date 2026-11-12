@@ -215,9 +215,17 @@ function kitchenCorner(w, hd) {
 }
 export const onKitchenPad = p => near(p, KITCHEN.pad, 1.3, 0.8) && p.y < 0.8;
 
-export function updateHome(dt, hero, me) {
+export function updateHome(dt, hero, me, own) {
   const ev = updateRoom(dt, hero), Mr = st?.mirror; if (!Mr) return ev;
   const p = hero.pos;
+  // тайная комната: постоял у своего зеркала 2.5 с — стекло мерцает всё сильнее и открывается. Вышел из комнаты — сначала отойди от зеркала
+  const atMirror = own && Math.hypot(p.x - MIRROR.x, p.z - (MIRROR.z + 2)) < 1.9 && hero.speed < 1.5;
+  if (Math.hypot(p.x - MIRROR.x, p.z - MIRROR.z) > 4) st.mirrorArmed = true;
+  st.stand = atMirror && st.mirrorArmed ? (st.stand || 0) + dt : 0;
+  const k = Math.min(1, st.stand / 2.5);
+  Mr.glass.material.color.setRGB(1 - k * 0.25, 1 - k * 0.05, 1);
+  if (k > 0.2 && Math.random() < dt * 10 * k) puff('✨', new T.Vector3(MIRROR.x + (Math.random() - 0.5) * 2.2, 0.8 + Math.random() * 3, MIRROR.z + 0.3), { size: 0.5 + k * 0.4, rise: 0.6, life: 0.9 });
+  if (k >= 1) { st.stand = 0; st.mirrorArmed = false; ev.secret = true; }
   // у мамы: стоит перед зеркалом — комплимент и искорки
   const C = st.compl;
   if (C) {
