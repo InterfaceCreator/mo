@@ -37,6 +37,7 @@ import { updateCraft, onBenchPad, TOOLS, RES, RECIPES, SCROLL_WHERE, known, made
 import { save, persist, profile, stored } from './save.js';
 import { takeNote, resetNotes, takeKidNote, kidNoteReady } from './notes.js';
 import { setZoneHint } from './ui.js';
+import { hintFor } from './hints.js';
 import { setCoins, setSun, setSpeed, setItems, toast, petNote, notify, bindNotes, bindBook, openShop, shopOpen, setRes, openCraft, bindInventory, craftOpen, fade, setStars, setEffects, setQuest, openBuilding, openFusion, showNote, onBellHold, setKidHud } from './ui.js';
 import { puff, confetti, sprite, emojiTex, makeLabel, fireworks } from './fx.js';
 import { SFX } from './sfx.js';
@@ -662,7 +663,9 @@ export function updateGame(dt) {
     if (we.built) { stat('snowmen'); setTimeout(kidMoment, 2500); }
     winterEv(updateWinterFun(dt, hero, cam.yaw));
     if (we.hitPartner) { snowScore.me++; duoSend({ t: 'wh' }); const O = OTHER(); toast(`❄️ Попал${profile === 'mama' ? 'а' : ''} в ${O.vin}!<small>счёт ${snowScore.me} : ${snowScore.them}</small>`); }
-  } else { hero.ice = false; setZoneHint(null); }
+  } else hero.ice = false;
+  // подсказка «как тут играть» наверху: в Зиме — своя, везде — по месту (hints.js); с яйцом в руках — куда нести
+  setZoneHint(level.id === 'winter' && !hero.carrying ? winterHint : hintFor(hero, save));
   // санки под героем, пока он едет с горки
   if (hero.sled && !hero.sledM) hero.sledM = sledMesh(hero.model.root, 0, -0.35, 0);
   if (!hero.sled && hero.sledM) { hero.model.root.remove(hero.sledM); hero.sledM = null; }
@@ -900,9 +903,10 @@ function treatNear() {
 }
 
 // события зимних забав: звуки, монеты, подсказки, дружба с Колей и Олей
+let winterHint = null;
 function winterEv(e) {
   if (!e) return;
-  if ('hint' in e) setZoneHint(e.hint);
+  if ('hint' in e) winterHint = e.hint;
   for (const k of [].concat(e.sfx || [])) k.startsWith('note') ? SFX.note(+k.slice(4)) : SFX[k]?.();
   if (e.coins) { save.coins += e.coins; SFX.coins(); }
   if (e.say) toast(e.say);
