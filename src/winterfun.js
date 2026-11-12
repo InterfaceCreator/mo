@@ -55,8 +55,7 @@ function ponds() {
       if (ch === 'E') box(scene, 1.9, 0.06, 1.9, 0xffffff, x, y + 0.04, z, { shadow: false });
     }
     const e = tileXZ(o, 7, 3);
-    label(`🧊 Головоломка ${i + 1}${wsave(F.save).puz[i] ? ' ✅' : ''}`, o.x, o.z - 9, 3.4, '#bfe8ff', 5);
-    label('встань на белое и выбирай куда — скользишь до камня', e.x, e.z + 1, 2.4, '#ffffff', 6.5);
+    label(`🧊 Головоломка ${i + 1}${wsave(F.save).puz[i] ? ' ✅' : ''}`, o.x + 10, o.z, 3.4, '#bfe8ff', 5);   // сбоку — чтобы не висела перед соседним прудом
     F.ponds.push({ o, g, y, i });
   });
 }
@@ -234,8 +233,9 @@ function sign() {
     const c = cv.getContext('2d'); c.fillStyle = '#2b4a7a'; c.fillRect(0, 0, 1024, 384); c.strokeStyle = '#bfe8ff'; c.lineWidth = 14; c.strokeRect(7, 7, 1010, 370);
     c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle';
     let fs = 78; c.font = `bold ${fs}px "Arial Rounded MT Bold","Trebuchet MS",sans-serif`; while (c.measureText(q).width > 960 && fs > 30) { fs -= 4; c.font = `bold ${fs}px "Arial Rounded MT Bold","Trebuchet MS",sans-serif`; }
-    c.fillText(q, 512, 160);
-    c.font = 'bold 60px sans-serif'; c.fillText('✅'.repeat(done) + '⬜'.repeat(5 - done), 512, 300);
+    c.fillText(q, 512, 130);
+    c.font = 'bold 40px "Arial Rounded MT Bold","Trebuchet MS",sans-serif'; c.fillStyle = '#bfe8ff'; c.fillText('Встань на плиту с ответом 👇', 512, 232);
+    c.font = 'bold 52px sans-serif'; c.fillText('✅'.repeat(done) + '⬜'.repeat(5 - done), 512, 318);
     m.material.map.needsUpdate = true;
   };
   return m;
@@ -253,12 +253,11 @@ function gate() {
   G.sign = sign(); G.sign.position.set(o.x, y + 3.4, gz + 0.3); scene.add(G.sign);
   const ch = group(scene, o.x, y, gz - 5); box(ch, 1.6, 0.9, 1.1, 0x9a5a2a, 0, 0.45, 0); box(ch, 1.7, 0.4, 1.2, 0x7a4220, 0, 1.05, 0); box(ch, 0.3, 0.35, 0.08, 0xffd23f, 0, 0.75, 0.58);
   G.chest = { g: ch, x: o.x, z: gz - 5, taken: false };
-  [-2.6, 0, 2.6].forEach(dx => {
-    const x = o.x + dx, z = o.z + 3.5, pl = box(scene, 2, 0.08, 2, 0xffffff, x, y + 0.05, z, { shadow: false });
-    const lb = makeLabel(2.4, 0.8); lb.position.set(x, y + 1.5, z); scene.add(lb);
+  [-3, 0, 3].forEach(dx => {
+    const x = o.x + dx, z = o.z + 5.5, pl = box(scene, 2.2, 0.08, 2.2, 0xffffff, x, y + 0.05, z, { shadow: false });
+    const lb = makeLabel(3.4, 1.1); lb.position.set(x, y + 2.2, z); lb.material.depthTest = false; lb.renderOrder = 5; scene.add(lb);   // цифры не прячутся за столбами
     G.plates.push({ x, z, pl, lb, v: '' });
   });
-  label('🦉 Ворота снежной совы: встань на плиту с ответом', o.x, o.z + 7.5, 2.6, '#ffffff', 7);
   next(G);
 }
 function next(G) { G.qq = question(); G.sign.userData.draw(G.qq.q, G.done); G.plates.forEach((P, i) => { P.v = G.qq.opts[i]; P.lb.userData.set(P.v, { color: '#ffffff' }); }); }
@@ -400,6 +399,25 @@ function updateBattle(dt, hero, ev) {
   }
 }
 
+// ---------- подсказка «как играть»: висит внизу, пока стоишь у занятия ----------
+const nearO = (p, o, r) => Math.hypot(p.x - o.x, p.z - o.z) < r;
+function zoneHint(hero) {
+  const p = hero.pos;
+  if (F.ctl) return `🧊 Толкни джойстик в сторону — скользишь по льду до камня или края. Остановись на флажке 🚩 · прыжок — выйти`;
+  const pi = W.ponds.findIndex(o => nearO(p, o, 11)); if (pi >= 0) return `🧊 Головоломка ${pi + 1}${wsave(F.save).puz[pi] ? ' ✅' : ''}: встань на белую клетку у входа — дальше скользишь по льду. Доберись до флажка 🚩`;
+  if (nearO(p, W.simon, 8)) return F.simon.mode === 'input' ? `🎵 Повтори мелодию: наступай на цветные плиты по порядку (нот: ${F.simon.seq.length})` : F.simon.mode === 'idle' ? '🎵 Встань на белую плиту — сосульки сыграют мелодию. Потом наступай на цветные плиты в том же порядке' : '🎵 Слушай и запоминай, какие сосульки светятся…';
+  if (nearO(p, W.lake, W.lake.r + 3)) return F.fish.state?.k === 'bite' ? '❗ Клюёт! Жми 🎣!' : F.fish.state ? '🎣 Жди… Когда поплавок дёрнется и появится ❗ — жми 🎣' : '🎣 Встань у лунки и жми кнопку 🎣. Когда появится ❗ — жми 🎣 ещё раз!';
+  if (nearO(p, W.gate, 11)) return F.gate.open ? '🦉 Ворота открыты — забери сундук за ними!' : `🦉 Реши задачку на табличке и встань на плиту с ответом. Верно ${F.gate.done} из 5`;
+  if (nearO(p, W.fort, 13)) return F.battle ? `❄️ Кидай снежки ❄️ в того, кто выглянул! Счёт ${F.battle.me} : ${F.battle.them} · до 5` : '❄️ Встань на голубую плиту — начнётся снежная битва с Колей и Олей. Кидай снежки ❄️ кнопкой';
+  if (nearO(p, W.mama, 8)) { const n = Object.keys(wsave(F.save).chicks).length; return n >= 6 ? '🐧 Все пингвинята дома!' : `🐧 Найди пингвинят по всей долине — подойди, и они пойдут за тобой. Приведи их сюда. Дома: ${n} из 6`; }
+  if (chicksFollowing()) return `🐧 За тобой идут пингвинята (${chicksFollowing()}) — веди их к маме у иглу`;
+  if (nearO(p, W.yard, 14)) return '⛄ Подбеги к сугробу — начнёшь катать ком, он растёт. Прикати к синему кругу. Три кома — снеговик! Прыжок — бросить ком';
+  if (Math.abs(p.x - W.hill.x) < 8 && p.z < W.hill.z0 + 4 && p.z > W.hill.z1 - 10) return '🛷 Забирайся на горку и встань на красную площадку наверху — поедешь на санках';
+  if (((p.x - W.rink.x) / (W.rink.rx + 2)) ** 2 + ((p.z - W.rink.z) / (W.rink.rz + 2)) ** 2 < 1) return '⛸️ Каток! На льду скользко — разгоняйся и катайся';
+  if (nearO(p, { x: -33, z: -27 }, 12)) return '🎯 Кидай снежки ❄️ в мишени — кнопка со снежком';
+  return null;
+}
+
 // раз в кадр в Зимней долине. yaw — куда смотрит камера (для головоломок)
 export function updateWinterFun(dt, hero, yaw) {
   if (!F) return {};
@@ -410,6 +428,7 @@ export function updateWinterFun(dt, hero, yaw) {
   updateGate(dt, hero, ev);
   updateChicks(dt, hero, ev);
   updateBattle(dt, hero, ev);
+  ev.hint = zoneHint(hero);
   return ev;
 }
 export const winterFunDebug = () => F;

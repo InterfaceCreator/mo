@@ -354,3 +354,20 @@ export function openFusion(getGroups, sfx) {
   };
   render(); openOv('fus');
 }
+
+// подсказка «как играть» внизу экрана: висит, пока стоишь у занятия (null — убрать)
+let zoneShown = null;
+export function setZoneHint(t) {
+  if (t === zoneShown) return; zoneShown = t;
+  const el = $('zoneHint'); if (!el) return;
+  if (t) { el.innerHTML = t; placeHint(); }
+  el.classList.toggle('on', !!t);
+}
+// наверху: сразу под плашкой с монетами (и заданием бобра), правее столбика кнопок слева — вид не загораживает
+function placeHint() {
+  const el = $('zoneHint'), R = $('topR')?.getBoundingClientRect(), L = $('bookBtn')?.getBoundingClientRect();
+  if (!el || !R) return;
+  el.style.top = Math.round(R.bottom + 6) + 'px';
+  el.style.left = Math.round((L && L.width ? L.right : 0) + 10) + 'px';
+}
+addEventListener('resize', () => { if (zoneShown) placeHint(); });
