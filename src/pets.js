@@ -72,6 +72,7 @@ const DRAGON_OF = { fire: 'firedragon', ice: 'icedragon', sun: 'golddragon' };
 export function rollPet(r, loc = 'forest', v = null) {
   if (DRAGON_OF[v]) return { s: DRAGON_OF[v], big: false, gold: false, rainbow: false };
   if (v === 'giant') r = Math.min(r + 1, RARITY.length - 1);
+  if (loc === 'winter') loc = 'ice';                       // в Зимней долине — те же звери, что во Льду
   let pool = loc === 'gorilla' ? ['gorilla'] : SPECIES_IDS.filter(id => SPECIES[id].r === r && SPECIES[id].home.includes(loc) && !SPECIES[id].own);
   if (!pool.length) pool = SPECIES_IDS.filter(id => SPECIES[id].r === r && !SPECIES[id].home.includes('track') && !SPECIES[id].own);   // дракончик — только из огненного яйца
   const rainbow = v === 'rainbow' && Math.random() < 0.25;

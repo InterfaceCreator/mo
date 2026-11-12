@@ -83,7 +83,7 @@ export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
   const len = Math.hypot(wx, wz); if (len > 0.01) { wx /= len; wz /= len; }
 
   // разгон и торможение быстрые — управление «как в Roblox», без скольжения
-  const accel = pl.grounded ? 14 : pl.gliding ? 4 : 6;
+  const accel = pl.grounded ? (pl.ice ? 1.6 : 14) : pl.gliding ? 4 : 6;                 // ice — каток в Зимней долине: скользко
   pl.vel.x = damp(pl.vel.x, wx * target, accel, dt);
   pl.vel.z = damp(pl.vel.z, wz * target, accel, dt);
   if (target > 0) pl.face = dampAngle(pl.face, Math.atan2(wx, wz), 16, dt);

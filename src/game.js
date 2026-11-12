@@ -8,15 +8,19 @@ import { updateExtras } from './extras.js';
 import { spawnVasya, updateVasya } from './vasya.js';
 import { updateTrack } from './track.js';
 import { updateAutumn } from './autumn.js';
+import { updatePlane } from './easter.js';
+import { FOOD, kitchen, buildPickups, updatePickups, openKitchen, kitchenOpen, dishFx, RECIPES as DISHES, openHelper, coopMsg, bestDish, dishOf } from './food.js';
+import { updateWinter, throwBall, remoteBall, setSnowman, winterAmmo, sled as sledMesh } from './winter.js';
+import { friendNear, canTreat, treatFriend } from './friends.js';
 import { FRIENDS, spawnFriends, updateFriends, befriend, heartsOf, metFriend, meet, MAX_HEARTS } from './friends.js';
 import { startKidGame, updateKidGame, kidGameOn } from './kidgames.js';
 import { buildKids, updateKidSpots, startMini, updateMini, miniGame, miniOn } from './kids.js';
 import { buildPlayground, updatePlayground } from './playground.js';
 import { dressHero, ward, openWardrobe, wardOpen } from './clothes.js';
-import { buildHouse, updateHouse, onClothesPad, updateHome, onWardPad, onUpgradePad, openUpgrades } from './home.js';
+import { buildHouse, updateHouse, onClothesPad, updateHome, onWardPad, onUpgradePad, openUpgrades, onKitchenPad } from './home.js';
 import { openSpot, openBasket } from './furniture.js';
 import { buildRareBox, updateRareBox } from './rarebox.js';
-import { initDuo, duoToggle, duoState, together, houseFor, homeSave, visiting, applySide, buildDuoBase, updateDuo, duoAt, duoWhere, duoResume, duoMe, initSpy, spyTarget, spyInfo, duoLink, duoPartner } from './duo.js';
+import { initDuo, duoToggle, duoState, together, houseFor, homeSave, visiting, applySide, buildDuoBase, updateDuo, duoAt, duoWhere, duoResume, duoMe, initSpy, spyTarget, spyInfo, duoLink, duoPartner, onDuoExtra, duoSend, partnerPos } from './duo.js';
 import { panel } from './furniture.js';
 import { net, qrHost, qrAccept, duoOff } from './net.js';
 import { makeQR, scanQR } from './qr.js';
@@ -41,6 +45,7 @@ export const speedMul = lv => 1 + B.SPEED_STEP * (lv - 1);
 
 export const SPY = new URLSearchParams(location.search).has('spy');
 const SPY_ON = false;                                   // наблюдатель вернётся, когда будет сервер-посредник   // наблюдатель 👁 (duo.js)
+let wasOnKit = false;
 let hero, carry = null, fullWarn = 0, wasOnPad = false, wasOnBench = false, wasOnPlot = null, wasMail = false, wasOnCloth = false, wasOnWard = false, wasOnUp = false;
 const tmp = new T.Vector3();
 
@@ -71,6 +76,7 @@ export function initGame(h, camera) {
   if (SPY) initSpyMode();
   else {
     initDuo({ hero, save, profile, onLayout: relayout, onEvent: duoEvent });
+    onDuoExtra(winterMsg);                          // снежки и снеговики второго игрока
     document.getElementById('duoBtn').onclick = () => { SFX.tap(); duoPanel(); };
     duoResume();
   }
@@ -82,7 +88,7 @@ const lvl = id => save.build[id] || 0;
 const DECO = ['fountain', 'flowers', 'statue'];
 function applyBonuses() {
   const deco = DECO.reduce((k, id) => k + (lvl(id) ? B.BUILD[id].deco : 0), 0);
-  setPenBonus((save.tools.house ? 1.25 : 1) * (1 + B.BUILD.feeder.bonus * lvl('feeder')) * (1 + deco));
+  setPenBonus((save.tools.house ? 1.25 : 1) * (1 + B.BUILD.feeder.bonus * lvl('feeder')) * (1 + deco) * (fedLeft() > 0 ? FED_MUL : 1));   // сытые питомцы — больше монет
   setLuck(1 + B.BUILD.beacon.luck * lvl('beacon'));
 }
 // время вылупления: быстрое яйцо и Инкубаторная ускоряют
@@ -114,11 +120,13 @@ function enter(id, spawn, owner = null) {
   spawnFriends(id, save);                          // друзья: Ряба на базе, Ёжик, Совёнок, Лисичка, Медвежонок в лесу
   buildKids(id, w);                                // места для игр детей: футбол, боулинг, цветные плиты, челнок
   if (id === 'base') { buildPlayground(w || scene); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
+  buildPickups(id, save);                                // продукты для кухни: яйца, яблоки, ягоды, грибы, мёд, снег, какао
   buildRareBox(id, save);                          // сундучок с редкой одеждой (база, лес, осень)   // качели, карусель, пузыри, мяч; свой домик и ларёк одежды
   if (w) bake(w);                                  // неподвижное склеиваем — меньше работы видеокарте
   hero.pos.set(spawn.x, groundY(spawn.x, spawn.z), spawn.z); hero.vel.set(0, 0, 0);
   hero.face = spawn.face; hero.model.root.rotation.y = spawn.face; hero.safe = hero.pos.clone();
   hero.swing = hero.climb = null; hero.stun = 0;
+  hero.sled = false; hero.ice = false;                // санки и каток — только в Зимней долине
   cam.yaw = spawn.face + Math.PI; cam.init = false;
   portalCool = 1;
 }
@@ -220,10 +228,12 @@ function saveInc() { save.inc = incubators.map(i => i.full ? { r: i.r, end: i.en
 
 // предметы с кнопками над прыжком: банан и ловушка падают позади героя, батут встаёт перед ним
 const ITEMS = [{ id: 'banana', icon: '🍌' }, { id: 'trap', icon: '🪤' }, { id: 'pad', icon: '🟥' }, { id: 'potion', icon: '🧪' }, { id: 'compass', icon: '🧭' }];
-const itemCount = id => id === 'banana' ? save.bananas : (save.items?.[id] || 0);
+const itemCount = id => id === 'treat' ? kitchen(save).dishes.length : id === 'snowball' ? winterAmmo() : id === 'banana' ? save.bananas : (save.items?.[id] || 0);
 function useItem(id) {
   if (itemCount(id) <= 0 || hero.climb) return;
   // на Дорожке батут перебросил бы через ворота — там каждого зверя надо пройти честно
+  if (id === 'treat') { treatNear(); return; }                                    // угостить жителя блюдом 🍽️
+  if (id === 'snowball') { const b = throwBall(hero); if (b) { SFX.jump(); duoSend({ t: 'wb', b }); } return; }   // снежок ❄️ (Зимняя долина)
   if (id === 'pad' && level.id === 'track') { SFX.nope(); toast('🟥 На Дорожке батут не работает<small>каждого зверя — только честно!</small>'); return; }
   if (id === 'banana') save.bananas--; else save.items[id]--;
   persist();
@@ -376,6 +386,8 @@ function inventory() {
   return [
     { title: 'Ресурсы и материалы', cells: Object.keys(RES).map(k => ({ icon: RES[k], n: save.res[k] || 0, name: RES_NAME[k], dim: !save.res[k] })) },
     { title: 'Предметы', cells: ITEMS.map(i => ({ icon: i.icon, n: itemCount(i.id), name: ITEM_INFO[i.id][0], sub: ITEM_INFO[i.id][1], dim: !itemCount(i.id), use: itemCount(i.id) ? () => useItem(i.id) : null })) },
+    { title: 'Продукты для кухни 🍳', cells: Object.keys(FOOD).map(k => { const n = k === 'pumpkin' ? (save.res.pumpkin || 0) : (kitchen(save).have[k] || 0); return { icon: FOOD[k][0], n, name: FOOD[k][1], sub: FOOD[k][2], dim: !n }; }) },
+    { title: 'Блюда — съешь, будет польза', cells: kitchen(save).dishes.length ? kitchen(save).dishes.map((d, i) => { const r = DISHES.find(x => x.id === d.id); return { icon: r.icon, name: r.name, sub: '⭐'.repeat(d.s) + ' · ' + r.what, use: () => { const dd = kitchen(save).dishes.splice(i, 1)[0]; persist(); eatDish(dd); } }; }) : [{ icon: '🍳', name: 'Пока нет', sub: 'готовь на кухне в своём домике', dim: true }] },
     { title: 'Инструменты — навсегда', cells: TOOLS.map(t => ({ icon: t.icon, name: t.name, sub: save.tools[t.id] ? t.info : known(t, save) ? 'сделай на верстаке 🔨' : 'найди свиток 📜', dim: !save.tools[t.id] })) },
     { title: 'Находки', cells: [
       ...Object.entries(STARS_IN).map(([id, n]) => ({ icon: '⭐', n: `${stars(id)}/${n}`, name: `${LOCS[id].icon} ${LOCS[id].name}`, sub: 'звёзды', dim: !stars(id) })),
@@ -432,6 +444,7 @@ export function updateGame(dt) {
       wake(n); SFX.pick(); seeEgg(carry.r, carry.v);
     }
   }
+  hero.jumpT = Math.max(0, (hero.jumpT || 0) - dt); hero.jumpMul = hero.jumpT > 0 ? 1.3 : 1;   // грибной суп и мороженое — прыжок выше
   hero.boostT = Math.max(0, (hero.boostT || 0) - dt); hero.compassT = Math.max(0, (hero.compassT || 0) - dt); hero.dashT = Math.max(0, (hero.dashT || 0) - dt);
   hero.speedMul = speedMul(save.speed) * (carry ? B.CARRY[carry.r] * (carry.v === 'giant' ? 0.9 : 1) : 1) * (hero.boostT > 0 ? B.POTION_MUL : 1) * (hero.dashT > 0 ? 1.8 : 1);   // редкое и огромное яйцо тяжелее; стрелки разгоняют
   hero.jumpMul = save.tools.boots ? 1.15 : 1;      // прыжок на треть выше (высота растёт как квадрат скорости)
@@ -573,6 +586,9 @@ export function updateGame(dt) {
   const onCloth = atBase && onClothesPad(p), onWard = level.id === 'home' && !visiting() && onWardPad(p);
   if ((onCloth && !wasOnCloth || onWard && !wasOnWard) && !wardOpen()) { SFX.tap(); openWardrobe({ save, profile, hero: hero.model, shop: onCloth, sfx: SFX, persist }); }
   wasOnCloth = onCloth; wasOnWard = onWard;
+  // продукты для кухни: подошёл — забрал
+  const food = updatePickups(dt, hero, save);
+  if (food) { SFX[food.sfx]?.(); toast(food.say); persist(); if (food.recipe) notify({ icon: '📜', title: `Новый рецепт: ${food.recipe.icon} ${food.recipe.name}`, text: 'готовь на кухне в своём домике' }); }
   // сундучок с нарядом: редкая одежда, которой нет в магазине
   const rb = updateRareBox(dt, hero);
   if (rb.item) {
@@ -583,11 +599,15 @@ export function updateGame(dt) {
   }
   if (rb.coins) { save.coins += rb.coins; SFX.coins(); persist(); toast(`🎁 Сундучок! +${rb.coins} монет<small>все редкие вещи этого места уже твои</small>`); }
   if (atBase) updateHouse(dt);
+  if (atBase && profile === 'mama') updatePlane(dt);   // пасхалка для мамы: самолётик с растяжкой «Юля ❤️»
   if (level.id === 'home' || level.id === 'loft') {   // мебель: встал на кнопку места — выбираешь, что поставить; на лежанке — питомцы
-    const he = updateHome(dt, hero);
+    const he = updateHome(dt, hero, profile);
     const onUp = level.id === 'home' && !visiting() && onUpgradePad(p);                       // доска «Улучшения дома»: второй этаж
     if (onUp && !wasOnUp && !wardOpen()) { SFX.tap(); openUpgrades({ save, sfx: SFX, persist, onBuy: () => { toast('🪜 Второй этаж построен!<small>лестница наверх — слева от двери</small>'); confetti(p, 80); } }); }
     wasOnUp = onUp;
+    const onKit = level.id === 'home' && onKitchenPad(p);                       // кухня 🍳: встал на оранжевый коврик у плиты (в гостях — помогать готовить)
+    if (onKit && !wasOnKit && !wardOpen() && !kitchenOpen()) { SFX.tap(); if (visiting()) openHelper(kitOpts()); else openKitchen(kitOpts()); }
+    wasOnKit = onKit;
     for (const k of he.sfx || []) k.startsWith('note') ? SFX.note(+k.slice(4)) : SFX[k]?.();
     if (visiting()) he.spot = he.basket = null;          // в гостях — только смотреть
     if (!wardOpen() && he.spot) { SFX.tap(); openSpot(he.spot - 1, { save, sfx: SFX, persist }); }
@@ -627,6 +647,20 @@ export function updateGame(dt) {
   if (xe.dig) digPrize();
   if (xe.well) wish();
   if (xe.dash !== undefined) { hero.dashT = 1.2; hero.vel.x = Math.sin(xe.dash) * 22; hero.vel.z = Math.cos(xe.dash) * 22; hero.face = xe.dash; SFX.boing(); }
+
+  // Зимняя долина: снегопад, снежки, снеговики, горка на санках, каток
+  if (level.id === 'winter') {
+    const we = updateWinter(dt, hero, partnerPos);
+    for (const k of new Set(we.sfx)) SFX[k]?.();
+    if (we.coins) { save.coins += we.coins; persist(); }
+    if (we.say) toast(we.say);
+    if (we.sm) { duoSend({ t: 'sm', ...we.sm }); persist(); }          // снеговик меняется у обоих
+    if (we.built) { stat('snowmen'); setTimeout(kidMoment, 2500); }
+    if (we.hitPartner) { snowScore.me++; duoSend({ t: 'wh' }); const O = OTHER(); toast(`❄️ Попал${profile === 'mama' ? 'а' : ''} в ${O.vin}!<small>счёт ${snowScore.me} : ${snowScore.them}</small>`); }
+  } else hero.ice = false;
+  // санки под героем, пока он едет с горки
+  if (hero.sled && !hero.sledM) hero.sledM = sledMesh(hero.model.root, 0, -0.35, 0);
+  if (!hero.sled && hero.sledM) { hero.model.root.remove(hero.sledM); hero.sledM = null; }
 
   // Осенняя долина: кучи листьев, колесо, горка, тыквы, жёлуди, яблоки
   if (level.id === 'autumn') {
@@ -675,8 +709,9 @@ export function updateGame(dt) {
   const total = STARS_IN[level.id] || 0;
   setStars(Object.keys(save.stars || {}).filter(k => k.startsWith(level.id + '-')).length, total);
 
-  setEffects([['🧪', hero.boostT], ['🧭', hero.compassT], ['⏱', xe.raceT]]);
-  setCoins(save.coins); setSpeed(save.speed); setItems(ITEMS.map(i => ({ ...i, n: itemCount(i.id) })), useItem);
+  fedCheck();
+  setEffects([['🧪', hero.boostT], ['🦘', hero.jumpT], ['🐾', fedLeft()], ['🧭', hero.compassT], ['⏱', xe.raceT]]);
+  setCoins(save.coins); setSpeed(save.speed); setItems([...(kitchen(save).dishes.length && friendNear(hero) ? [{ id: 'treat', icon: '🍽️' }] : []), ...(level.id === 'winter' ? [{ id: 'snowball', icon: '❄️' }] : []), ...ITEMS].map(i => ({ ...i, n: itemCount(i.id) })), useItem);
   setRes(save.res, level.id === 'autumn');
 }
 
@@ -779,5 +814,82 @@ function spyGo(id, owner, at) {
 export function updateSpyGame(dt) {
   updateDuo(dt);                                   // яйца в гнёздах, сторожа, табло — приходят от игрока
   if (level.id === 'base') { updatePen(dt, { x: 1e4, y: 0, z: 1e4 }); updateHouse(dt); }
-  if (level.id === 'home' || level.id === 'loft') updateHome(dt, hero);
+  if (level.id === 'home' || level.id === 'loft') updateHome(dt, hero, null);
+}
+
+// ---------- зимние забавы вдвоём ----------
+const snowScore = { me: 0, them: 0 };
+function winterMsg(m) {
+  const O = OTHER();
+  if (m.t === 'wb' && level.id === 'winter') remoteBall(m.b);                     // летит снежок второго игрока
+  if (m.t === 'wh') {                                                            // в меня попали!
+    snowScore.them++; SFX.pop(); puff('❄️', hero.pos.clone().setY(hero.pos.y + 2.6), { size: 1.6, rise: 0.8 });
+    const el = document.getElementById('splat'); el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+    toast(`❄️ ${O.im} ${profile === 'mama' ? 'попал' : 'попала'} в тебя снежком!<small>счёт ${snowScore.me} : ${snowScore.them} — кидай в ответ ❄️</small>`);
+  }
+  if (m.t === 'ck') coopMsg(m, kitOpts());                                       // готовим вместе
+  if (m.t === 'dish') {                                                          // второй игрок угостил
+    kitchen(save).dishes.push(m.d); persist(); SFX.fanfare();
+    const r = dishOf(m.d); puff('💝', hero.pos.clone().setY(hero.pos.y + 3.4), { size: 1.6, rise: 1 });
+    toast(`💝 ${O.im} ${profile === 'mama' ? 'угостил' : 'угостила'} тебя: ${r.icon} ${r.name}!<small>оно на кухне и в рюкзаке 🎒 — съешь, когда захочешь</small>`);
+  }
+  if (m.t === 'smAll') {                                                         // подключились: снеговики — как у мамы
+    if (!save.winter) save.winter = { sm: [0, 0, 0] };
+    m.sm.forEach((n, i) => { if ((save.winter.sm[i] || 0) !== n) { if (level.id === 'winter') setSnowman(i, n, true); else save.winter.sm[i] = n; } });
+    persist();
+  }
+  if (m.t === 'sm') {                                                            // снеговика лепим вместе
+    if (!save.winter) save.winter = { sm: [0, 0, 0] };
+    if (level.id === 'winter') setSnowman(m.i, m.n); else save.winter.sm[m.i] = m.n;
+    persist();
+    if (m.n >= 3) toast(`⛄ ${O.im} ${profile === 'mama' ? 'долепил' : 'долепила'} снеговика!`);
+  }
+}
+
+// ---------- еда: съел блюдо — польза ----------
+function eatDish(d) {
+  const { r, f } = dishFx(d), what = [];
+  if (f.run) { hero.boostT = (hero.boostT || 0) + f.run; what.push(`👟 быстрее ${f.run} с`); }
+  if (f.jump) { hero.jumpT = (hero.jumpT || 0) + f.jump; what.push(`🦘 прыжок выше ${f.jump} с`); }
+  if (f.compass) { hero.compassT = (hero.compassT || 0) + f.compass; what.push(`🧭 компас ${f.compass} с`); }
+  if (f.coins) { save.coins += f.coins; what.push(`+${f.coins} монет`); SFX.coins(); }
+  if (f.party) { confetti(hero.pos.clone().setY(hero.pos.y + 2), 120); fireworks(hero.pos.clone(), 6, () => SFX.boom()); }
+  stat('dishes'); persist(); SFX.levelUp();
+  puff(r.icon, hero.pos.clone().setY(hero.pos.y + 3.4), { size: 1.6, rise: 0.8 }); puff('😋', hero.pos.clone().setY(hero.pos.y + 4.4), { size: 1.2 });
+  toast(`😋 ${r.name}! ${'⭐'.repeat(d.s)}<small>${what.join(' · ')}</small>`);
+}
+
+// ---------- кухня: угостить, покормить, готовить вдвоём ----------
+const FED_MUL = 1.25, FED_MIN = 10;                                             // сытые питомцы: +25% монет на 10 минут (на ⭐; 3 ⭐ — 20 минут)
+const fedLeft = () => Math.max(0, ((save.food?.fed || 0) - Date.now()) / 1000);
+let fedWas = false;
+function fedCheck() { const on = fedLeft() > 0; if (on !== fedWas) { fedWas = on; applyBonuses(); } }
+function kitOpts() {
+  const O = OTHER();
+  return { save, sfx: SFX, persist, eat: eatDish, feed: feedPets, give: giveDish,
+    coop: { send: duoSend, partnerHere: () => level.id === 'home' && !!partnerPos(), together, name: O.im, tv: O.tv, rod: profile === 'mama' ? 'Моти' : 'мамы', dat: profile === 'mama' ? 'Моте' : 'Маме' } };
+}
+// питомцам: сытые приносят больше монет
+function feedPets(d) {
+  const { r } = dishFx(d), K = kitchen(save), mins = FED_MIN * [0, 1, 1.5, 2][d.s];
+  K.fed = Math.max(Date.now(), K.fed || 0) + mins * 60000;
+  fedWas = false; fedCheck(); persist(); SFX.collect(); stat('petsFed');
+  for (let i = 0; i < 6; i++) setTimeout(() => puff(i % 2 ? '💕' : '🐾', hero.pos.clone().setY(hero.pos.y + 2.5).add(new T.Vector3((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3)), { size: 1, rise: 1.2 }), i * 150);
+  toast(`🐾 Питомцы съели: ${r.icon} ${r.name}! Ням-ням!<small>сытые питомцы ${mins} минут приносят больше монет (+25%)</small>`);
+}
+// второму игроку (вдвоём)
+function giveDish(d) {
+  const { r } = dishFx(d), O = OTHER();
+  duoSend({ t: 'dish', d }); SFX.collect(); stat('dishesGiven'); persist();
+  puff('💝', hero.pos.clone().setY(hero.pos.y + 3.4), { size: 1.4 });
+  toast(`💝 Ты ${profile === 'mama' ? 'угостила' : 'угостил'} ${O.vin}: ${r.icon} ${r.name}!`);
+}
+// жителю рядом — лучшее блюдо (сердечко дружбы, не чаще раза в 15 минут)
+function treatNear() {
+  const n = friendNear(hero), i = bestDish(save); if (!n || i < 0) return;
+  const d = kitchen(save).dishes[i], res = treatFriend(save, n, dishOf(d));
+  if (!res.keep) { kitchen(save).dishes.splice(i, 1); stat('treats'); }
+  persist(); SFX[res.keep ? 'tap' : 'collect']();
+  toast(res.say);
+  if (res.up) setTimeout(() => friendUp(res.up.f, res.up.h), 1200);
 }

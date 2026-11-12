@@ -150,6 +150,27 @@ export function updateFriends(dt, hero, save) {
   return ev;
 }
 
+// ---------- угощение блюдом с кухни 🍽️ (food.js) ----------
+// житель рядом (для кнопки «угостить»): ближайший, кто не занят игрой
+export function friendNear(hero) {
+  let best = null, bd = 1e9;
+  for (const n of here) { if (n.busy) continue; const q = n.g.position, d = Math.hypot(hero.pos.x - q.x, hero.pos.z - q.z); if (d < (n.f.r || 2.6) + 0.6 && Math.abs(hero.pos.y - q.y) < 2 && d < bd) { best = n; bd = d; } }
+  return best;
+}
+// любимые блюда: за них житель радуется особенно
+const FAV = { galya: 'cake', ryaba: 'pancakes', yosha: 'msoup', uhu: 'cookies', lisa: 'salad', tyoma: 'cookies', vasya: 'icecream', borya: 'applepie', pushinka: 'cupcake', timosha: 'psoup' };
+// можно ли угостить сейчас: дружба не максимальная и прошло 15 минут после прошлого подарка
+export const canTreat = (save, n) => heartsOf(save, n.f.id) < MAX_HEARTS && Date.now() - ((fs(save)[n.f.id] || {}).t || 0) >= GAP;
+export function treatFriend(save, n, dish) {
+  const f = n.f; if (!metFriend(save, f.id)) fs(save)[f.id] = { h: 0, t: 0 };
+  if (heartsOf(save, f.id) >= MAX_HEARTS) return { say: `${f.name}: Спасибо! Мы и так лучшие друзья 💛`, keep: true };
+  if (!canTreat(save, n)) return { say: `${f.name}: Спасибо, пока не хочется! Угости меня через ${waitMin(save, f.id)} мин 🙂`, keep: true };
+  const nh = befriend(save, f.id); n.hop = 1.4;
+  for (let i = 0; i < 5; i++) setTimeout(() => puff(i % 2 ? '😋' : '💕', n.g.position.clone().setY(n.g.position.y + 2.8), { size: 1.1, rise: 1.4, dx: (Math.random() - 0.5) * 1.2 }), i * 160);
+  const fav = FAV[f.id] === dish.id;
+  return { say: `${f.name}: ${fav ? `Ура, ${dish.name.toLowerCase()} — моё любимое! 😍` : `Ммм, ${dish.name.toLowerCase()}! Спасибо! 😋`}`, up: { f, h: nh } };
+}
+
 // что сказать и что сделать при встрече
 // можно подарить прямо сейчас: есть сколько нужно, дружба не максимальная и прошло 15 минут
 const canGift = (save, f) => have(save, f.k) >= f.n && heartsOf(save, f.id) < MAX_HEARTS && Date.now() - ((fs(save)[f.id] || {}).t || 0) >= GAP;

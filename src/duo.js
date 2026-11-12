@@ -6,7 +6,8 @@
 // Пока играешь один, всё как раньше: свой загон слева, свой домик у завала.
 // Наблюдатель (?spy) смотрит «глазами» выбранного игрока: его мир, его загон и домик, второго игрока, если они вдвоём.
 // Сам наблюдатель невидим и ничего не трогает.
-import { T, scene, group, dampAngle } from './engine.js';
+import { T, scene, group, box, dampAngle } from './engine.js';
+import { sled as sledMesh, rollingR as rollR } from './winter.js';
 import { level, PEN, setPenSide, otherRoam, onLevelReset } from './world.js';
 import { WALK } from './player.js';
 import { buildHero, animateHero, LOOK_OF } from './hero.js';
@@ -63,11 +64,12 @@ export function initDuo(o) {
   net.onMsg((m, who) => {
     if (who !== other) return;
     const r = rem(who);
-    if (m.t === 'card') { r.card = m; if (net.state === 'on' && !layout) setLayout(true); else cardChanged(); }
+    if (m.t === 'card') { r.card = m; if (net.state === 'on' && !layout) setLayout(true); else cardChanged(); if (layout && me === 'motya' && m.wsm) extra({ t: 'smAll', sm: m.wsm }); }   // снеговики вдвоём — как у мамы
     else if (m.t === 'p') { if (layout) push(r, m); }
     else if (m.t === 'left') { onEvent('left'); setLayout(false); }
     else if (m.t === 'lost') onEvent('lost');
     else if (m.t === 'fail') onEvent('fail');
+    else if (layout) extra(m);                        // зимние забавы и прочее (game.js)
   });
   netStart(me);                                       // на связь — чтобы второй игрок и наблюдатель могли найти
   // экран — наблюдателю, 4 раза в секунду; отдельным таймером: пока открыта записка или замок отдыха, игра стоит, а экран всё равно нужен
@@ -161,6 +163,13 @@ function drive(who, dt, online) {
   const stale = !online || now - last.at > 3000;
   r.label.userData.set((stale ? '📶 ' : '') + duoName(who), { color: stale ? '#ffb0b0' : '#ffffff' });
   setCarry(r, last.c); r.label.position.y = last.c ? 4.9 : 3.7;           // с яйцом над головой — имя выше
+  // зима: ком для снеговика перед собой и санки под собой
+  if (last.sb && !r.ball) { r.ball = group(scene); r.ball.userData.dynamic = true; box(r.ball, 1, 1, 1, 0xffffff, 0, 0, 0); box(r.ball, 0.8, 1.2, 0.8, 0xf4f8ff, 0, 0, 0); }
+  if (r.ball) {
+    if (!last.sb || level.id !== 'winter') { scene.remove(r.ball); r.ball = null; }
+    else { const s = last.sb, P = r.m.root.position; r.ball.scale.setScalar(s * 2); r.ball.position.set(P.x + Math.sin(r.face) * (0.8 + s), P.y + s, P.z + Math.cos(r.face) * (0.8 + s)); r.ball.rotation.x += (c.s || 0) * dt / Math.max(0.3, s); r.ball.rotation.y = r.face; }
+  }
+  if (!!last.sl !== !!r.sledM) { if (r.sledM) { r.m.root.remove(r.sledM); r.sledM = null; } else r.sledM = sledMesh(r.m.root, 0, -0.35, 0); }
   animateHero(r.m, dt, { speed: stale ? 0 : c.s, maxSpeed: WALK, air: !!c.a && !stale, vy: c.vy, carry: !!last.c, tool: c.tl, glide: !!c.g, stun: !!last.st });
 }
 
@@ -175,7 +184,7 @@ export function updateDuo(dt) {
       const p = hero.pos, c = hero.carrying;
       const m = { t: 'p', k: locKey(), x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2), f: +hero.face.toFixed(2),
         s: +(hero.animSpeed ?? hero.speed).toFixed(1), a: hero.grounded ? 0 : 1, vy: +hero.vel.y.toFixed(1), c: c ? { r: c.r, v: c.v || null } : null,
-        tl: hero.toolOut || null, g: hero.gliding ? 1 : 0, d: layout ? 1 : 0, st: hero.stun > 0 ? 1 : 0 };
+        tl: hero.toolOut || null, g: hero.gliding ? 1 : 0, d: layout ? 1 : 0, st: hero.stun > 0 ? 1 : 0, sb: rollR(), sl: hero.sled ? 1 : 0 };
       const j = JSON.stringify(m);
       sendT = 0.1; idleT -= 0.1;
       if (j !== lastSent || idleT <= 0) { net.send(m); lastSent = j; idleT = 1; }
@@ -207,7 +216,7 @@ export const duoWhere = () => { const l = lastOf(other); return layout && l ? l.
 
 // свои питомцы, мебель, наряд, постройки — второму игроку и наблюдателю (если что-то поменялось)
 const card = () => ({ t: 'card', wear: save.ward?.wear || {}, pets: save.pets, penCap: save.penCap, home: save.home || null,
-  track: { round: save.track?.round || 1 }, stars: save.stars || {}, build: save.build || {}, coins: Math.floor(save.coins || 0), speed: save.speed || 1 });
+  track: { round: save.track?.round || 1 }, stars: save.stars || {}, build: save.build || {}, coins: Math.floor(save.coins || 0), speed: save.speed || 1, wsm: save.winter?.sm || null });
 function sendCard(force) {
   const c = card(), j = JSON.stringify(c);
   if (!force && j === myCard) return;
@@ -305,6 +314,13 @@ function uiApply(u) {
   }
 }
 const world = () => ({ t: 'w', k: locKey(), n: nestSnap(), g: guardSnap() });
+
+// ---------- для зимних забав (game.js) ----------
+let extra = () => {};
+export const onDuoExtra = f => { extra = f; };                // сообщение второго игрока, которое не про героя: снежок, снеговик…
+export const duoSend = m => { if (layout && net.state === 'on') net.send(m); };
+// где сейчас второй игрок, если он рядом в той же локации (в него можно попасть снежком)
+export const partnerPos = () => { const r = R[other]; return layout && r?.m?.root.visible ? r.m.root.position : null; };
 
 // для проверок в консоли
 export const duoDebug = () => ({ state: net.state, layout, me, other, R: Object.fromEntries(Object.entries(R).map(([k, r]) => [k, { card: !!r.card, last: r.buf[r.buf.length - 1], vis: r.m?.root.visible }])) });

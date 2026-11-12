@@ -17,7 +17,7 @@ export function setCoins(n) {
 export function setSun(sec) { sec = Math.ceil(sec); $('sunT').textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; }
 
 export function openOv(id) { $(id).classList.add('on'); ui.open = true; }
-function closeOv(el) { el.classList.remove('on'); ui.open = !!document.querySelector('.ov.on'); }
+export function closeOv(el) { el.classList.remove('on'); ui.open = !!document.querySelector('.ov.on'); }
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeOv(b.closest('.ov'))));
 document.querySelectorAll('.ov').forEach(o => o.addEventListener('pointerdown', e => { if (e.target === o) closeOv(o); }));
 

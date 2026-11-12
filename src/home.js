@@ -109,6 +109,7 @@ export function buildHome(save, profile) {
   box(w, 2.4, 0.05, 1.4, 0x5fd35f, UPGRADE.x, 0.03, UPGRADE.z - 0.6, { shadow: false });
   const ul = makeLabel(5, 1.25); ul.position.set(UPGRADE.x, 3.9, hd - 0.5); scene.add(ul); ul.userData.set('🔨 Улучшения дома', { color: '#ffffff' });
   if (homeOf(save).floor2) stairs(w);
+  kitchenCorner(w, hd);
   // ковёр посередине, лампа, цветок, картина
   box(w, 7, 0.04, 5, 0x6fb8ff, 0, 0.02, 1.5, { shadow: false }); box(w, 6, 0.05, 4, 0xffd23f, 0, 0.03, 1.5, { shadow: false });
   box(w, 0.6, 0.1, 0.6, 0x555a6a, 9.5, 0.05, 6.5); box(w, 0.12, 3, 0.12, 0x555a6a, 9.5, 1.5, 6.5); box(w, 1, 0.7, 1, 0xfff0a0, 9.5, 3.2, 6.5).material = mat(0xfff0a0, { emissive: 0x806000 });
@@ -130,6 +131,9 @@ export function buildHome(save, profile) {
   const cam = new T.PerspectiveCamera(48, M.w / M.h, 0.1, 60); cam.position.set(M.x, 2.2, M.z + 0.2);
   st.mirror = { rt, glass, cam };
   const ml = makeLabel(3, 0.75); ml.position.set(M.x, 4.3, M.z + 0.3); scene.add(ml); ml.userData.set('🪞 Зеркало', { color: '#ffffff' });
+  // мамина пасхалка: подошла к зеркалу — над отражением «самая красивая ✨»
+  const cl = makeLabel(3.2, 0.8); cl.position.set(M.x, 3.55, M.z + 0.35); scene.add(cl); cl.visible = false; cl.userData.set('самая красивая ✨', { color: '#ff8ab8' });
+  st.compl = { cl, t: 0, sp: 0 };
   const hi = makeLabel(7, 1.75); hi.position.set(5, 4.7, -hd + 0.6); scene.add(hi); hi.userData.set('🏠 ' + nameOf(profile), { color: '#ffe14d' });
   buildRoom(w, save);
   return w;
@@ -193,13 +197,44 @@ export function buildLoft(save, profile) {
 }
 // раз в кадр в комнате: зеркало показывает героя (раз в два кадра и только когда он рядом)
 // Вернёт события мебели (updateRoom): что открыть и какие звуки
-export function updateHome(dt, hero) {
+// кухня 🍳 у северной стены, между зеркалом и лежанкой: столешница, плита с кастрюлей, полка с баночками; коврик — открыть кухню
+const KITCHEN = { x: 2.2, z: -8.35, pad: { x: 2.2, z: -6.5 } };
+function kitchenCorner(w, hd) {
+  const K = KITCHEN;
+  solid(w, 4.2, 1.1, 1.2, 0xfdfcf8, K.x, 0, K.z, { studs: false });                        // столешница с ящиками
+  box(w, 4.3, 0.12, 1.3, 0x9a5a2a, K.x, 1.16, K.z);
+  for (let i = 0; i < 3; i++) { box(w, 1.25, 0.8, 0.04, 0xe8e2d6, K.x - 1.4 + i * 1.4, 0.55, K.z + 0.62); box(w, 0.3, 0.06, 0.06, 0x9aa4ad, K.x - 1.4 + i * 1.4, 0.8, K.z + 0.66); }
+  box(w, 1.6, 0.1, 1.1, 0x2b2b33, K.x + 1.1, 1.26, K.z);                                    // плита с конфорками
+  for (const [dx, dz] of [[-0.4, -0.25], [0.4, -0.25], [-0.4, 0.25], [0.4, 0.25]]) box(w, 0.4, 0.03, 0.4, 0xd8261a, K.x + 1.1 + dx, 1.32, K.z + dz).material = mat(0xd8261a, { emissive: 0x551100 });
+  box(w, 0.7, 0.5, 0.7, 0xb9c2cc, K.x + 0.7, 1.58, K.z - 0.2); box(w, 0.9, 0.08, 0.1, 0x6a6f7a, K.x + 0.25, 1.75, K.z - 0.2);   // кастрюля с ручкой
+  box(w, 0.8, 0.25, 0.6, 0x9aa4ad, K.x - 1.2, 1.3, K.z);                                    // мойка
+  box(w, 4, 0.12, 0.5, 0x9a5a2a, K.x, 3.2, -hd + 0.3);                                      // полка с баночками
+  [0xff9f1a, 0xffd23f, 0xd8261a, 0x5fd35f, 0xffffff].forEach((c, i) => { box(w, 0.4, 0.5, 0.35, c, K.x - 1.6 + i * 0.8, 3.52, -hd + 0.3); box(w, 0.42, 0.1, 0.37, 0x9a5a2a, K.x - 1.6 + i * 0.8, 3.82, -hd + 0.3); });
+  box(w, 2.6, 0.04, 1.4, 0xff9f1a, K.pad.x, 0.03, K.pad.z, { shadow: false });              // оранжевый коврик
+  const l = makeLabel(4, 1); l.position.set(K.x, 4.4, K.z + 0.3); scene.add(l); l.userData.set('🍳 Кухня — встань на коврик', { color: '#ffffff' });
+}
+export const onKitchenPad = p => near(p, KITCHEN.pad, 1.3, 0.8) && p.y < 0.8;
+
+export function updateHome(dt, hero, me) {
   const ev = updateRoom(dt, hero), Mr = st?.mirror; if (!Mr) return ev;
   const p = hero.pos;
+  // у мамы: стоит перед зеркалом — комплимент и искорки
+  const C = st.compl;
+  if (C) {
+    const look = me === 'mama' && Math.hypot(p.x - MIRROR.x, p.z - (MIRROR.z + 2)) < 2.6;
+    if (look && !C.cl.visible) { C.cl.visible = true; C.t = 0; }
+    if (!look) C.cl.visible = false;
+    if (C.cl.visible) {
+      C.t += dt; const k = Math.min(1, C.t * 3); C.cl.scale.set(3.2 * k * (1 + Math.sin(C.t * 3) * 0.04), 0.8 * k * (1 + Math.sin(C.t * 3) * 0.04), 1);
+      if ((C.sp -= dt) <= 0) { C.sp = 0.5; puff(Math.random() < 0.5 ? '✨' : '💖', new T.Vector3(MIRROR.x + (Math.random() - 0.5) * 2.6, 1 + Math.random() * 3, MIRROR.z + 0.4), { size: 0.6, rise: 0.8, life: 1.2 }); }
+    }
+  }
   if (Math.hypot(p.x - MIRROR.x, p.z - MIRROR.z) > 11 || (st.mirrorT ^= 1)) return ev;
   Mr.cam.lookAt(p.x, p.y + 1.6, p.z);
   const auto = renderer.shadowMap.autoUpdate; renderer.shadowMap.autoUpdate = false;     // тени уже посчитаны для основного кадра
+  const cv = C?.cl.visible; if (C) C.cl.visible = false;                                   // надпись висит перед стеклом — в отражение её не берём
   Mr.glass.visible = false; renderer.setRenderTarget(Mr.rt); renderer.render(scene, Mr.cam); renderer.setRenderTarget(null); Mr.glass.visible = true;
+  if (C) C.cl.visible = cv;
   renderer.shadowMap.autoUpdate = auto;
   return ev;
 }
