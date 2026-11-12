@@ -134,6 +134,7 @@ function updateSimon(dt, hero, ev) {
     S.wasStart = onStart; return;
   }
   S.wasStart = onStart;
+  if (S.mode === 'wait') { if ((S.t -= dt) <= 0) play(S); return; }
   if (S.mode === 'show') {                                          // играет мелодию: нота — 0.45 с света и 0.25 с паузы
     S.t -= dt;
     if (S.t <= 0) {
@@ -155,7 +156,7 @@ function updateSimon(dt, hero, ev) {
         S.label.userData.set('🎵 Поющие сосульки — встань на белую плиту', { color: '#ffffff' });
       } else if (++S.i >= S.seq.length) {                            // всё верно — нота длиннее
         if (S.seq.length >= 9) { const w = wsave(F.save); w.simon = 9; S.mode = 'idle'; ev.coins = 300; ev.sfx.push('fanfare'); ev.say = '🎵 Девять нот без ошибки! Ты мастер мелодий! +300 монет'; confetti(new T.Vector3(S.o.x, S.y + 3, S.o.z), 100); S.label.userData.set('🎵 Поющие сосульки — встань на белую плиту', { color: '#ffffff' }); }
-        else { S.seq.push(Math.floor(Math.random() * 4)); ev.sfx.push('collect'); S.label.userData.set(`✅ Верно! Теперь ${S.seq.length} нот`, { color: '#9dffb0' }); setTimeout(() => { if (F?.simon === S && S.mode === 'input') play(S); }, 900); S.mode = 'wait'; }
+        else { S.seq.push(Math.floor(Math.random() * 4)); ev.sfx.push('collect'); S.label.userData.set(`✅ Верно! Теперь ${S.seq.length} нот`, { color: '#9dffb0' }); S.mode = 'wait'; S.t = 1; }   // пауза — и мелодия на ноту длиннее
       }
     }
     S.was = on;
