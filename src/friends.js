@@ -158,7 +158,7 @@ export function friendNear(hero) {
   return best;
 }
 // любимые блюда: за них житель радуется особенно
-const FAV = { galya: 'cake', ryaba: 'pancakes', yosha: 'msoup', uhu: 'cookies', lisa: 'salad', tyoma: 'cookies', vasya: 'icecream', borya: 'applepie', pushinka: 'cupcake', timosha: 'psoup' };
+const FAV = { galya: 'cake', ryaba: 'pancakes', yosha: 'msoup', uhu: 'cookies', lisa: 'salad', tyoma: 'cookies', vasya: 'fishpie', borya: 'applepie', pushinka: 'cupcake', timosha: 'psoup' };
 // можно ли угостить сейчас: дружба не максимальная и прошло 15 минут после прошлого подарка
 export const canTreat = (save, n) => heartsOf(save, n.f.id) < MAX_HEARTS && Date.now() - ((fs(save)[n.f.id] || {}).t || 0) >= GAP;
 export function treatFriend(save, n, dish) {

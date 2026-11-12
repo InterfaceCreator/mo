@@ -1,5 +1,5 @@
 // Пасхалки для мамы 💌 (только в мамином профиле).
-// Самолётик с растяжкой «Юля ❤️»: изредка пролетает над базой — первый раз через 2–4 минуты на базе, потом раз в 8–15 минут.
+// Самолётик с растяжкой «Бубнилка ❤️»: изредка пролетает над базой — первый раз через 2–4 минуты на базе, потом раз в 8–15 минут.
 // Летит с запада на восток высоко над загонами, растяжка развевается за ним.
 import { T, scene, group, box } from './engine.js';
 import { onLevelReset } from './world.js';
@@ -13,8 +13,11 @@ function banner() {
   const c = cv.getContext('2d');
   c.fillStyle = '#fffaf2'; c.fillRect(0, 0, 1024, 256);
   c.strokeStyle = '#ff5a8a'; c.lineWidth = 18; c.strokeRect(9, 9, 1006, 238);
-  c.font = 'bold 150px "Arial Rounded MT Bold","Trebuchet MS",sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillStyle = '#e8204a'; c.fillText('Юля ❤️', 512, 136);
+  const TEXT = 'Бубнилка ❤️';
+  let fs = 150; const font = () => `bold ${fs}px "Arial Rounded MT Bold","Trebuchet MS",sans-serif`;
+  c.font = font(); while (c.measureText(TEXT).width > 940 && fs > 60) { fs -= 6; c.font = font(); }    // длинное слово — шрифт поменьше, чтобы влезло
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillStyle = '#e8204a'; c.fillText(TEXT, 512, 136);
   const geo = new T.PlaneGeometry(16, 4, 16, 1);
   const m = new T.Mesh(geo, new T.MeshBasicMaterial({ map: new T.CanvasTexture(cv), side: T.DoubleSide, fog: false }));
   m.userData.base = Float32Array.from(geo.attributes.position.array);

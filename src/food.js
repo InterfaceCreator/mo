@@ -15,7 +15,7 @@ export const FOOD = {
   egg: ['🥚', 'Яйцо', 'у Курочки Рябы на базе'], apple: ['🍎', 'Яблоко', 'под яблонями на базе и в осеннем саду'],
   berry: ['🫐', 'Ягоды', 'в Лесу'], mush: ['🍄', 'Грибы', 'в Лесу, в грибной роще'], honey: ['🍯', 'Мёд', 'в Лесу, у лагеря бобра'],
   snow: ['❄️', 'Чистый снег', 'в Зимней долине'], cocoa: ['🟤', 'Какао', 'у ларька в Зимней долине'],
-  pumpkin: ['🎃', 'Тыква', 'в Осени, на грядке'],
+  pumpkin: ['🎃', 'Тыква', 'в Осени, на грядке'], fish: ['🐟', 'Рыба', 'на рыбалке в Зиме, на озере'],
   flour: ['🌾', 'Мука', 'у тёти Гали'], milk: ['🥛', 'Молоко', 'у тёти Гали'], sugar: ['🍬', 'Сахар', 'у тёти Гали'],
 };
 export const SHOP = { flour: 20, milk: 20, sugar: 15 };              // цены у тёти Гали
@@ -30,12 +30,13 @@ export const RECIPES = [
   { id: 'cocoa', icon: '☕', name: 'Какао', need: { cocoa: 1, milk: 1, sugar: 1 }, fx: { run: 30, coins: 40 }, what: 'согревает: быстрее и немного монет', find: 'в Зиме, у ларька с какао' },
   { id: 'salad', icon: '🥗', name: 'Фруктовый салат', need: { apple: 1, berry: 1, honey: 1 }, fx: { run: 50 }, what: 'бегаешь быстрее', find: 'в Осени, в саду' },
   { id: 'cupcake', icon: '🧁', name: 'Ягодный кекс', need: { flour: 1, berry: 2, sugar: 1, egg: 1 }, fx: { jump: 40, run: 20 }, what: 'выше и быстрее', find: 'в Осени, у большого клёна' },
+  { id: 'fishpie', icon: '🥟', name: 'Рыбный пирог', need: { flour: 1, fish: 1, egg: 1 }, fx: { coins: 150, run: 20 }, what: 'монеты и быстрее', find: 'в Зиме, у озера с лунками' },
   { id: 'cake', icon: '🎂', name: 'Торт', need: { flour: 1, egg: 2, sugar: 1, berry: 2, honey: 1 }, fx: { coins: 500, party: 1 }, what: 'праздник и много монет', find: 'в Зиме, у иглу' },
 ];
 // записки с рецептами: где лежат
 const SCROLLS = {
   forest: [['msoup', { x: -72, z: -58 }], ['cookies', { x: 17, z: 62 }]],
-  winter: [['icecream', { x: -30, z: 19 }], ['cocoa', { x: 16, z: 36 }], ['cake', { x: -48, z: 35 }]],
+  winter: [['icecream', { x: -30, z: 19 }], ['cocoa', { x: 16, z: 36 }], ['cake', { x: -48, z: 35 }], ['fishpie', { x: 50, z: -6 }]],
   autumn: [['salad', { x: 34, z: -24 }], ['cupcake', { x: -48, z: 30 }]],
 };
 const MUL = [0, 1, 1.5, 2];

@@ -20,7 +20,10 @@ export const WINTER = {
   yard: { x: -30, z: 12, spots: [[-37, 6], [-30, 4], [-23, 6]], heaps: [[-38, 22], [-30, 26], [-22, 22], [-44, 14]] },   // двор снеговиков
   range: { line: { x: -34, z: -18 }, targets: [[-42, -34], [-36, -36], [-30, -36], [-24, -34]] },                      // стрельбище
   igloo: { x: -48, z: 42 }, cocoa: { x: 20, z: 40 },
-  nests: [[30, -28, 2, 'peng'], [-56, -8, 3, 'peng'], [52, 44, 3, 'bear'], [48, -52, 4, 'bear', 1.3], [-50, -52, 2, 'peng']],
+  nests: [[28, -34, 2, 'peng'], [-24, -52, 3, 'peng'], [62, 22, 3, 'bear'], [50, -54, 4, 'bear', 1.3], [-40, -60, 2, 'peng']],
+  // забавы из winterfun.js: ледяные головоломки, поющие сосульки, рыбалка, ворота совы, снежная битва, мама-пингвин
+  ponds: [{ x: -56, z: -40 }, { x: -56, z: -18 }, { x: -56, z: 4 }],
+  simon: { x: 14, z: 22 }, lake: { x: 50, z: -22, r: 11 }, gate: { x: 46, z: 46 }, fort: { x: -20, z: 32 }, mama: { x: -38, z: 28 },
 };
 const W = WINTER;
 const near = (x, z, o, r) => Math.hypot(x - o.x, z - o.z) < r;
@@ -37,19 +40,22 @@ function height(x, z) {
     return Math.max(1, Math.round(1 + k * (H.h - 1)));
   }
   if (inRink(x, z, 3) || near(x, z, W.spawn, 14) || near(x, z, W.yard, 18) || near(x, z, { x: -33, z: -27 }, 14) || near(x, z, W.igloo, 8) || near(x, z, W.cocoa, 6)) return 1;
+  if (W.ponds.some(o => Math.abs(x - o.x) < 11 && Math.abs(z - o.z) < 11) || near(x, z, W.simon, 9) || near(x, z, W.lake, W.lake.r + 4) || near(x, z, W.gate, 10) || near(x, z, W.fort, 12) || near(x, z, W.mama, 6)) return 1;
   const v = Math.sin(x / 14) + Math.cos(z / 11) + 0.6 * Math.sin((x - z) / 19);
   return Math.max(1, Math.min(3, Math.round(1.4 + v * 0.8)));
 }
 function color(x, z, h) {
   if (h >= 8 && !onHill(x, z, 4)) return 0xc8d4e2;                                     // скалы по краю — в инее
-  if (inRink(x, z)) return 0xa8dcf5;                                                   // лёд
+  if (inRink(x, z) || near(x, z, W.lake, W.lake.r) || W.ponds.some(o => Math.abs(x - o.x) < 7 && Math.abs(z - o.z) < 7)) return 0xa8dcf5;   // лёд: каток, озеро, пруды-головоломки
   if (onHill(x, z, 0)) return 0xe4eefa;                                                // накатанная горка
   const v = (Math.sin(x * 0.29) + Math.cos(z * 0.33)) * 0.5;
   return v > 0.5 ? 0xffffff : v < -0.5 ? 0xe2ecf8 : SNOW;
 }
 
 let st = null;
-onLevelReset(() => { st = null; });
+onLevelReset(() => { st = null; ballTargets.length = 0; });
+// что ещё можно сбить снежком (winterfun.js): { x, y0, y1, z, r, on(), hit() }
+export const ballTargets = [];
 
 export function buildWinter(save) {
   const w = group(scene), rnd = seeded(23);
@@ -68,7 +74,8 @@ export function buildWinter(save) {
 
   hill(w); rink(w); yard(w, save); range(w); igloo(w); cocoa(w);
   // ёлки в снегу — не на площадках и не у гнёзд
-  const busy = [[W.spawn, 15], [W.yard, 20], [{ x: -33, z: -27 }, 15], [W.igloo, 8], [W.cocoa, 7], ...W.nests.map(([x, z]) => [{ x, z }, 7])];
+  const busy = [[W.spawn, 15], [W.yard, 20], [{ x: -33, z: -27 }, 15], [W.igloo, 8], [W.cocoa, 7], ...W.nests.map(([x, z]) => [{ x, z }, 7]),
+    ...W.ponds.map(o => [o, 12]), [W.simon, 10], [W.lake, W.lake.r + 5], [W.gate, 11], [W.fort, 13], [W.mama, 7]];
   for (let i = 0, n = 0; i < 400 && n < 70; i++) {
     const x = (rnd() - 0.5) * 2 * (W.edge - 5), z = (rnd() - 0.5) * 2 * (W.edge - 5);
     if (inRink(x, z, 5) || onHill(x, z, 5) || busy.some(([o, r]) => near(x, z, o, r))) continue;
@@ -257,6 +264,7 @@ function updateBalls(dt, ev, partner) {
         hit = true; S.wob = 1; S.hits++; ev.sfx.push('pop');
         if (S.hits >= 3) { setSnowman(i, 0); puff('💨', new T.Vector3(S.x, S.y + 1.5, S.z), { size: 2.4 }); ev.say = '💥 Снеговик развалился! Слепи нового ⛄'; ev.sm = { i, n: 0 }; }
       });
+      if (!hit) for (const Tg of ballTargets) if (Tg.on() && Math.hypot(b.x - Tg.x, b.z - Tg.z) < Tg.r && b.y > Tg.y0 && b.y < Tg.y1) { hit = true; Tg.hit(); ev.sfx.push('pop'); break; }
       // второй игрок (рост 2.75 — с запасом на шапку)
       if (!hit && partner) { const q = partner(); if (q && Math.hypot(b.x - q.x, b.z - q.z) < 0.9 && b.y > q.y && b.y < q.y + 3.6) { hit = true; ev.hitPartner = true; ev.sfx.push('pop'); } }
     } else if (!hit) {
@@ -311,7 +319,7 @@ export function updateWinter(dt, hero, partner) {
   for (const Tg of st.targets) { if (Tg.t > 0) { Tg.t -= dt; Tg.face.rotation.x = Math.min(Math.PI / 2, Tg.face.rotation.x + dt * 8); } else Tg.face.rotation.x = Math.max(0, Tg.face.rotation.x - dt * 3); }
   for (const S of st.snowmen) if (S.wob > 0) { S.wob = Math.max(0, S.wob - dt * 2); S.g.rotation.z = Math.sin(t * 25) * 0.06 * S.wob; }
   // каток: скользко
-  hero.ice = hero.grounded && inRink(p.x, p.z);
+  hero.ice = hero.grounded && (inRink(p.x, p.z) || near(p.x, p.z, W.lake, W.lake.r));   // каток и замёрзшее озеро — скользко
   // горка: встал на красную площадку наверху — на санках вниз
   st.sledCool -= dt;
   const S = st.sled;

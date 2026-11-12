@@ -522,7 +522,7 @@ function buildForest(save) {
   clouds(w, 10);
   return w;
 }
-export const STARS_IN = { forest: 19, autumn: 6 };
+export const STARS_IN = { forest: 19, autumn: 6, winter: 10 };
 
 // ================= СПИСОК =================
 export const LOCS = {
