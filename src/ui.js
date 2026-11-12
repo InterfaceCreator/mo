@@ -121,8 +121,8 @@ export function setItems(list, onUse) {
 // всплывающее сообщение на пару секунд
 let toastT = 0;
 export function toast(html) {
-  const t = $('toast'); t.innerHTML = html; t.classList.add('on');
-  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 3200);
+  const t = $('toast'); t.innerHTML = html; placeTop(t); t.classList.add('on'); $('zoneHint')?.classList.add('under');
+  clearTimeout(toastT); toastT = setTimeout(() => { t.classList.remove('on'); $('zoneHint')?.classList.remove('under'); }, 3200);
 }
 
 // ---------- выбор игрока ----------
@@ -155,7 +155,7 @@ $('who').addEventListener('click', () => location.reload());   // сменить
 let kidShown = '';
 export function setKidHud(h) {
   const el = $('kidhud');
-  if (!h) { if (kidShown) { kidShown = ''; el.style.display = 'none'; } return; }
+  if (!h) { if (kidShown) { kidShown = ''; el.style.display = 'none'; $('zoneHint')?.classList.remove('under2'); } return; }
   const sec = h.t !== undefined ? Math.max(0, Math.ceil(h.t)) : 0;
   let html;
   if (h.mode === 'gen') html = `<b>${h.title}</b><span>${h.sub}</span>` + (h.big ? `<i class="big">${h.big}</i>` : '');   // игры детей (kids.js)
@@ -169,7 +169,8 @@ export function setKidHud(h) {
     html = `<b>🙈 Найди Елисея!</b><div class="therm"><i style="left:${Math.round(h.heat * 100)}%"></i></div><span>${word} ${trend} · ${sec} с</span><small>следи, где Елисей хихикает 🤭</small>`;
   }
   if (html === kidShown) return; kidShown = html;
-  el.innerHTML = html; el.style.display = 'flex'; el.classList.toggle('hot', h.word === 'hot');
+  placeTop(el); el.style.transform = 'none'; el.style.width = 'auto'; el.style.right = '10px';   // наверху, под плашкой, правее кнопок — не загораживает поле
+  el.innerHTML = html; el.style.display = 'flex'; $('zoneHint')?.classList.add('under2'); el.classList.toggle('hot', h.word === 'hot');
 }
 
 // ---------- записка (мамин режим): на весь экран, игра стоит, пока не тапнешь ----------
@@ -364,8 +365,10 @@ export function setZoneHint(t) {
   el.classList.toggle('on', !!t);
 }
 // наверху: сразу под плашкой с монетами (и заданием бобра), правее столбика кнопок слева — вид не загораживает
-function placeHint() {
-  const el = $('zoneHint'), R = $('topR')?.getBoundingClientRect(), L = $('bookBtn')?.getBoundingClientRect();
+function placeHint() { placeTop($('zoneHint')); }
+// место наверху для сообщений и подсказок: сразу под плашкой с монетами, правее столбика кнопок слева
+function placeTop(el) {
+  const R = $('topR')?.getBoundingClientRect(), L = $('bookBtn')?.getBoundingClientRect();
   if (!el || !R) return;
   el.style.top = Math.round(R.bottom + 6) + 'px';
   el.style.left = Math.round((L && L.width ? L.right : 0) + 10) + 'px';

@@ -359,14 +359,15 @@ body.spy #spyBar{top:auto;bottom:max(10px,env(safe-area-inset-bottom))}
 
 #fade{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s;z-index:4}
 #fade.on{opacity:1}
-#toast{position:fixed;left:50%;top:22%;transform:translate(-50%,-20px);background:#fff;color:#2b2340;border-radius:24px;padding:12px 22px;font-size:min(5.5vw,24px);font-weight:bold;
-  text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;z-index:3;max-width:90vw}
-#toast.on{opacity:1;transform:translate(-50%,0)}
+#toast{position:fixed;top:80px;left:90px;right:max(10px,env(safe-area-inset-right));transform:translateY(-8px);background:rgba(255,255,255,.95);color:#2b2340;border-radius:16px;padding:7px 12px;font-size:min(3.9vw,17px);font-weight:bold;
+  text-align:center;line-height:1.3;box-shadow:0 4px 12px rgba(0,0,0,.18);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:4}   /* сообщения — наверху, под плашкой с монетами; место считает ui.js */
+#toast.on{opacity:1;transform:none}
+#zoneHint.under,#zoneHint.under2{opacity:0!important}   /* пока висит сообщение — подсказка под ним прячется */
 #toast small{display:block;font-size:.7em;font-weight:normal;color:#6a6280}
-#effects{position:fixed;left:50%;transform:translateX(-50%);top:max(12px,env(safe-area-inset-top));display:none;gap:8px;pointer-events:none}
+#effects{display:none;gap:8px;pointer-events:none}   /* что действует (🧪 🦘 🐾) — в столбике справа под плашкой с монетами */
 #effects .eff{background:rgba(30,25,50,.6);color:#fff;border-radius:20px;padding:4px 12px;font-size:min(5.5vmin,26px);font-weight:bold;text-shadow:0 2px 0 rgba(0,0,0,.35)}
 /* игры с Елисеем: крупно по центру сверху */
-#kidhud{position:fixed;left:50%;transform:translateX(-50%);top:32%;display:none;flex-direction:column;align-items:center;gap:4px;
+#kidhud{position:fixed;left:50%;transform:translateX(-50%);top:90px;display:none;flex-direction:column;align-items:center;gap:4px;
   width:min(72vw,360px);padding:8px 16px 10px;border-radius:20px;background:rgba(30,25,50,.72);color:#fff;text-align:center;pointer-events:none;z-index:3;text-shadow:0 2px 0 rgba(0,0,0,.35)}
 #kidhud b{font-size:min(6.5vmin,30px)}
 #kidhud span{font-size:min(4.6vmin,21px);font-weight:bold}
@@ -436,6 +437,7 @@ body.spy #spyBar{top:auto;bottom:max(10px,env(safe-area-inset-bottom))}
     <div id="res" class="row"><span>🪵<b id="r-wood">0</b></span><span>🪨<b id="r-stone">0</b></span><span>💎<b id="r-crystal">0</b></span><span>🌿<b id="r-leaf">0</b></span><span hidden>🌰<b id="r-acorn">0</b></span><span hidden>🎃<b id="r-pumpkin">0</b></span></div>
   </div>
   <div id="quest" class="pill"></div>
+  <div id="effects"></div>
 </div>
 <button id="bookBtn" class="side" aria-label="Коллекция">📖<span class="dot"></span></button>
 <div id="book" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>Мои питомцы</h2><div id="grid"></div></div></div>
@@ -449,7 +451,6 @@ body.spy #spyBar{top:auto;bottom:max(10px,env(safe-area-inset-bottom))}
 <div id="fus" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🔮 Машина слияния</h2><div id="fusList" style="display:flex;flex-direction:column;gap:8px;overflow-y:auto"></div></div></div>
 <div id="inv" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🎒 Рюкзак</h2><div id="invList" style="overflow-y:auto"></div></div></div>
 <div id="items"></div>
-<div id="effects"></div>
 <div id="kidhud"></div>
 <div id="toast"></div>
 <div id="cook" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🍳 Кухня</h2><div id="cookBody"></div></div></div>

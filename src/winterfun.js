@@ -228,14 +228,16 @@ function question() {
 }
 function sign() {
   const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 384;
-  const m = new T.Mesh(new T.PlaneGeometry(9, 3.4), new T.MeshBasicMaterial({ map: new T.CanvasTexture(cv), fog: false }));
+  const m = new T.Mesh(new T.PlaneGeometry(8, 3), new T.MeshBasicMaterial({ map: new T.CanvasTexture(cv), fog: false }));
   m.userData.draw = (q, done) => {
     const c = cv.getContext('2d'); c.fillStyle = '#2b4a7a'; c.fillRect(0, 0, 1024, 384); c.strokeStyle = '#bfe8ff'; c.lineWidth = 14; c.strokeRect(7, 7, 1010, 370);
     c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle';
-    let fs = 78; c.font = `bold ${fs}px "Arial Rounded MT Bold","Trebuchet MS",sans-serif`; while (c.measureText(q).width > 960 && fs > 30) { fs -= 4; c.font = `bold ${fs}px "Arial Rounded MT Bold","Trebuchet MS",sans-serif`; }
-    c.fillText(q, 512, 130);
-    c.font = 'bold 40px "Arial Rounded MT Bold","Trebuchet MS",sans-serif'; c.fillStyle = '#bfe8ff'; c.fillText('Встань на плиту с ответом 👇', 512, 232);
-    c.font = 'bold 52px sans-serif'; c.fillText('✅'.repeat(done) + '⬜'.repeat(5 - done), 512, 318);
+    const fit = (t, fs, y) => { const f = () => `bold ${fs}px "Arial Rounded MT Bold","Trebuchet MS",sans-serif`; c.font = f(); while (c.measureText(t).width > 960 && fs > 30) { fs -= 4; c.font = f(); } c.fillText(t, 512, y); };
+    // вопрос и картинки — двумя строками (крупнее), если они разделены двумя пробелами
+    const [q1, q2] = q.split('  ');
+    if (q2) { fit(q1, 66, 82); fit(q2, 92, 178); } else fit(q1, 96, 140);
+    c.fillStyle = '#bfe8ff'; fit('Встань на плиту с ответом 👇', 38, 266);
+    c.font = 'bold 50px sans-serif'; c.fillText('✅'.repeat(done) + '⬜'.repeat(5 - done), 512, 332);
     m.material.map.needsUpdate = true;
   };
   return m;
@@ -250,12 +252,13 @@ function gate() {
   G.door = group(scene, o.x, y, gz); G.door.userData.dynamic = true;
   box(G.door, 5.2, 5.6, 0.5, 0x7fbfe6, 0, 2.8, 0); for (let i = 0; i < 4; i++) box(G.door, 5.2, 0.12, 0.55, 0xe8f6ff, 0, 0.7 + i * 1.4, 0);
   G.col = { x0: o.x - 2.6, x1: o.x + 2.6, y0: y, y1: y + 5.6, z0: gz - 0.3, z1: gz + 0.3 }; addCollider(G.col);
-  G.sign = sign(); G.sign.position.set(o.x, y + 3.4, gz + 0.3); scene.add(G.sign);
+  G.sign = sign(); G.sign.position.set(o.x, y + 3.7, gz + 1.15); scene.add(G.sign);   // перед столбами — читается целиком; ворота открылись — уезжает вверх
+  G.signY = y + 3.7;
   const ch = group(scene, o.x, y, gz - 5); box(ch, 1.6, 0.9, 1.1, 0x9a5a2a, 0, 0.45, 0); box(ch, 1.7, 0.4, 1.2, 0x7a4220, 0, 1.05, 0); box(ch, 0.3, 0.35, 0.08, 0xffd23f, 0, 0.75, 0.58);
   G.chest = { g: ch, x: o.x, z: gz - 5, taken: false };
   [-3, 0, 3].forEach(dx => {
     const x = o.x + dx, z = o.z + 5.5, pl = box(scene, 2.2, 0.08, 2.2, 0xffffff, x, y + 0.05, z, { shadow: false });
-    const lb = makeLabel(3.4, 1.1); lb.position.set(x, y + 2.2, z); lb.material.depthTest = false; lb.renderOrder = 5; scene.add(lb);   // цифры не прячутся за столбами
+    const lb = makeLabel(4.2, 1.4); lb.position.set(x, y + 2.3, z); lb.material.depthTest = false; lb.renderOrder = 5; scene.add(lb);   // цифры не прячутся за столбами
     G.plates.push({ x, z, pl, lb, v: '' });
   });
   next(G);
@@ -264,7 +267,7 @@ function next(G) { G.qq = question(); G.sign.userData.draw(G.qq.q, G.done); G.pl
 function updateGate(dt, hero, ev) {
   const G = F.gate, p = hero.pos;
   if (G.open) {
-    G.door.position.y = Math.min(G.y + 5.5, G.door.position.y + dt * 3);
+    G.door.position.y = Math.min(G.y + 5.5, G.door.position.y + dt * 3); G.sign.position.y = Math.min(G.signY + 5, G.sign.position.y + dt * 3);
     const C = G.chest;
     if (!C.taken && Math.hypot(p.x - C.x, p.z - C.z) < 1.6) {
       C.taken = true; C.g.children[1].rotation.x = -0.9; C.g.children[1].position.z = -0.4; C.g.children[1].position.y = 1.4;
@@ -275,7 +278,7 @@ function updateGate(dt, hero, ev) {
     }
     if (C.taken && (G.cool -= dt) <= 0) {                           // через минуту — новые задачки, ворота закрываются
       G.open = false; G.done = 0; C.taken = false; C.g.children[1].rotation.x = 0; C.g.children[1].position.set(0, 1.05, 0);
-      G.door.position.y = G.y; G.col.off = false; next(G);
+      G.door.position.y = G.y; G.sign.position.y = G.signY; G.col.off = false; next(G);
     }
     return;
   }
