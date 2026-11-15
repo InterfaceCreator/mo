@@ -7,8 +7,9 @@ import { modelThumb } from './pets.js';
 import { openOv } from './ui.js';
 
 const GOLD = 0xffc21a, BLACK = 0x1d1d23, WHITE = 0xffffff;
-export const SLOTS = [['suit', '🦸 Герои'], ['hat', '🎩 Шапки'], ['shirt', '👕 Одежда'], ['legs', '👖 Штаны'], ['shoes', '👟 Обувь'], ['cape', '🧣 Плащи'], ['glasses', '🕶️ Очки'], ['back', '🪽 На спину']];
+export const SLOTS = [['suit', '🦸 Герои'], ['hat', '🎩 Шапки'], ['shirt', '👕 Одежда'], ['legs', '👖 Штаны'], ['shoes', '👟 Обувь'], ['cape', '🧣 Плащи'], ['glasses', '🕶️ Очки'], ['back', '🪽 На спину'], ['bag', '🎒 Рюкзаки']];
 const dragonWon = save => (save.track?.round || 1) > 1;
+const schoolDays = n => save => (save.school?.days?.length || 0) >= n;
 // price — монеты; unlock — особая вещь: даётся бесплатно за подвиг
 export const CLOTHES = [
   // костюмы героев — на всё тело: маска, перчатки, сапоги, эмблема (suit() ниже). Вместо футболки, не вместе с ней
@@ -35,6 +36,9 @@ export const CLOTHES = [
   { id: 'r_leaves', slot: 'hat', icon: '🍁', name: 'Корона из листьев', rare: 'autumn' },
   { id: 'r_pirate', slot: 'suit', icon: '🏴‍☠️', name: 'Капитан пиратов', rare: 'autumn', body: 0xb01e1e, arms: 0xb01e1e, legs: 0xf2e8d0, boots: 0x1d1d23, gloves: null, belt: 0x1d1d23, look: 'pirate' },
   { id: 'r_gold', slot: 'suit', icon: '🌟', name: 'Золотой костюм', rare: 'autumn', body: GOLD, arms: GOLD, legs: GOLD, boots: 0xe0a000, gloves: 0xe0a000, mask: GOLD, top: true, look: 'gold' },
+  { id: 'grad', slot: 'hat', icon: '🎓', name: 'Шапочка выпускника', price: 0, unlock: schoolDays(10), lock: 'отучись в школе 10 дней' },
+  { id: 'beanie', slot: 'hat', icon: '🧶', name: 'Шапка с помпоном', price: 350 },
+  { id: 'cap_blue', slot: 'hat', icon: '🧢', name: 'Синяя кепка', price: 250 },
   { id: 'cap', slot: 'hat', icon: '🧢', name: 'Красная кепка', price: 250 },
   { id: 'party', slot: 'hat', icon: '🥳', name: 'Праздничный колпак', price: 400 },
   { id: 'ushanka', slot: 'hat', icon: '🧤', name: 'Шапка-ушанка', price: 500 },
@@ -50,6 +54,18 @@ export const CLOTHES = [
   { id: 'super', slot: 'shirt', icon: '⚡', name: 'Костюм супергероя', price: 1500, color: 0x2a5aa8, bolt: GOLD },
   { id: 'dino', slot: 'shirt', icon: '🦖', name: 'Костюм динозавра', price: 2000, color: 0x5fbf5a, spikes: 0xffd93b },
   // блузки — только у мамы (who: 'mama'): bow — бант у ворота, frill — рюши, dots — горошек, flowers — цветочки, puff — фонарики на рукавах
+  // школьная форма 🏫
+  { id: 'sc_jacket', slot: 'shirt', school: true, icon: '🏫', name: 'Школьный пиджак с галстуком', price: 900, color: 0x1f2a4a, jacket: true, tie: 0xd8261a },
+  { id: 'sc_jacket2', slot: 'shirt', school: true, icon: '🎓', name: 'Серый пиджак с бабочкой', price: 1000, color: 0x5a5f6a, jacket: true, bowtie: 0x1d1d23 },
+  { id: 'sc_vest', slot: 'shirt', school: true, icon: '👔', name: 'Рубашка с жилеткой', price: 800, color: WHITE, vest: 0x2a3a6a, tie: 0x2a5ad8 },
+  { id: 'sc_shirt', slot: 'shirt', school: true, icon: '👔', name: 'Белая рубашка с галстуком', price: 500, color: WHITE, tie: 0x2a4ab8, collar: true },
+  // уличная одежда 🛹
+  { id: 'hd_gray', slot: 'shirt', icon: '🩶', name: 'Серое худи', price: 700, color: 0x8a8f9a, hood: true },
+  { id: 'hd_red', slot: 'shirt', icon: '❤️', name: 'Красное худи', price: 700, color: 0xd8261a, hood: true },
+  { id: 'hd_dino', slot: 'shirt', icon: '🦖', name: 'Худи с динозавром', price: 1200, color: 0x5fbf5a, hood: true, print: 'dino' },
+  { id: 'jk_puffer', slot: 'shirt', icon: '🧥', name: 'Синий пуховик', price: 1300, color: 0x2a5ad8, puffer: 0x1f44a8, zip: 0xd8d8d8 },
+  { id: 'jk_orange', slot: 'shirt', icon: '🧡', name: 'Оранжевая куртка', price: 1300, color: 0xff8a1a, puffer: 0xd86a0a, zip: 0x1d1d23 },
+  { id: 'jk_denim', slot: 'shirt', icon: '🧥', name: 'Джинсовая куртка', price: 1100, color: 0x3f6fb8, zip: 0xe8c45a, collar: true },
   { id: 'bl_white', slot: 'shirt', who: 'mama', icon: '🎀', name: 'Белая блузка с бантом', price: 600, color: 0xfdfcf8, bow: 0x1d1d23 },
   { id: 'bl_pink', slot: 'shirt', who: 'mama', icon: '🌸', name: 'Розовая блузка', price: 700, color: 0xffb3cf, frill: 0xffffff },
   { id: 'bl_dots', slot: 'shirt', who: 'mama', icon: '⚪', name: 'Блузка в горошек', price: 900, color: 0x2a3a6a, dots: 0xffffff, bow: 0xffffff },
@@ -57,6 +73,8 @@ export const CLOTHES = [
   { id: 'bl_flower', slot: 'shirt', who: 'mama', icon: '🌼', name: 'Блузка в цветочек', price: 1400, color: 0xfff3c8, flowers: [0xff5a8a, 0x3fa7ff, 0xffa020], puff: true },
   { id: 'bl_silk', slot: 'shirt', who: 'mama', icon: '💜', name: 'Шёлковая блузка', price: 2500, color: 0xb98ae8, bow: 0xffd23f, shine: true },
   // штаны: kind — shorts (шорты, ниже — ноги и носки), pants (брюки), skirt (юбка — только у мамы)
+  { id: 'pt_school', slot: 'legs', kind: 'pants', school: true, icon: '🏫', name: 'Школьные брюки', price: 600, color: 0x2b2f3a, belt: 0x1d1d23 },
+  { id: 'pt_school2', slot: 'legs', kind: 'pants', school: true, icon: '🎓', name: 'Серые брюки', price: 600, color: 0x5a5f6a, belt: 0x1d1d23 },
   { id: 'sh_jeans', slot: 'legs', kind: 'shorts', icon: '🩳', name: 'Джинсовые шорты', price: 300, color: 0x3f6fb8, seam: 0xe8c45a },
   { id: 'sh_red', slot: 'legs', kind: 'shorts', icon: '🟥', name: 'Красные шорты', price: 300, color: 0xe2442a },
   { id: 'sh_foot', slot: 'legs', kind: 'shorts', icon: '⚽', name: 'Футбольные шорты', price: 450, color: 0xffffff, stripe: 0x2a5ad8 },
@@ -79,6 +97,8 @@ export const CLOTHES = [
   { id: 'sk_tutu', slot: 'legs', kind: 'skirt', who: 'mama', icon: '🩰', name: 'Юбка-пачка', price: 2000, color: 0xffb3cf, tutu: true },
   { id: 'sk_gold', slot: 'legs', kind: 'skirt', who: 'mama', icon: '✨', name: 'Золотая юбка', price: 6000, color: GOLD, shine: true },
   // обувь: tall — сапоги до колена, lace — шнурки, glow — светится, heel — каблук (мамина), flip — ласты
+  { id: 'so_school', slot: 'shoes', school: true, icon: '👞', name: 'Школьные туфли', price: 500, color: 0x1d1d23, sole: 0x111114, shine: true },
+  { id: 'so_skate', slot: 'shoes', icon: '🛹', name: 'Кеды для скейта', price: 600, color: 0x1d1d23, sole: WHITE, lace: WHITE },
   { id: 'so_red', slot: 'shoes', icon: '👟', name: 'Красные кеды', price: 250, color: 0xe2442a, sole: WHITE, lace: WHITE },
   { id: 'so_blue', slot: 'shoes', icon: '👟', name: 'Синие кроссовки', price: 400, color: 0x2a5ad8, sole: WHITE, lace: 0xffd23f },
   { id: 'so_boots', slot: 'shoes', icon: '🥾', name: 'Ботинки-вездеходы', price: 600, color: 0x6a3f1e, sole: 0x2b1a0a, lace: 0xe8c45a, mid: true },
@@ -96,6 +116,15 @@ export const CLOTHES = [
   { id: 'cape_star', slot: 'cape', icon: '🌟', name: 'Звёздный плащ', price: 2500, color: 0x5a3fbf, star: GOLD },
   { id: 'sun', slot: 'glasses', icon: '🕶️', name: 'Тёмные очки', price: 300 },
   { id: 'round', slot: 'glasses', icon: '👓', name: 'Круглые очки', price: 250 },
+  // рюкзаки 🎒 — свой слот, носятся вместе с крыльями и плащом
+  { id: 'bp_star', slot: 'bag', icon: '🏅', name: 'Рюкзак «Отличник»', price: 0, unlock: schoolDays(5), lock: 'отучись в школе 5 дней', color: 0xffc21a, flap: 0xe0a000, deco: 'star' },
+  { id: 'bp_school', slot: 'bag', icon: '🎒', name: 'Школьный ранец', price: 300, color: 0x2a5ad8, flap: 0x1f44a8, deco: 'reflect' },
+  { id: 'bp_red', slot: 'bag', icon: '🎒', name: 'Красный рюкзак', price: 400, color: 0xd8261a, flap: 0xa81a12 },
+  { id: 'bp_dino', slot: 'bag', icon: '🦖', name: 'Рюкзак-динозавр', price: 900, color: 0x5fbf5a, flap: 0x3f9f3a, deco: 'dino' },
+  { id: 'bp_car', slot: 'bag', icon: '🏎️', name: 'Рюкзак с машинкой', price: 900, color: 0x1d1d23, flap: 0x2b2b33, deco: 'car' },
+  { id: 'bp_space', slot: 'bag', icon: '🌌', name: 'Космический рюкзак', price: 1200, color: 0x2a2f8a, flap: 0x1a1f6a, deco: 'stars' },
+  { id: 'bp_unicorn', slot: 'bag', icon: '🦄', name: 'Рюкзак-единорог', price: 1200, color: 0xffb3e0, flap: 0xff8ad0, deco: 'unicorn' },
+  { id: 'bp_bear', slot: 'bag', icon: '🧸', name: 'Рюкзак-мишка', price: 1000, color: 0xb07a4a, flap: 0x8a5a32, deco: 'bear' },
   { id: 'rocket', slot: 'back', icon: '🚀', name: 'Рюкзак-ракета', price: 2500 },
   { id: 'wings', slot: 'back', icon: '🪽', name: 'Крылья ангела', price: 3000 },
   { id: 'dwings', slot: 'back', icon: '🐉', name: 'Крылья дракона', price: 0, unlock: dragonWon, lock: 'победи дракона на Дорожке' },
@@ -134,6 +163,7 @@ export function dressHero(m, wear) {
         box(Bd, TW + 0.08, 0.12, 0.69, c.bolt, 0, TY - TH / 2 + 0.08, 0);
       }
       if (c.bow || c.frill || c.dots || c.flowers || c.puff || c.shine) blouse(parts, m, c);
+      if (c.jacket || c.vest || c.tie || c.bowtie || c.hood || c.puffer || c.zip || c.collar || c.print) topWear(parts, m, c);
       if (c.spikes) {                                                                     // гребень на спине и хвост
         for (let i = 0; i < 4; i++) { const s = box(Bd, 0.16, 0.22, 0.16, c.spikes, 0, TY + TH / 2 - 0.1 - i * 0.28, -0.34); s.rotation.x = -0.6; }
         for (let i = 0; i < 4; i++) box(Bd, 0.34 - i * 0.07, 0.3 - i * 0.05, 0.3, c.color, 0, TY - TH / 2 + 0.05 - i * 0.04, -0.4 - i * 0.26);
@@ -150,6 +180,7 @@ export function dressHero(m, wear) {
       if (c.star) for (const [x, y] of [[0, -0.5], [-0.25, -1.0], [0.25, -1.2]]) { const s = box(cp, 0.16, 0.16, 0.02, c.star, x, y, -0.035, { shadow: false }); s.rotation.z = 0.78; }
       o.cape = cp;
     }
+    if (c.slot === 'bag') backpack(Bd, m, c);
     if (c.slot === 'back') {
       if (c.id === 'rocket') {
         for (const sx of [-1, 1]) {
@@ -209,6 +240,56 @@ function blouse(P, m, c) {
   pattern(Bd, c, TW * 0.8, TH * 0.75, 0, TY - 0.05, FRONT + 0.002);
   if (c.puff) for (const a of [P.armL, P.armR]) box(a, AW + 0.12, 0.3, 0.62, c.color, 0, -0.08, 0);   // фонарики
   if (c.shine) shiny(Bd, c.color);
+}
+// школьная форма и уличные куртки: пиджак с рубашкой и галстуком, жилетка, худи с капюшоном, пуховик
+function topWear(P, m, c) {
+  const { TW, TH, TY, AW } = m.dims, Bd = P.body, top = TY + TH / 2;
+  if (c.jacket) {                                                                    // пиджак: белая рубашка в вырезе, лацканы, пуговицы, белые манжеты
+    flatP(Bd, 0.3, TH * 0.5, 0, top - TH * 0.25, FRONT + 0.01, WHITE);
+    for (const sx of [-1, 1]) flatP(Bd, 0.08, TH * 0.5, sx * 0.17, top - TH * 0.25, FRONT + 0.015, new T.Color(c.color).multiplyScalar(0.75).getHex(), sx * 0.25);
+    for (const y of [TY - 0.08, TY - 0.3]) box(Bd, 0.07, 0.07, 0.03, GOLD, 0, y, FRONT + 0.02, { shadow: false });
+    for (const a of [P.armL, P.armR]) box(a, AW + 0.06, 0.08, 0.56, WHITE, 0, -0.74, 0, { shadow: false });
+  }
+  if (c.vest) {                                                                      // жилетка поверх рубашки, V-вырез
+    box(Bd, TW + 0.09, TH * 0.72, 0.68, c.vest, 0, TY - TH * 0.14, 0);
+    flatP(Bd, 0.24, TH * 0.32, 0, top - TH * 0.4, FRONT + 0.02, WHITE);
+  }
+  if (c.collar) for (const sx of [-1, 1]) { const k = box(Bd, 0.2, 0.12, 0.05, c.jacket ? WHITE : c.color === WHITE ? 0xeeeeee : new T.Color(c.color).multiplyScalar(0.8).getHex(), sx * 0.13, top - 0.06, FRONT + 0.02, { shadow: false }); k.rotation.z = sx * 0.4; }
+  if (c.tie) { box(Bd, 0.12, 0.1, 0.04, c.tie, 0, top - 0.1, FRONT + 0.035, { shadow: false }); box(Bd, 0.1, TH * 0.42, 0.03, c.tie, 0, top - 0.15 - TH * 0.21, FRONT + 0.03, { shadow: false }); }
+  if (c.bowtie) { for (const sx of [-1, 1]) box(Bd, 0.14, 0.12, 0.05, c.bowtie, sx * 0.09, top - 0.1, FRONT + 0.035, { shadow: false }); box(Bd, 0.06, 0.07, 0.06, c.bowtie, 0, top - 0.1, FRONT + 0.04, { shadow: false }); }
+  if (c.hood) {                                                                      // капюшон за головой, карман-кенгуру, шнурки
+    box(Bd, 0.74, 0.34, 0.26, c.color, 0, top + 0.06, -0.3);
+    const dk = new T.Color(c.color).multiplyScalar(0.82).getHex();
+    flatP(Bd, TW * 0.68, 0.26, 0, TY - TH / 2 + 0.22, FRONT + 0.01, dk);
+    for (const sx of [-1, 1]) box(Bd, 0.03, 0.26, 0.03, WHITE, sx * 0.1, top - 0.16, FRONT + 0.02, { shadow: false });
+  }
+  if (c.print === 'dino') { flatP(Bd, 0.3, 0.16, 0, TY + 0.06, FRONT + 0.015, 0x2f7f2a); flatP(Bd, 0.14, 0.12, 0.16, TY + 0.16, FRONT + 0.015, 0x2f7f2a); flatP(Bd, 0.05, 0.05, 0.19, TY + 0.18, FRONT + 0.02, WHITE); }
+  if (c.puffer) {                                                                    // пуховик: дутые полосы на теле и рукавах
+    for (let i = 0; i < 4; i++) box(Bd, TW + 0.1, 0.05, 0.7, c.puffer, 0, top - 0.12 - i * TH / 4, 0, { shadow: false });
+    for (const a of [P.armL, P.armR]) { box(a, AW + 0.1, 0.84, 0.6, c.color, 0, -0.36, 0); for (let i = 0; i < 3; i++) box(a, AW + 0.12, 0.05, 0.62, c.puffer, 0, -0.1 - i * 0.24, 0, { shadow: false }); }
+  }
+  if (c.zip) box(Bd, 0.04, TH * 0.95, 0.03, c.zip, 0, TY, FRONT + 0.02, { shadow: false });
+}
+// рюкзак за спиной: лямки через плечи, клапан, кармашек и украшение
+function backpack(Bd, m, c) {
+  const { TW, TH, TY } = m.dims, Z = -0.47, top = TY + TH / 2;
+  const g = group(Bd, 0, TY + 0.02, Z);
+  box(g, 0.66, 0.78, 0.3, c.color, 0, 0, 0);
+  box(g, 0.68, 0.26, 0.32, c.flap, 0, 0.28, 0.01);                                    // клапан
+  box(g, 0.44, 0.26, 0.08, c.flap, 0, -0.18, -0.18);                                  // кармашек
+  box(g, 0.08, 0.08, 0.04, GOLD, 0, 0.18, -0.17, { shadow: false });                  // застёжка
+  for (const sx of [-1, 1]) {                                                          // лямки: по плечу и вниз по груди
+    box(Bd, 0.12, 0.08, 0.72, c.flap, sx * 0.22, top + 0.02, -0.08, { shadow: false });
+    box(Bd, 0.1, TH * 0.6, 0.04, c.flap, sx * 0.22, top - TH * 0.3, FRONT + 0.01, { shadow: false });
+  }
+  const back = -0.2;                                                                   // задняя сторона рюкзака (от героя)
+  if (c.deco === 'star') { const s1 = box(g, 0.3, 0.3, 0.03, 0xd8261a, 0, -0.08, back - 0.07, { shadow: false }); s1.rotation.z = 0.78; const s2 = box(g, 0.3, 0.3, 0.03, 0xd8261a, 0, -0.08, back - 0.07, { shadow: false }); s2.rotation.z = 0; box(g, 0.12, 0.12, 0.03, WHITE, 0, -0.08, back - 0.085, { shadow: false }); }
+  if (c.deco === 'reflect') for (const y of [-0.05, -0.3]) box(g, 0.5, 0.05, 0.02, 0xfff36a, 0, y, back + 0.03, { shadow: false });
+  if (c.deco === 'dino') { for (let i = 0; i < 4; i++) { const sp = box(g, 0.14, 0.18, 0.14, 0xffd23f, 0, 0.42 - i * 0.22, -0.16); sp.rotation.x = 0.78; } for (const sx of [-1, 1]) box(g, 0.1, 0.1, 0.02, WHITE, sx * 0.14, 0.12, back + 0.02, { shadow: false }); }
+  if (c.deco === 'car') { box(g, 0.44, 0.14, 0.02, 0xd8261a, 0, -0.18, back - 0.07, { shadow: false }); box(g, 0.24, 0.1, 0.02, 0xd8261a, 0, -0.07, back - 0.07, { shadow: false }); for (const sx of [-1, 1]) box(g, 0.1, 0.1, 0.03, 0xe8e8e8, sx * 0.14, -0.27, back - 0.08, { shadow: false }); }
+  if (c.deco === 'stars') for (const [x, y] of [[-0.2, 0.05], [0.18, -0.08], [0, -0.3], [0.22, 0.25], [-0.2, -0.22]]) { const st = box(g, 0.08, 0.08, 0.02, 0xffe14d, x, y, back - 0.06, { shadow: false }); st.rotation.z = 0.78; }
+  if (c.deco === 'unicorn') { [0.12, 0.09, 0.06].forEach((w, i) => box(g, w, 0.12, w, i % 2 ? WHITE : GOLD, 0, 0.46 + i * 0.11, -0.05)); [0xff7ac8, 0x9b6bff, 0x3fa7ff].forEach((col, i) => box(g, 0.08, 0.5, 0.06, col, 0.28, 0.1 - i * 0.04, -0.12 + i * 0.05)); }
+  if (c.deco === 'bear') { for (const sx of [-1, 1]) box(g, 0.18, 0.18, 0.12, c.color, sx * 0.24, 0.46, 0); box(g, 0.2, 0.14, 0.02, 0xf0d2a8, 0, -0.02, back - 0.06, { shadow: false }); box(g, 0.07, 0.05, 0.02, 0x2b1a0a, 0, 0.02, back - 0.075, { shadow: false }); for (const sx of [-1, 1]) box(g, 0.06, 0.06, 0.02, 0x2b1a0a, sx * 0.12, 0.14, back - 0.065, { shadow: false }); }
 }
 // штаны: шорты (ниже — ноги и носки), брюки или юбка (юбка — на поясе, ноги ходят под ней)
 function legWear(P, m, c) {
@@ -366,6 +447,9 @@ function suit(P, m, c, ownCape, o) {
 }
 
 function hat(H, id) {
+  if (id === 'grad') { box(H, 0.78, 0.26, 0.74, 0x1d1d23, 0, 0.48, 0); const t = box(H, 1.15, 0.08, 1.15, 0x1d1d23, 0, 0.64, 0); t.rotation.y = 0.78; box(H, 0.04, 0.4, 0.04, 0xffc21a, 0.42, 0.45, 0.2); box(H, 0.1, 0.1, 0.1, 0xffc21a, 0.42, 0.24, 0.2); }
+  if (id === 'beanie') { box(H, 0.84, 0.34, 0.8, 0x3fa7ff, 0, 0.5, -0.02); box(H, 0.86, 0.12, 0.82, WHITE, 0, 0.36, -0.02); box(H, 0.22, 0.22, 0.22, WHITE, 0, 0.78, 0); }
+  if (id === 'cap_blue') { box(H, 0.8, 0.22, 0.76, 0x2a5ad8, 0, 0.44, -0.02); box(H, 0.7, 0.06, 0.34, 0x2a5ad8, 0, 0.35, 0.48); box(H, 0.12, 0.06, 0.12, WHITE, 0, 0.57, 0); }
   if (id === 'cap') { box(H, 0.8, 0.22, 0.76, 0xe2442a, 0, 0.44, -0.02); box(H, 0.7, 0.06, 0.34, 0xe2442a, 0, 0.35, 0.48); box(H, 0.12, 0.06, 0.12, WHITE, 0, 0.57, 0); }
   if (id === 'party') { [0xff7ac8, 0x3fa7ff, 0xffd23f, 0x5fd35f].forEach((c, i) => box(H, 0.56 - i * 0.14, 0.2, 0.56 - i * 0.14, c, 0, 0.5 + i * 0.2, 0)); box(H, 0.14, 0.14, 0.14, WHITE, 0, 1.33, 0); }
   if (id === 'ushanka') {

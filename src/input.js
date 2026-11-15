@@ -68,6 +68,7 @@ jumpEl.addEventListener('pointerup', jumpUp); jumpEl.addEventListener('pointerca
 
 // клавиатура
 window.addEventListener('keydown', e => {
+  if (e.target?.tagName === 'INPUT') return;                 // печатают в поле (записка маме) — это не управление
   firstTouch();
   if (e.code === 'Space' && !keys.Space) { input.jump = true; input.jumpHeld = true; }
   keys[e.code] = true;

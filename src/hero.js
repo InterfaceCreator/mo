@@ -170,8 +170,12 @@ function swingArm(p) {
 }
 
 // анимация: speed — скорость по земле, air — в воздухе
-export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 0, carry = false, stun = false, tool = null, swing = -1, glide = false } = {}) {
+export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 0, carry = false, stun = false, tool = null, swing = -1, glide = false, sit = false } = {}) {
   animMove(m, dt, speed, maxSpeed, air, vy);
+  if (sit) {                                                               // сидит за партой: ноги вперёд, руки на столе
+    m.legL.rotation.x = m.legR.rotation.x = -1.45; m.body.position.y = -0.36;
+    m.armL.rotation.x = m.armR.rotation.x = -1.1; m.armL.rotation.z = m.armR.rotation.z = 0;
+  }
   if (m.outfit) m.outfit.animate(dt, speed, air);                         // одежда из магазина: плащ развевается, крылья машут (clothes.js)
   // планирует на зонтике: держит его обеими руками над головой, ноги болтаются
   m.umbrella.visible = glide; m.umbrella.position.y = carry ? 4.4 : 3.0;     // с яйцом в руках зонтик выше яйца

@@ -10,6 +10,7 @@ import { FRIEND_HOMES } from './friends.js';
 import { HOUSE, CLOTHES_SHOP, buildHome, buildLoft } from './home.js';
 import { buildWinter, WINTER } from './winter.js';
 import { buildSecret, SECRET } from './secret.js';
+import { buildSchool, SCHOOL } from './school.js';
 import { makeLabel } from './fx.js';
 import { addStar, addScroll, addPad, addBunny, addCritter, addDuck, addButterfly, addRotor, addWaterfall, addMushroom, addPlates } from './fun.js';
 import { buildTerrain, water } from './terrain.js';
@@ -23,6 +24,7 @@ function seeded(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; 
 // порталы в северной стене: x — центр прохода
 export const BASE_PORTALS = { forest: 0, desert: -26, ice: 26 };
 const TRACK_PORTAL = { x: 46, z: 34 };
+const SCHOOL_PORTAL = { z: 1 };                                     // Школа — в восточной стене, у Маяка удачи
 const WINTER_PORTAL = { z: 29 };                                    // Зимняя долина — в западной стене базы, между Инкубаторной и Стадионом
 const AUTUMN_PORTAL = { x: -70, z: 49 };                             // Осень — в бывшей пещере за валуном                               // Дорожка — в восточной стене
 
@@ -36,7 +38,8 @@ function buildBase(save) {
   portal(w, { x: -46, z: WINTER_PORTAL.z, w: 10, to: 'winter', color: 0x7fd4ff, label: '⛄ Зима', rot: Math.PI / 2 });
   solid(w, 2, 12, 65 - CAVE.gap[1], C.wall, -46, 0, (CAVE.gap[1] + 65) / 2, { cam: true });
   // восточная стена с проёмом под портал Дорожки (z от 25 до 43)
-  solid(w, 2, 12, 30, C.wall, 46, 0, 10, { cam: true }); solid(w, 2, 12, 22, C.wall, 46, 0, 54, { cam: true });
+  solid(w, 2, 12, 17, C.wall, 46, 0, 16.5, { cam: true }); solid(w, 2, 12, 22, C.wall, 46, 0, 54, { cam: true });
+  portal(w, { x: 46, z: SCHOOL_PORTAL.z, w: 8, to: 'school', color: 0xffb020, label: '🏫 Школа', rot: -Math.PI / 2 });
   portal(w, { x: 46, z: TRACK_PORTAL.z, to: 'track', color: 0xff5a3d, label: '🏁 Дорожка', rot: -Math.PI / 2 });
   // песчаная тропинка от дома к Дорожке и указатель
   solid(w, 41, 0.08, 3, 0xe9d9a6, 23.5, 0, 42.5, { shadow: false }); solid(w, 3, 0.08, 9, 0xe9d9a6, 43, 0, 37.5, { shadow: false });
@@ -64,7 +67,7 @@ function buildBase(save) {
   if (save.tools.house) petHouse();
 
   // деревья и площадка с лесенкой
-  for (const [x, z, s, k] of [[-44, 0, 1, 'apple'], [-25, 44, 1.2, 'pine'], [38, 58, 1, 'birch'], [40, 6, 1.1, 'oak'], [-22, 58, 0.9, 'pine'], [24, 60, 1, 'apple'], [-40, 50, 0.9, 'birch']]) tree(w, x, z, s, 0, k);
+  for (const [x, z, s, k] of [[-44, 0, 1, 'apple'], [-25, 44, 1.2, 'pine'], [38, 58, 1, 'birch'], [34, -3, 1.1, 'oak'], [-22, 58, 0.9, 'pine'], [24, 60, 1, 'apple'], [-40, 50, 0.9, 'birch']]) tree(w, x, z, s, 0, k);
   for (let i = 0; i < 5; i++) solid(w, 3, 1 + i, 3, [0x3fa7ff, 0xff5a5a, 0xffd93b, 0x9b6bff, 0x40e0d0][i], 38 - i * 3, 0, 46, { cam: true });
   solid(w, 6, 5, 6, 0x3fa7ff, 21.5, 0, 46, { cam: true });
 
@@ -527,6 +530,7 @@ export const STARS_IN = { forest: 19, autumn: 6, winter: 10 };
 
 // ================= СПИСОК =================
 export const LOCS = {
+  school: { name: 'Школа', icon: '🏫', build: (save, profile) => buildSchool(save, profile), spawn: SCHOOL.spawn, sky: 0xa8dcff },
   secret: { name: 'Тайная комната', icon: '🏮', build: (save, profile) => buildSecret(save, profile), spawn: SECRET.spawn, sky: 0x2a2850 },
   winter: { name: 'Зима', icon: '⛄', build: buildWinter, spawn: { x: WINTER.spawn.x, z: WINTER.spawn.z, face: Math.PI }, sky: 0xcfe6f7 },
   autumn: { name: 'Осень', icon: '🍂', build: buildAutumn, spawn: { x: AUTUMN.spawn.x, z: AUTUMN.spawn.z, face: Math.PI }, sky: 0xffcf9a },
@@ -549,7 +553,7 @@ export const LOCS = {
   },
 };
 // куда ставить героя на базе, когда он вернулся из локации
-export const backFrom = id => id === 'winter' ? { x: -46 + 7, z: WINTER_PORTAL.z, face: Math.PI / 2 } : id === 'home' ? { x: HOUSE.door.x, z: HOUSE.door.z - 2.4, face: Math.PI } : id === 'autumn' ? { x: AUTUMN_PORTAL.x + 7, z: AUTUMN_PORTAL.z, face: Math.PI / 2 } : id === 'track' ? { x: TRACK_PORTAL.x - 6, z: TRACK_PORTAL.z, face: -Math.PI / 2 } : { x: BASE_PORTALS[id] ?? 0, z: 0, face: 0 };
+export const backFrom = id => id === 'school' ? { x: 46 - 6, z: SCHOOL_PORTAL.z, face: -Math.PI / 2 } : id === 'winter' ? { x: -46 + 7, z: WINTER_PORTAL.z, face: Math.PI / 2 } : id === 'home' ? { x: HOUSE.door.x, z: HOUSE.door.z - 2.4, face: Math.PI } : id === 'autumn' ? { x: AUTUMN_PORTAL.x + 7, z: AUTUMN_PORTAL.z, face: Math.PI / 2 } : id === 'track' ? { x: TRACK_PORTAL.x - 6, z: TRACK_PORTAL.z, face: -Math.PI / 2 } : { x: BASE_PORTALS[id] ?? 0, z: 0, face: 0 };
 // все гнёзда описываются сразу — их таймеры идут, даже если в локации ни разу не были
 export function defineAllNests() {
   // (гнездо в пещере переехало: в бывшей пещере теперь портал в Осеннюю долину)

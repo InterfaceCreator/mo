@@ -309,7 +309,7 @@ function renderInv() {
     for (const c of sec.cells) {
       const cell = document.createElement('div'); cell.className = 'inv' + (c.dim ? ' dim' : '');
       cell.innerHTML = `<div class="ic">${c.icon}${c.n !== undefined ? `<b>${c.n}</b>` : ''}</div><div class="nm">${c.name}</div>` + (c.sub ? `<small>${c.sub}</small>` : '');
-      if (c.use) { const b = document.createElement('button'); b.textContent = 'Использовать'; b.onclick = () => { closeOv($('inv')); c.use(); }; cell.appendChild(b); }
+      if (c.use) { const b = document.createElement('button'); b.textContent = c.btn || 'Использовать'; b.onclick = () => { closeOv($('inv')); c.use(); }; cell.appendChild(b); }
       grid.appendChild(cell);
     }
     list.appendChild(grid);

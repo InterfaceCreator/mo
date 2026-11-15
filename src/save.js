@@ -33,4 +33,7 @@ export function persist() {
 addEventListener('pagehide', () => { if (timer) write(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && timer) write(); });
 // что сейчас лежит в хранилище (могла записать другая вкладка с этой же игрой)
+// сохранение другого игрока на этом же устройстве (мама проверяет Мотин дневник)
+export function readOther(id) { try { return JSON.parse(localStorage.getItem(KEY(id)) || 'null'); } catch (e) { return null; } }
+export function writeOther(id, data) { try { localStorage.setItem(KEY(id), JSON.stringify(data)); } catch (e) {} }
 export function stored() { try { return JSON.parse(localStorage.getItem(KEY(profile)) || 'null'); } catch (e) { return null; } }

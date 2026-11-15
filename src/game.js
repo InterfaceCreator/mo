@@ -35,13 +35,15 @@ import { buildGuards, updateGuards, wake, dropBanana } from './guards.js';
 import { RARITY, SPECIES, rollPet, buildPen, updatePen, petIncome, petName, rebuildPen, penIncome, fmt, setPenBonus, addPending, modelThumb } from './pets.js';
 import { buildBase, onShopPad, onTreadmill, updateTreadmill } from './base.js';
 import { updateCraft, onBenchPad, TOOLS, RES, RECIPES, SCROLL_WHERE, known, made, canCraft, craft } from './craft.js';
-import { save, persist, profile, stored } from './save.js';
+import { save, persist, profile, stored, readOther, writeOther } from './save.js';
 import { takeNote, resetNotes, takeKidNote, kidNoteReady } from './notes.js';
 import { setZoneHint } from './ui.js';
 import { hintFor } from './hints.js';
 import { setCoins, setSun, setSpeed, setItems, toast, petNote, notify, bindNotes, bindBook, openShop, shopOpen, setRes, openCraft, bindInventory, craftOpen, fade, setStars, setEffects, setQuest, openBuilding, openFusion, showNote, onBellHold, setKidHud } from './ui.js';
 import { puff, confetti, sprite, emojiTex, makeLabel, fireworks } from './fx.js';
 import { SFX } from './sfx.js';
+import { updateSchool, teacherSays, boardText, SUBJECTS } from './school.js';
+import { openLesson, openDiary, openDay, addGrade, addHomework, homeworkQs, dayDone, school, COINS, openMamaLesson, openTeacher } from './lessons.js';
 
 // баланс — в balance.js
 const { SPEED_MAX, PEN_MAX, INC_MAX, speedCost, treadNeed, INC_COST, penCost, BANANA_COST, BANANA_PACK, SURPRISE_COST, POTION_COST, COMPASS_COST } = B;
@@ -143,6 +145,7 @@ function goThrough(pt) {
   fade(true, () => {
     const H = houseFor(wasOwner), out = from === 'home' ? { x: H.door.x, z: H.door.z - 2.4, face: Math.PI } : null;   // из дома — к его двери
     enter(pt.to, pt.spawn || (pt.to === 'base' ? out || backFrom(from) : LOCS[pt.to].spawn), owner); fade(false); moving = false;
+    if (pt.to === 'school' && profile === 'motya' && save.school?.mamaNote) setTimeout(() => toast(`💌 На доске записка от мамы<small>${save.school.mamaNote}</small>`), 700);
     if (pt.to === 'home' && visiting() && pt.owner) toast(`🏠 В гостях у ${profile === 'mama' ? 'Моти' : 'мамы'}!<small>смотреть можно, а мебель переставляет хозяин</small>`);
     // маме на входе в лес — записка от Василия
     if (pt.to === 'forest' && profile === 'mama') {
@@ -386,6 +389,54 @@ function claimDaily() {
 
 // рюкзак: ресурсы, инструменты, предметы, находки
 const ITEM_INFO = { banana: ['Банан', 'сторож поскользнётся'], trap: ['Ловушка', 'сторож посидит в клетке'], pad: ['Батут', 'ставится перед тобой'], potion: ['Зелье скорости', `${B.POTION_TIME} с быстрого бега`], compass: ['Компас', 'стрелка к спрятанному'] };
+// дневник: оценки за уроки; мама подписывает своим кодом — Моте подарок
+function diary() {
+  if (profile === 'mama') {                            // у мамы — Мотин дневник с этого же устройства: смотреть и подписывать
+    const ms = readOther('motya');
+    if (!ms?.school?.diary?.length) { toast('📒 У Моти пока нет оценок<small>пусть сходит в школу 🏫 и сядет за парту</small>'); return; }
+    openDiary(ms, { sfx: SFX, canSign: true, noPin: true, title: '📒 Дневник Моти', onSigned: ({ fives, c }) => {
+      const gift = 50 + fives * 50; ms.coins = (ms.coins || 0) + gift; writeOther('motya', ms); SFX.fanfare(); confetti(hero.pos, 80);
+      toast(`✍️ Дневник подписан!<small>«${c}» · Моте подарок +${gift} монет</small>`);
+    } });
+    return;
+  }
+  openDiary(save, { sfx: SFX, canSign: profile === 'motya', homework: hwReady() ? homework : null, title: profile === 'mama' ? '📒 Мой дневник' : '📒 Дневник Моти', onSigned: ({ n, fives, c }) => {
+    const gift = 50 + fives * 50; save.coins += gift; persist(); SFX.fanfare(); confetti(hero.pos, 80);
+    toast(`✍️ Мама подписала дневник!<small>«${c}» · подарок +${gift} монет</small>`);
+  } });
+}
+// за партой: расписание дня → урок → снова расписание
+function schoolDay() {
+  if (profile === 'mama') return openDay(save, { mama: true, sfx: SFX, start: s => openMamaLesson(s, { sfx: SFX, back: schoolDay, done: g => lessonDone(s, g) }) });
+  openDay(save, { sfx: SFX, start: (s, lv) => openLesson(s, { sfx: SFX, lv, back: schoolDay, done: g => lessonDone(s, g) }) });
+}
+// учительская: мама меняет Мотину школу (его сохранение на этом же устройстве)
+function teacherRoom() {
+  const ms = readOther('motya');
+  if (!ms) { toast('👩‍🏫 Учительская<small>Мотя ещё не играл на этом телефоне</small>'); return false; }
+  openTeacher(ms, { sfx: SFX, changed: () => writeOther('motya', ms), diary });
+  return true;
+}
+function lessonDone(s, g) {
+  const first = !school(save).today.tries[s];
+  const r = addGrade(save, s, g), coins = profile === 'mama' && !first ? 0 : COINS[g]; save.coins += coins; persist(); stat('lessons');
+  teacherSays(g >= 5 ? '🌟' : g >= 4 ? '👍' : '💪'); if (g >= 4) { SFX.fanfare(); confetti(hero.pos, g >= 5 ? 70 : 35); }
+  boardText(`${SUBJECTS[s].icon} ${SUBJECTS[s].name}: ${g}`);
+  let note = coins ? `+${coins} монет` + (profile === 'mama' ? '' : ' · оценка в дневнике 📒') : 'монеты за это занятие уже получены сегодня';
+  if (r.bounty) { save.coins += r.bounty.c; persist(); note += `<br>🎁 Мамин приз за пятёрку: +${r.bounty.c} монет!`; setTimeout(() => toast(`🎁 Мамин приз!<small>+${r.bounty.c} монет за пятёрку</small>`), 900); }
+  if (r.dayDone) { note += '<br>🎉 Все уроки на сегодня! Дома — домашнее задание 📝'; boardText('Уроки на сегодня закончились! До завтра 👋'); }
+  if (r.sticker) {
+    save.coins += r.sticker.coins; persist(); fireworks(hero.pos.clone().setY(3), 6);
+    notify({ icon: r.sticker.icon, title: `Наклейка: ${r.sticker.name}`, text: `+${r.sticker.coins} монет`, keep: true });
+    setTimeout(() => toast(`${r.sticker.icon} Новая наклейка в дневник!<small>${r.sticker.name} · +${r.sticker.coins} монет</small>`), 1200);
+  }
+  return note;
+}
+// домашка — только дома и когда уроки дня сделаны
+const hwReady = () => (level.id === 'home' || level.id === 'loft') && dayDone(save) && !school(save).today.hw;
+function homework() {
+  openLesson('hw', { sfx: SFX, qs: homeworkQs(save), title: '📝 Домашнее задание', done: g => { addHomework(save, g); save.coins += 80; persist(); SFX.fanfare(); return '+80 монет · домашка в дневнике 📒. Покажи маме!'; } });
+}
 function inventory() {
   const RES_NAME = { wood: 'Брёвна', stone: 'Камни', crystal: 'Кристаллы', leaf: 'Листья', plank: 'Доски', brick: 'Кирпичи', thread: 'Нити', acorn: 'Жёлуди', pumpkin: 'Тыквы' };
   const stars = id => Object.keys(save.stars || {}).filter(k => k.startsWith(id + '-')).length;
@@ -395,6 +446,8 @@ function inventory() {
     { title: 'Продукты для кухни 🍳', cells: Object.keys(FOOD).map(k => { const n = k === 'pumpkin' ? (save.res.pumpkin || 0) : (kitchen(save).have[k] || 0); return { icon: FOOD[k][0], n, name: FOOD[k][1], sub: FOOD[k][2], dim: !n }; }) },
     { title: 'Блюда — съешь, будет польза', cells: kitchen(save).dishes.length ? kitchen(save).dishes.map((d, i) => { const r = DISHES.find(x => x.id === d.id); return { icon: r.icon, name: r.name, sub: '⭐'.repeat(d.s) + ' · ' + r.what, use: () => { const dd = kitchen(save).dishes.splice(i, 1)[0]; persist(); eatDish(dd); } }; }) : [{ icon: '🍳', name: 'Пока нет', sub: 'готовь на кухне в своём домике', dim: true }] },
     { title: 'Инструменты — навсегда', cells: TOOLS.map(t => ({ icon: t.icon, name: t.name, sub: save.tools[t.id] ? t.info : known(t, save) ? 'сделай на верстаке 🔨' : 'найди свиток 📜', dim: !save.tools[t.id] })) },
+    { title: 'Школа 🏫', cells: [profile === 'mama' ? (() => { const d = readOther('motya')?.school?.diary || []; return { icon: '📒', name: 'Дневник Моти', sub: `оценок: ${d.length}` + (d.some(x => !x.signed) ? ' · ждёт подписи ✍️' : ''), btn: 'Открыть', use: () => diary() }; })()
+      : { icon: '📒', name: 'Дневник', sub: (hwReady() ? '📝 есть домашка! ' : '') + `оценок: ${school(save).diary.length}` + (school(save).diary.some(d => !d.signed) ? ' · мама ещё не подписала' : ''), btn: 'Открыть', use: () => diary() }] },
     { title: 'Находки', cells: [
       ...Object.entries(STARS_IN).map(([id, n]) => ({ icon: '⭐', n: `${stars(id)}/${n}`, name: `${LOCS[id].icon} ${LOCS[id].name}`, sub: 'звёзды', dim: !stars(id) })),
       { icon: '📜', n: `${Object.keys(save.recipes || {}).length}/${RECIPES.filter(r => r.scroll).length}`, name: 'Рецепты', sub: 'свитки', dim: !Object.keys(save.recipes || {}).length },
@@ -656,6 +709,17 @@ export function updateGame(dt) {
   if (xe.dash !== undefined) { hero.dashT = 1.2; hero.vel.x = Math.sin(xe.dash) * 22; hero.vel.z = Math.cos(xe.dash) * 22; hero.face = xe.dash; SFX.boing(); }
 
   // тайная комната за зеркалом: письмо маме, сокровище Моти
+  if (level.id === 'school') {                           // школа: сел за парту — расписание и уроки; у двери — дневник
+    const sc = updateSchool(dt, hero);
+    const anyOv = !!document.querySelector('.ov.on');
+    if (sc.sit && !anyOv && !hero.carrying) { SFX.tap(); hero.sit = sc.sit; schoolDay(); }
+    if (sc.teach && !anyOv && !hero.carrying && teacherRoom()) { SFX.tap(); hero.sit = { ...sc.teach, face: 0 }; }
+    if (hero.sit) {
+      if (!document.querySelector('.ov.on')) hero.sit = null;   // закрыл окно — встал из-за парты
+      else { const f = hero.sit.face ?? Math.PI; hero.pos.set(hero.sit.x, 0, hero.sit.z); hero.vel.set(0, 0, 0); hero.face = f; hero.model.root.rotation.y = f; }
+    }
+    if (sc.diary && !anyOv) { SFX.tap(); diary(); }
+  } else hero.sit = null;
   if (level.id === 'secret') {
     const se = updateSecret(dt, hero);
     if (se.letter) showNote(se.letter, SFX);
@@ -681,7 +745,7 @@ export function updateGame(dt) {
     if (we.hitPartner) { snowScore.me++; duoSend({ t: 'wh' }); const O = OTHER(); toast(`❄️ Попал${profile === 'mama' ? 'а' : ''} в ${O.vin}!<small>счёт ${snowScore.me} : ${snowScore.them}</small>`); }
   } else hero.ice = false;
   // подсказка «как тут играть» наверху: в Зиме — своя, везде — по месту (hints.js); с яйцом в руках — куда нести
-  setZoneHint(level.id === 'winter' && !hero.carrying ? winterHint : hintFor(hero, save));
+  setZoneHint(level.id === 'winter' && !hero.carrying ? winterHint : hintFor(hero, save, profile));
   // санки под героем, пока он едет с горки
   if (hero.sled && !hero.sledM) hero.sledM = sledMesh(hero.model.root, 0, -0.35, 0);
   if (!hero.sled && hero.sledM) { hero.model.root.remove(hero.sledM); hero.sledM = null; }
