@@ -114,7 +114,7 @@ export function setItems(list, onUse) {
   const box = $('items'); box.innerHTML = '';
   for (const it of list) {
     if (!it.n) continue;
-    const b = document.createElement('button'); b.innerHTML = `${it.icon}<b>${it.n}</b>`;
+    const b = document.createElement('button'); b.innerHTML = it.n === true ? it.icon : `${it.icon}<b>${it.n}</b>`;   // n === true — кнопка без счётчика (дракон)
     b.onclick = () => onUse(it.id); box.appendChild(b);
   }
 }

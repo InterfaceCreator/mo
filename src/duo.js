@@ -20,6 +20,7 @@ import { incubators, eggMesh, nestSnap, nestApply } from './eggs.js';
 import { guardSnap, guardApply, guardFollow } from './guards.js';
 import { net, netStart, duoOn, duoOff, PLAYERS } from './net.js';
 import { PROFILES } from './save.js';
+import { makeDragon, dropDragon, animDragon, breathe, riding } from './dragon.js';
 
 const LOST_KEEP = 40;                    // связь пропала: столько секунд второй загон и домик ещё стоят (вдруг сейчас вернётся)
 let me = null, other = null, save = null, hero = null, onLayout = () => {}, onEvent = () => {}, onGo = () => {};
@@ -160,6 +161,14 @@ function drive(who, dt, online) {
   const t = c === a ? 1 : Math.min(1, Math.max(0, (at - a.at) / (c.at - a.at)));
   r.m.root.position.set(a.x + (c.x - a.x) * t, a.y + (c.y - a.y) * t, a.z + (c.z - a.z) * t);
   r.face = lerpA(a.f, c.f, t); r.m.root.rotation.y = r.face;
+  // второй игрок сидит сзади на МОЁМ драконе — рисуем его прямо на моём драконе (без задержки сети)
+  const back = last.dr === 2 && riding();
+  if (back) { r.m.root.position.copy(hero.pos); r.face = hero.face; r.m.root.rotation.y = hero.face; }
+  if (back && !r.wasBack) onEvent('passenger');
+  r.wasBack = back;
+  // у второго игрока свой дракон — показываем его под ним
+  if ((last.dr === 1) !== !!r.dragon) { if (r.dragon) { dropDragon(r.m.root, r.dragon); r.dragon = null; } else r.dragon = makeDragon(r.m.root); }
+  if (r.dragon) animDragon(r.dragon, dt, { air: !!c.a, vy: c.vy || 0, speed: c.s || 0, pos: r.m.root.position, face: r.face });
   const stale = !online || now - last.at > 3000;
   r.label.userData.set((stale ? '📶 ' : '') + duoName(who), { color: stale ? '#ffb0b0' : '#ffffff' });
   setCarry(r, last.c); r.label.position.y = last.c ? 4.9 : 3.7;           // с яйцом над головой — имя выше
@@ -170,7 +179,7 @@ function drive(who, dt, online) {
     else { const s = last.sb, P = r.m.root.position; r.ball.scale.setScalar(s * 2); r.ball.position.set(P.x + Math.sin(r.face) * (0.8 + s), P.y + s, P.z + Math.cos(r.face) * (0.8 + s)); r.ball.rotation.x += (c.s || 0) * dt / Math.max(0.3, s); r.ball.rotation.y = r.face; }
   }
   if (!!last.sl !== !!r.sledM) { if (r.sledM) { r.m.root.remove(r.sledM); r.sledM = null; } else r.sledM = sledMesh(r.m.root, 0, -0.35, 0); }
-  animateHero(r.m, dt, { speed: stale ? 0 : c.s, maxSpeed: WALK, air: !!c.a && !stale, vy: c.vy, carry: !!last.c, tool: c.tl, glide: !!c.g, stun: !!last.st });
+  animateHero(r.m, dt, { speed: stale || last.dr ? 0 : c.s, maxSpeed: WALK, air: !!c.a && !stale && !last.dr, vy: c.vy, carry: !!last.c, tool: c.tl, glide: !!c.g, stun: !!last.st, ride: last.dr || 0 });
 }
 
 // раз в кадр
@@ -184,7 +193,7 @@ export function updateDuo(dt) {
       const p = hero.pos, c = hero.carrying;
       const m = { t: 'p', k: locKey(), x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2), f: +hero.face.toFixed(2),
         s: +(hero.animSpeed ?? hero.speed).toFixed(1), a: hero.grounded ? 0 : 1, vy: +hero.vel.y.toFixed(1), c: c ? { r: c.r, v: c.v || null } : null,
-        tl: hero.toolOut || null, g: hero.gliding ? 1 : 0, d: layout ? 1 : 0, st: hero.stun > 0 ? 1 : 0, sb: rollR(), sl: hero.sled ? 1 : 0 };
+        tl: hero.toolOut || null, g: hero.gliding ? 1 : 0, d: layout ? 1 : 0, st: hero.stun > 0 ? 1 : 0, sb: rollR(), sl: hero.sled ? 1 : 0, dr: hero.fly ? 1 : hero.passenger ? 2 : 0 };
       const j = JSON.stringify(m);
       sendT = 0.1; idleT -= 0.1;
       if (j !== lastSent || idleT <= 0) { net.send(m); lastSent = j; idleT = 1; }
@@ -321,6 +330,9 @@ export const onDuoExtra = f => { extra = f; };                // сообщен�
 export const duoSend = m => { if (layout && net.state === 'on') net.send(m); };
 // где сейчас второй игрок, если он рядом в той же локации (в него можно попасть снежком)
 export const partnerPos = () => { const r = R[other]; return layout && r?.m?.root.visible ? r.m.root.position : null; };
+// второй игрок верхом на своём драконе? (мама может сесть сзади) — его позиция и куда смотрит
+export const partnerRide = () => { const r = R[other], l = lastOf(other); return layout && r?.m?.root.visible && r.dragon && l?.dr === 1 ? { pos: r.m.root.position, face: r.face, air: !!l.a } : null; };
+export const partnerFire = () => { const r = R[other]; if (r?.dragon) breathe(r.dragon); };
 
 // для проверок в консоли
 export const duoDebug = () => ({ state: net.state, layout, me, other, R: Object.fromEntries(Object.entries(R).map(([k, r]) => [k, { card: !!r.card, last: r.buf[r.buf.length - 1], vis: r.m?.root.visible }])) });

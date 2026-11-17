@@ -170,8 +170,12 @@ function swingArm(p) {
 }
 
 // анимация: speed — скорость по земле, air — в воздухе
-export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 0, carry = false, stun = false, tool = null, swing = -1, glide = false, sit = false } = {}) {
+export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 0, carry = false, stun = false, tool = null, swing = -1, glide = false, sit = false, ride = false } = {}) {
   animMove(m, dt, speed, maxSpeed, air, vy);
+  if (ride) {                                                              // верхом на драконе: сидит в седле, ноги по бокам, руки вперёд; ride 2 — сзади, на втором седле
+    m.body.position.y = 1.45; m.body.position.z = ride === 2 ? -0.95 : 0; m.legL.rotation.x = m.legR.rotation.x = -1.1; m.legL.rotation.z = -0.45; m.legR.rotation.z = 0.45;
+    m.armL.rotation.x = m.armR.rotation.x = -1.0; m.armL.rotation.z = -0.15; m.armR.rotation.z = 0.15;
+  } else { m.legL.rotation.z = m.legR.rotation.z = 0; m.body.position.z = 0; }
   if (sit) {                                                               // сидит за партой: ноги вперёд, руки на столе
     m.legL.rotation.x = m.legR.rotation.x = -1.45; m.body.position.y = -0.36;
     m.armL.rotation.x = m.armR.rotation.x = -1.1; m.armL.rotation.z = m.armR.rotation.z = 0;

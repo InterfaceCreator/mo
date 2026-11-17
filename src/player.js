@@ -79,20 +79,21 @@ export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
   const mag = Math.min(Math.hypot(wx, wz), 1);
   // зонтик: держишь прыжок в воздухе — падаешь медленно и летишь вперёд быстрее
   pl.gliding = !!(pl.canGlide && pl.holdJump && !pl.grounded && pl.vel.y < 0);
-  const target = (mag < 0.12 ? 0 : WALK * pl.speedMul * (0.35 + 0.65 * mag)) * (pl.gliding ? 1.5 : 1);     // слабое отклонение — шаг, сильное — бег
+  const target = (mag < 0.12 ? 0 : WALK * pl.speedMul * (0.35 + 0.65 * mag)) * (pl.gliding ? 1.5 : 1) * (pl.fly ? 1.7 : 1);   // на драконе — быстрее     // слабое отклонение — шаг, сильное — бег
   const len = Math.hypot(wx, wz); if (len > 0.01) { wx /= len; wz /= len; }
 
   // разгон и торможение быстрые — управление «как в Roblox», без скольжения
-  const accel = pl.grounded ? (pl.ice ? 1.6 : 14) : pl.gliding ? 4 : 6;                 // ice — каток в Зимней долине: скользко
+  const accel = pl.grounded ? (pl.ice ? 1.6 : 14) : pl.gliding ? 4 : pl.fly ? 5 : 6;                 // ice — каток в Зимней долине: скользко
   pl.vel.x = damp(pl.vel.x, wx * target, accel, dt);
   pl.vel.z = damp(pl.vel.z, wz * target, accel, dt);
   if (target > 0) pl.face = dampAngle(pl.face, Math.atan2(wx, wz), 16, dt);
 
   // прыжок
   pl.airT = pl.grounded ? 0 : pl.airT + dt;
-  if (wantJump && pl.airT < COYOTE) { pl.vel.y = JUMP_V * (pl.jumpMul || 1); pl.grounded = false; pl.airT = COYOTE; pl.jumped = true; }
+  if (wantJump && pl.fly) { pl.vel.y = Math.max(pl.vel.y, 0) + 8; pl.vel.y = Math.min(pl.vel.y, 14); pl.grounded = false; pl.airT = COYOTE; pl.jumped = true; }   // дракон: взмах крыльями — в любой момент
+  else if (wantJump && pl.airT < COYOTE) { pl.vel.y = JUMP_V * (pl.jumpMul || 1); pl.grounded = false; pl.airT = COYOTE; pl.jumped = true; }
   else pl.jumped = false;
-  pl.vel.y = Math.max(pl.vel.y - GRAVITY * dt, pl.gliding ? -2.5 : -40);
+  pl.vel.y = Math.max(pl.vel.y - (pl.fly ? 9 : GRAVITY) * dt, pl.gliding ? -2.5 : pl.fly ? -5 : -40);   // на драконе — парит и плавно снижается
 
   const p = pl.pos;
   // по горизонтали — мелкими шагами, чтобы не проскочить сквозь тонкий забор
@@ -115,6 +116,7 @@ export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
       p.y = c.y0 - HERO_H; pl.vel.y = 0;
     }
   }
+  if (pl.fly && p.y > 45) { p.y = 45; pl.vel.y = Math.min(pl.vel.y, 0); }      // выше облаков дракон не летает
   if (p.y < -30) { p.copy(pl.safe || p.set(0, 0, 0)); pl.vel.set(0, 0, 0); }    // на всякий случай: упал за край — на точку появления
 
   pl.model.root.rotation.y = pl.face;
