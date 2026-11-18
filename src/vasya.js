@@ -1,5 +1,5 @@
 // Кот Василий: гуляет по базе по дорожкам; подошёл и встал рядом — садится, жмурится, мурчит, летят сердечки.
-import { T, scene, group, box, damp, dampAngle } from './engine.js';
+import { T, scene, group, box, damp, dampAngle, compactModel } from './engine.js';
 import { onLevelReset } from './world.js';
 import { makeLabel, puff } from './fx.js';
 
@@ -60,7 +60,7 @@ export const vasyaPos = () => cat ? { x: cat.m.root.position.x, z: cat.m.root.po
 onLevelReset(() => { cat = null; });
 
 export function spawnVasya() {
-  const m = buildCat(scene), at = 'G';
+  const m = compactModel(buildCat(scene)), at = 'G';
   m.root.position.set(WP[at][0], 0, WP[at][1]); m.root.scale.setScalar(1.15);
   const label = makeLabel(3.2, 0.8); label.userData.set('🐱 Василий', { color: '#ffffff' }); label.position.set(0, 1.85, 0); m.root.add(label);
   cat = { m, at, to: null, wait: 2, face: 0, petT: 0, heartT: 0, purrT: 0, near: false };

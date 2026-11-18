@@ -1,13 +1,13 @@
 // Друзья: жители базы и леса. Подойди и постой рядом — друг скажет, чего ему хочется.
 // Есть это в рюкзаке — дарим, дружба растёт на сердечко (не чаще раза в 15 минут). 5 сердечек — лучшие друзья.
 // Василий дружит, когда его гладят; бобр Боря — за выполненные задания.
-import { T, scene, group, box, damp, dampAngle } from './engine.js';
+import { T, scene, group, box, damp, dampAngle, compactModel } from './engine.js';
 import { onLevelReset, groundY } from './world.js';
 import { buildBeast, buildBird, animateAnimal } from './animals.js';
 import { makeLabel, puff } from './fx.js';
 import { RES } from './craft.js';
 import { buildCat } from './vasya.js';
-import { buildHero, animateHero, PEOPLE } from './hero.js';
+import { buildHero, animateHero, compactHero, PEOPLE } from './hero.js';
 import { B } from './balance.js';
 
 export const MAX_HEARTS = 5;
@@ -104,7 +104,7 @@ onLevelReset(() => { here.length = 0; });
 export function spawnFriends(loc, save) {
   for (const f of FRIENDS) {
     if (f.loc !== loc || f.x === undefined) continue;
-    const g = group(scene, f.x, groundY(f.x, f.z), f.z), m = f.build(g); m.root.scale.setScalar(f.scale || 1.7);
+    const g = group(scene, f.x, groundY(f.x, f.z), f.z), m = f.build(g); m.root.scale.setScalar(f.scale || 1.7); if (f.human) compactHero(m); else compactModel(m);
     const label = makeLabel(4.6, 1.15); label.position.set(0, f.human ? 3.4 * (f.scale || 1) : 2.6, 0); g.add(label);
     here.push({ f, g, m, label, home: new T.Vector3(f.x, 0, f.z), to: null, wait: Math.random() * 3, face: Math.random() * 6, near: false, stay: 0, hop: 0, shown: '' });
   }

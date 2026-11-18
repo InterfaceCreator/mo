@@ -1,5 +1,5 @@
 // Герой в стиле аватара Roblox: ноги, туловище, руки — бруски, голова с причёской.
-import { group, box, damp } from './engine.js';
+import { group, box, damp, mergeMeshes } from './engine.js';
 
 export const HERO_H = 2.75;   // рост вместе с волосами — для столкновений и камеры
 
@@ -159,6 +159,24 @@ export function buildHero(parent, lookId = 'boy') {
   umbrella.visible = false;
 
   return { root, body, legL, legR, armL, armR, head, hair, torso, tools, umbrella, phase: 0, lean: 0, dims: { TW, TH, TY, AW }, skin: L.skin };
+}
+
+// Житель собран из ~50 кусочков (глаза, пуговицы, волосы…) — склеиваем те, что двигаются вместе:
+// голова со всем, что на ней, туловище с одеждой, каждая рука и нога. Анимация та же, рисовать в разы легче.
+// Только для жителей: одежду на склеенной модели уже не переодеть (герой и второй игрок переодеваются — их не трогаем)
+export function compactHero(m) {
+  if (m.compact) return m;
+  const piv = [m.root, m.body, m.legL, m.legR, m.armL, m.armR, m.head];
+  const stop = new Set([...piv, ...Object.values(m.tools), m.umbrella]);
+  const o = m.outfit;
+  if (o) { if (o.cape) stop.add(o.cape); if (o.balloons) stop.add(o.balloons); if (o.flame) stop.add(o.flame); for (const w of o.wings) stop.add(w.w); }
+  for (const p of piv) {
+    const list = [];
+    (function walk(n) { for (const c of n.children) { if (stop.has(c) || !c.visible) continue; if (c.isMesh) list.push(c); walk(c); } })(p);
+    mergeMeshes(p, list, { split: true });
+  }
+  m.compact = true;
+  return m;
 }
 
 // замах инструментом: p — от 0 до 1. Замах над головой → удар вперёд → назад в «готовность»

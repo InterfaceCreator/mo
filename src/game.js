@@ -1,6 +1,6 @@
 // Правила: украл яйцо → унёс в загон → оно вылупилось → питомец приносит монеты → прокачка → новые зоны.
 import { B } from './balance.js';
-import { T, scene, sky } from './engine.js';
+import { T, scene, sky, dampAngle } from './engine.js';
 import { PEN, level, portals, unlockPortal, clearLevel, groundY, bake } from './world.js';
 import { LOCS, backFrom, defineAllNests, STARS_IN, petHouse } from './locations.js';
 import { updateFun, addPad, nearestFind } from './fun.js';
@@ -18,6 +18,7 @@ import { FRIENDS, spawnFriends, updateFriends, befriend, heartsOf, metFriend, me
 import { startKidGame, updateKidGame, kidGameOn } from './kidgames.js';
 import { buildKids, updateKidSpots, startMini, updateMini, miniGame, miniOn } from './kids.js';
 import { buildPlayground, updatePlayground } from './playground.js';
+import { buildPark, updatePark } from './park.js';
 import { dressHero, ward, openWardrobe, wardOpen } from './clothes.js';
 import { buildHouse, updateHouse, onClothesPad, updateHome, onWardPad, onUpgradePad, openUpgrades, onKitchenPad } from './home.js';
 import { openSpot, openBasket } from './furniture.js';
@@ -127,7 +128,7 @@ function enter(id, spawn, owner = null) {
   if (id === 'base') { buildBase(); buildIncubators(); setIncSlots(save.incSlots); buildPen(save.pets, save.penCap); buildPlots(save); buildMailbox(); spawnVasya(); }
   spawnFriends(id, save);                          // друзья: Ряба на базе, Ёжик, Совёнок, Лисичка, Медвежонок в лесу
   buildKids(id, w);                                // места для игр детей: футбол, боулинг, цветные плиты, челнок
-  if (id === 'base') { buildPlayground(w || scene); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
+  if (id === 'base') { buildPlayground(w || scene); buildPark(w || scene, save, profile); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
   if (id === 'winter') buildWinterFun(save);       // головоломки, сосульки, рыбалка, сова, пингвинята, снежная битва, звёзды
   buildPickups(id, save);                                // продукты для кухни: яйца, яблоки, ягоды, грибы, мёд, снег, какао
   buildRareBox(id, save);                          // сундучок с редкой одеждой (база, лес, осень)   // качели, карусель, пузыри, мяч; свой домик и ларёк одежды
@@ -711,6 +712,12 @@ export function updateGame(dt) {
     for (const k of new Set(pg.sfx)) SFX[k]();
     if (pg.say) toast(pg.say);
     if (pg.coins) save.coins += pg.coins;
+    const pk = updatePark(dt, hero, save);                      // аквапарк: горки, бассейн, рекорд прыжка
+    for (const k of new Set(pk.sfx)) SFX[k]?.();
+    if (pk.say) toast(pk.say);
+    if (pk.coins) save.coins += pk.coins;
+    if (pk.record) { confetti(p, 60); persist(); }
+    if (hero.slide) cam.yaw = dampAngle(cam.yaw, hero.face + Math.PI, 2.5, dt);   // на горке камера сама заходит за спину
   }
   if (kg.count) SFX.tap();
   if (kg.go) SFX.levelUp();

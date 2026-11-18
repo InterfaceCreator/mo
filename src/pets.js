@@ -1,6 +1,6 @@
 // Питомцы: каталог, загон (гуляют и приносят монеты), копилка, картинки для коллекции.
 import { B } from './balance.js';
-import { T, scene, group, box, damp, dampAngle } from './engine.js';
+import { T, scene, group, box, damp, dampAngle, compactModel } from './engine.js';
 import { buildBeast, buildBird, buildDino, buildGorilla, animateAnimal } from './animals.js';
 import { makeLabel, puff, confetti } from './fx.js';
 import { PEN, onLevelReset } from './world.js';
@@ -89,13 +89,13 @@ export const petName = p => (p.rainbow ? 'Радужный ' : p.gold ? 'Зол�
 // модель питомца; золотой — всё золотистое
 const GOLD = new T.MeshLambertMaterial({ color: 0xffd23f, emissive: 0x553300 }); GOLD.userData.cached = true;
 // радужный: цвет плавно перетекает (меняется в updatePen)
-const RAINBOW_MAT = new T.MeshLambertMaterial({ color: 0xff5a5a, emissive: 0x331133 }); RAINBOW_MAT.userData.cached = true;
+const RAINBOW_MAT = new T.MeshLambertMaterial({ color: 0xff5a5a, emissive: 0x331133 }); RAINBOW_MAT.userData.cached = RAINBOW_MAT.userData.live = true;
 export function buildPet(parent, p) {
   const m = SPECIES[p.s].build(parent);
   const k = p.big ? 1.5 : 1; m.root.scale.setScalar(k);
   const skin = p.rainbow ? RAINBOW_MAT : p.gold ? GOLD : null;
   if (skin) m.root.traverse(o => { if (o.isMesh && o.material.color && o.material.color.getHex() !== 0x1a1a1a && o.material.color.getHex() !== 0xffffff) o.material = skin; });
-  return m;
+  return compactModel(m);
 }
 
 // ---------- загон ----------

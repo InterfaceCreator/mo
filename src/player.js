@@ -45,13 +45,14 @@ export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
   if (pl.climb?.ride) {
     const c = pl.climb;
     // нажал прыжок — спрыгнул (с колеса, с горки)
-    if (wantJump && c.t > 0.05) { pl.climb = null; pl.vel.set(Math.sin(pl.face) * 3, JUMP_V * 0.6, Math.cos(pl.face) * 3); pl.grounded = false; pl.jumped = true; return; }
+    if (wantJump && c.t > 0.05 && c.onJump) c.onJump(c.t);                                      // горка с трамплином: прыжок = толчок, не соскок
+    else if (wantJump && c.t > 0.05) { pl.climb = null; pl.vel.set(Math.sin(pl.face) * 3, JUMP_V * 0.6, Math.cos(pl.face) * 3); pl.grounded = false; pl.jumped = true; return; }
     c.t = Math.min(c.t + dt / c.dur, 1);
     const prev = pl.pos.clone(); pl.pos.copy(c.ride(c.t));
     pl.vel.set(0, 0, 0); pl.grounded = false; pl.speed = 0;
     if (c.face !== undefined) pl.model.root.rotation.y = pl.face = c.face;
     else if (pl.pos.distanceTo(prev) > 0.001) pl.model.root.rotation.y = pl.face = Math.atan2(pl.pos.x - prev.x, pl.pos.z - prev.z);
-    if (c.t >= 1) { pl.climb = null; if (c.exit) pl.vel.copy(c.exit); }
+    if (c.t >= 1) { pl.climb = null; if (c.exit) { pl.vel.copy(c.exit); pl.coast = !!c.coast; } }   // coast — с горки летим по инерции
     return;
   }
   // канатная дорога: висим на ролике и едем по тросу вниз (трос чуть провисает)
@@ -83,7 +84,8 @@ export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
   const len = Math.hypot(wx, wz); if (len > 0.01) { wx /= len; wz /= len; }
 
   // разгон и торможение быстрые — управление «как в Roblox», без скольжения
-  const accel = pl.grounded ? (pl.ice ? 1.6 : 14) : pl.gliding ? 4 : pl.fly ? 5 : 6;                 // ice — каток в Зимней долине: скользко
+  if (pl.grounded) pl.coast = false;
+  const accel = pl.grounded ? (pl.ice ? 1.6 : 14) : pl.coast ? 0 : pl.gliding ? 4 : pl.fly ? 5 : 6;                 // ice — каток в Зимней долине: скользко
   pl.vel.x = damp(pl.vel.x, wx * target, accel, dt);
   pl.vel.z = damp(pl.vel.z, wz * target, accel, dt);
   if (target > 0) pl.face = dampAngle(pl.face, Math.atan2(wx, wz), 16, dt);

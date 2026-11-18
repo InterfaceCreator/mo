@@ -1,6 +1,6 @@
 // То, ради чего интересно бродить: звёзды в укромных местах, батуты, зверушки, крылья мельницы, водопад.
 // Всё — объекты текущей локации; локации расставляют их функциями add…
-import { T, scene, group, box, damp, dampAngle } from './engine.js';
+import { T, scene, group, box, damp, dampAngle, compactModel } from './engine.js';
 import { addCollider, onLevelReset, groundY, trees, bake, level } from './world.js';
 import { buildBeast, buildBird, animateAnimal } from './animals.js';
 import { puff, confetti } from './fx.js';
@@ -83,7 +83,7 @@ const CRITTERS = {
 };
 export function addCritter(kind, x, z, area) {
   const K = CRITTERS[kind], g = group(scene, x, groundY(x, z), z), m = K.build(g, critters.length);
-  m.root.scale.setScalar(K.s);
+  m.root.scale.setScalar(K.s); compactModel(m);
   critters.push({ g, m, area, hop: K.hop, run: kind === 'deer' ? 9 : 6, target: new T.Vector3(x, 0, z), wait: Math.random() * 3, face: Math.random() * 6 });
 }
 export const addBunny = (x, z, area) => addCritter('bunny', x, z, area);
@@ -91,7 +91,7 @@ export const addBunny = (x, z, area) => addCritter('bunny', x, z, area);
 // утки плавают по реке туда-сюда; river(z) — где русло
 export function addDuck(river, z0, len) {
   const g = group(scene), m = buildBird(g, { body: 0xffffff, head: 0x2e8b57, beak: 0xffa31a, flat: true, wing: 0xe8e8e8 });
-  m.root.scale.setScalar(0.7); m.legs.forEach(L => L.visible = false);
+  m.root.scale.setScalar(0.7); m.legs.forEach(L => L.visible = false); compactModel(m);
   swimmers.push({ g, m, river, z0, len, t: Math.random() * 10 });
 }
 // бабочки: просто порхают кругами

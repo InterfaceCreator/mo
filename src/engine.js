@@ -122,6 +122,78 @@ export function box(p, w, h, d, color, x = 0, y = 0, z = 0, { shadow = true, stu
   m.position.set(x, y, z); m.castShadow = shadow; m.receiveShadow = true; p.add(m); return m;
 }
 
+// ---------- склейка кубиков ----------
+// Много неподвижных кусочков → один меш на «вид» материала. Цвет каждого кусочка пишется в его вершины,
+// поэтому склеиваются и кусочки разных цветов: видеокарта рисует их одной командой, а выглядит всё так же.
+const vcCache = new Map(), WHITE = new T.Color(1, 1, 1);
+// материал можно «перекрасить в вершины», если он обычный матовый (как у mat())
+// (userData.live — цвет меняется во время игры, например радужный питомец: такой не перекрашиваем)
+export const paintable = m => !!m && m.isMeshLambertMaterial && m.userData?.cached && !m.userData.live && !m.vertexColors && !m.transparent && m.opacity === 1 && m.side === T.FrontSide && !m.emissiveMap && !m.alphaMap;
+function vcMat(src) {
+  const k = (src.map ? src.map.uuid : '-') + '|' + src.emissive.getHex() + '|' + src.emissiveIntensity;
+  if (!vcCache.has(k)) { const m = new T.MeshLambertMaterial({ vertexColors: true, map: src.map, emissive: src.emissive.getHex(), emissiveIntensity: src.emissiveIntensity }); m.userData.cached = true; vcCache.set(k, m); }
+  return vcCache.get(k);
+}
+// meshes — кусочки внутри root (на любой глубине); они переезжают в склеенные меши, лежащие прямо в root.
+// split — тени как были (кто не бросал тень, тот и дальше не бросает); иначе все бросают тень
+export function mergeMeshes(root, meshes, { split = false } = {}) {
+  const buckets = new Map();
+  for (const m of meshes) {
+    if (!m.geometry.index || !m.material?.userData?.cached || Array.isArray(m.material)) continue;
+    // матовые — по виду (цвет уйдёт в вершины); остальные (облака, золото, радужные) — только с тем же материалом
+    const paint = paintable(m.material), M = m.material;
+    const k = (paint ? 'p' + M.map?.uuid + '|' + M.emissive.getHex() + '|' + M.emissiveIntensity : 'm' + M.uuid) + '|' + (split ? m.castShadow : 1);
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push(m);
+  }
+  root.updateMatrixWorld(true);
+  const inv = root.matrixWorld.clone().invert(), mm = new T.Matrix4(), nm = new T.Matrix3(), v = new T.Vector3(), out = [];
+  for (const list of buckets.values()) {
+    if (list.length < 2) continue;
+    let nv = 0, ni = 0;
+    for (const m of list) { nv += m.geometry.attributes.position.count; ni += m.geometry.index.count; }
+    const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), col = new Float32Array(nv * 3), idx = (nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni));
+    let vo = 0, io = 0;
+    for (const m of list) {
+      const g = m.geometry, P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv, I = g.index, c = m.material.color || WHITE;
+      mm.multiplyMatrices(inv, m.matrixWorld); nm.getNormalMatrix(mm);
+      for (let i = 0; i < P.count; i++) {
+        const j = (vo + i) * 3;
+        v.fromBufferAttribute(P, i).applyMatrix4(mm); pos[j] = v.x; pos[j + 1] = v.y; pos[j + 2] = v.z;
+        v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); nor[j] = v.x; nor[j + 1] = v.y; nor[j + 2] = v.z;
+        col[j] = c.r; col[j + 1] = c.g; col[j + 2] = c.b;
+        if (U) { uv[(vo + i) * 2] = U.getX(i); uv[(vo + i) * 2 + 1] = U.getY(i); }
+      }
+      for (let i = 0; i < I.count; i++) idx[io + i] = I.getX(i) + vo;
+      vo += P.count; io += I.count;
+      m.parent.remove(m);
+    }
+    const geo = new T.BufferGeometry();
+    geo.setAttribute('position', new T.BufferAttribute(pos, 3)); geo.setAttribute('normal', new T.BufferAttribute(nor, 3));
+    const paint = paintable(list[0].material);
+    geo.setAttribute('uv', new T.BufferAttribute(uv, 2)); if (paint) geo.setAttribute('color', new T.BufferAttribute(col, 3));
+    geo.setIndex(new T.BufferAttribute(idx, 1)); geo.computeBoundingSphere();
+    const merged = new T.Mesh(geo, paint ? vcMat(list[0].material) : list[0].material);
+    merged.castShadow = split ? list[0].castShadow : true; merged.receiveShadow = true;
+    root.add(merged); out.push(merged);
+  }
+  return out;
+}
+
+// Зверь/птица/питомец: склеиваем кусочки, лежащие прямо в одной группе (они и так двигаются вместе).
+// Группы (лапы, голова, хвост) остаются — анимация та же. Кусочки, на которые модель ссылается сама
+// (глаза моргают, крыло машет), не трогаем. Звать после того, как модель достроена и раскрашена
+export function compactModel(m) {
+  if (!m?.root || m.compact) return m;
+  const keep = new Set();
+  const add = (v, d) => { if (!v || d > 3) return; if (v.isObject3D) { if (v.isMesh) keep.add(v); return; } if (Array.isArray(v)) v.forEach(x => add(x, d + 1)); else if (typeof v === 'object') Object.values(v).forEach(x => add(x, d + 1)); };
+  for (const k in m) if (k !== 'root') add(m[k], 0);
+  const groups = []; m.root.traverse(o => { if (!o.isMesh) groups.push(o); });
+  for (const g of groups) if (g.visible) mergeMeshes(g, g.children.filter(c => c.isMesh && c.visible && !c.children.length && !keep.has(c)), { split: true });
+  m.compact = true;
+  return m;
+}
+
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const lerp = (a, b, t) => a + (b - a) * t;
 // плавное приближение, не зависящее от частоты кадров

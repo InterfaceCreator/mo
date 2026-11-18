@@ -45,7 +45,9 @@ function buildBase(save) {
   solid(w, 41, 0.08, 3, 0xe9d9a6, 23.5, 0, 42.5, { shadow: false }); solid(w, 3, 0.08, 9, 0xe9d9a6, 43, 0, 37.5, { shadow: false });
   box(w, 0.3, 2.4, 0.3, 0x8a5a2b, 5, 1.2, 40.5, { studs: false }); box(w, 2.6, 0.9, 0.15, 0xffd23f, 6, 2.2, 40.5, { studs: false });
   const sign = makeLabel(5, 1.25); sign.position.set(6, 3.4, 40.5); scene.add(sign); sign.userData.set('🏁 Дорожка →', { color: '#ffffff' });
-  solid(w, 94, 12, 2, C.wall, 0, 0, 66, { cam: true });
+  // южная стена с аркой в Аквапарк (park.js): проход по центру, над ним — перемычка
+  solid(w, 41, 12, 2, C.wall, -26.5, 0, 66, { cam: true }); solid(w, 41, 12, 2, C.wall, 26.5, 0, 66, { cam: true });
+  solid(w, 12, 4, 2, C.wall, 0, 8, 66, { cam: true }); box(w, 12.4, 1, 2.4, C.wallBand, 0, 8.2, 66, { studs: true });
   // северная стена с тремя порталами
   for (const [x0, x1] of [[-47, -35], [-17, -9], [9, 17], [35, 47]]) {
     solid(w, x1 - x0, 12, 2, C.wall, (x0 + x1) / 2, 0, -6, { cam: true });
@@ -565,16 +567,17 @@ export { PEN };
 export function mapData(id) {
   const F = FOREST;
   if (id === 'base') return {
-    bounds: { x0: -78, x1: 50, z0: -10, z1: 68 }, ground: '#7fd86a',
+    bounds: { x0: -78, x1: 50, z0: -10, z1: 108 }, ground: '#7fd86a',
     areas: [
       { rect: [-46, 46, -6, 66], fill: '#8fe07a' }, { rect: [-76, -45, 36, 62], fill: '#e0b050' },
       { rect: [-30, -8, 16, 40], fill: '#c8e88a' }, { rect: [8, 30, 16, 40], fill: '#c8e88a' },
+      { rect: [-46, 46, 66, 106], fill: '#8fe07a' }, { rect: [-8, 38, 74, 102], fill: '#7fd4ff' }, { rect: [-29, -19, 81, 91], fill: '#3fa7ff' },
       { rect: [-3, 3, -3, 31], fill: '#efe2b8' }, { rect: [-23, 23, -2.5, 2.5], fill: '#efe2b8' }, { rect: [3, 44, 41, 44], fill: '#efe2b8' },
     ],
     marks: [
       ['🌲', 'Лес', 0, -6], ['🏜️', 'Пустыня', -26, -6], ['❄️', 'Лёд', 26, -6], ['🏁', 'Дорожка', 46, 34],
       ['🐣', 'Загон', -19, 28], ['🛒', 'Магазин', 8, 52], ['🔨', 'Верстак', 0, 57], ['👟', 'Тренировка', -8, 49],
-      ['📬', 'Почта', 5, 30], ['🗼', 'Башня', 38, 24], ['🎠', 'Площадка', 22, 6], ['🏠', 'Мой дом', HOUSE.x, HOUSE.z], ['⛄', 'Зима', -44, WINTER_PORTAL.z], ['👕', 'Одежда', CLOTHES_SHOP.x, CLOTHES_SHOP.z], ['🥅', 'Футбол', -35, 5], ['🍂', 'Осень (за валуном)', -62, 49],
+      ['📬', 'Почта', 5, 30], ['🗼', 'Башня', 38, 24], ['🎠', 'Площадка', 22, 6], ['🏠', 'Мой дом', HOUSE.x, HOUSE.z], ['⛄', 'Зима', -44, WINTER_PORTAL.z], ['👕', 'Одежда', CLOTHES_SHOP.x, CLOTHES_SHOP.z], ['🥅', 'Футбол', -35, 5], ['🍂', 'Осень (за валуном)', -62, 49], ['🎢', 'Аквапарк', -24, 86], ['🏊', 'Бассейн', 15, 88],
     ],
   };
   if (id === 'forest') return {

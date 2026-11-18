@@ -10,7 +10,7 @@ import { T, scene, group, box, mat } from './engine.js';
 import { groundY, solid, addCollider, onLevelReset } from './world.js';
 import { makeLabel, puff, confetti, sprite, emojiTex } from './fx.js';
 import { buildBird, animateAnimal } from './animals.js';
-import { buildHero, animateHero, PEOPLE } from './hero.js';
+import { buildHero, animateHero, compactHero, PEOPLE } from './hero.js';
 import { addStar } from './fun.js';
 import { input } from './input.js';
 import { WINTER, ballTargets } from './winter.js';
@@ -362,7 +362,7 @@ function fort() {
   for (const dx of [-5, 0, 5]) { solid(scene, 3.4, 1.5, 1.2, 0xffffff, o.x + dx, y, o.z - 2); box(scene, 3.4, 0.3, 1.2, 0xf0f6ff, o.x + dx, y + 1.65, o.z - 2); }
   const kids = ['kolya', 'olya'].map((id, i) => {
     const x = o.x + (i ? 2.5 : -2.5), z = o.z - 3.6, g = group(scene, x, y, z); g.userData.dynamic = true;
-    const m = buildHero(g, PEOPLE[id]); g.rotation.y = 0;
+    const m = compactHero(buildHero(g, PEOPLE[id])); g.rotation.y = 0;
     const kid = { id, g, m, x, z, up: false, t: 1 + i * 1.3, hits: 0 };
     ballTargets.push({ x, z, r: 0.9, y0: y + 0.5, y1: y + 3.2, on: () => !!F?.battle && kid.up, hit: () => kidHit(kid) });
     return kid;

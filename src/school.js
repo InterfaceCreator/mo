@@ -4,7 +4,7 @@
 import { T, scene, group, box } from './engine.js';
 import { solid, portal, clouds, onLevelReset } from './world.js';
 import { makeLabel, puff } from './fx.js';
-import { buildHero, PEOPLE } from './hero.js';
+import { buildHero, compactHero, PEOPLE } from './hero.js';
 import { dressHero } from './clothes.js';
 
 export const SCHOOL = { spawn: { x: 0, z: 12, face: Math.PI } };
@@ -91,7 +91,7 @@ export function buildSchool(save, who) {
   box(w, 0.7, 0.7, 0.7, 0x3fa7ff, 11.5, 1.55, -20.5); box(w, 0.4, 0.3, 0.72, 0x4ad04a, 11.5, 1.6, -20.5);
   for (let i = 0; i < 3; i++) box(w, 0.8, 0.15, 0.6, [0xd8261a, 0xffd23f, 0x3fa7ff][i], 9.4, 1.18 + i * 0.15, -20.5);
   const tg = group(scene, 8.8, 0, -21.6); tg.userData.dynamic = true; const tm = buildHero(tg, TEACHER); tg.rotation.y = 0.25;
-  dressHero(tm, { shirt: 'bl_white', legs: 'sk_check', shoes: 'so_heels', glasses: 'round' });
+  dressHero(tm, { shirt: 'bl_white', legs: 'sk_check', shoes: 'so_heels', glasses: 'round' }); compactHero(tm);
   st.teacher = { g: tg, m: tm };
   label('👩‍🏫 Марья Ивановна', 8.8, 4.3, -21.6, 4.6, '#ffe0ea');
   // учительский стул за столом — только у мамы: «Учительская»
@@ -101,7 +101,7 @@ export function buildSchool(save, who) {
   for (const D of DESKS) desk(w, D.x, D.z);
   for (const [id, x, z, wear] of CLASS) {
     const g = group(scene, x, 0.12, z + 1.15); g.userData.dynamic = true; g.rotation.y = Math.PI;
-    const m = buildHero(g, PEOPLE[id]); dressHero(m, wear); g.scale.setScalar(0.8); sitPose(m);
+    const m = buildHero(g, PEOPLE[id]); dressHero(m, wear); compactHero(m); g.scale.setScalar(0.8); sitPose(m);
     st.kids.push({ g, m, ph: Math.random() * 6 });
   }
   // свободные парты: подошёл к стульчику — садишься. Твоя — ближе к доске, с табличкой

@@ -1,6 +1,6 @@
 // Основа мира: текущая локация, её твёрдые блоки (с сеткой для быстрых проверок) и общие строительные кусочки.
 // Локации собираются в locations.js; при переходе всё, что не помечено userData.keep, убирается со сцены.
-import { T, scene, group, box } from './engine.js';
+import { T, scene, group, box, paintable, mergeMeshes } from './engine.js';
 import { makeLabel } from './fx.js';
 
 export const C = {
@@ -167,6 +167,7 @@ export function clouds(p, n = 14) {
     // облако из нескольких «клубов» разного размера
     for (const [w, h, d, dx, dy, dz] of [[12, 3, 6, 0, 0, 0], [7, 3, 5, 2, 2, 0], [6, 2.6, 4.5, -3.5, 1.4, 0.6], [5, 2, 4, 5, 0.8, -0.8], [4, 2, 3.4, -1, 3.4, 0]])
       box(g, w * k, h, d * k, 0xffffff, dx * k, dy, dz * k, { shadow: false }).material = cloudMat;
+    mergeMeshes(g, [...g.children]);                                            // облако — одним мешем
     g.userData.speed = 0.6 + Math.random() * 0.8; g.userData.dynamic = true; spinners.push(g);
   }
 }
@@ -305,6 +306,10 @@ export function bake(root) {
     }
     for (const c of o.children) walk(c);
   })(root);
+  // обычные матовые кусочки — все вместе, цвет в вершинах (разные цвета → одна команда видеокарте)
+  const paint = [];
+  for (const [material, meshes] of buckets) if (meshes.length >= 2 && paintable(material)) { paint.push(...meshes); buckets.delete(material); }
+  mergeMeshes(root, paint);
   for (const [material, meshes] of buckets) {
     if (meshes.length < 2) continue;
     let nv = 0, ni = 0;

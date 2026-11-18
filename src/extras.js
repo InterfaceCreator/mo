@@ -1,6 +1,6 @@
 // Занятия в лесу: канатные дороги, гонка через кольца, клады под крестиками, колодец желаний,
 // ускорители-стрелки и бобр Боря с заданиями. Всё — объекты текущей локации.
-import { T, scene, group, box } from './engine.js';
+import { T, scene, group, box, compactModel } from './engine.js';
 import { onLevelReset, groundY, addCollider } from './world.js';
 import { buildBeast, animateAnimal } from './animals.js';
 import { makeLabel, sprite, emojiTex, puff, confetti, chips } from './fx.js';
@@ -71,6 +71,7 @@ export function addArrow(x, z, dir) {
 export function addBeaver(x, z) {
   const g = group(scene, x, groundY(x, z), z), m = buildBeast(g, { body: 0x8a5a2b, head: 0x9c6a3c, snout: 0xc89a6a, nose: 0x2b2b33, ear: 'round', tail: 'fin', tailC: 0x5a3a1a, w: 0.9, h: 0.75, d: 1.0, hd: 0.7, leg: 0.3 });
   box(m.head, 0.22, 0.16, 0.05, 0xffffff, 0, -0.26, 0.47, { shadow: false });     // зубы
+  compactModel(m);
   m.root.scale.setScalar(1.5); g.rotation.y = Math.PI;
   const mark = sprite(emojiTex('❗'), 1.4); mark.position.set(0, 3.4, 0); g.add(mark);
   const label = makeLabel(4, 1); label.position.set(0, 4.6, 0); g.add(label); label.userData.set('🦫 Бобр Боря', { color: '#ffffff' });

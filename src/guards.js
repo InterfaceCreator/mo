@@ -4,7 +4,7 @@
 // { kind: 'track', x0, x1, border } — Дорожка: то же, но у линии зверь не останавливается, а закручивается и исчезает,
 // или { kind: 'ring', x, z, R } — круг вокруг гнезда.
 import { B } from './balance.js';
-import { T, scene, group, box, damp, dampAngle, clamp } from './engine.js';
+import { T, scene, group, box, damp, dampAngle, clamp, compactModel } from './engine.js';
 import { buildGorilla, buildBeast, buildBird, buildDino, setEyes, animateAnimal } from './animals.js';
 import { spawnZ, puff } from './fx.js';
 import { onLevelReset, groundY, level, nearColliders } from './world.js';
@@ -72,7 +72,7 @@ export function buildGuards(nests) {
   for (const n of nests) {
     if (!n.guard) continue;
     const K = KINDS[n.guard], g = group(scene), m = K.build(g);
-    const s = K.s * (n.s > 1 ? 1.15 : 1); m.root.scale.setScalar(s);
+    const s = K.s * (n.s > 1 ? 1.15 : 1); m.root.scale.setScalar(s); compactModel(m);
     // спит рядом с гнездом: в коридоре — ближе к середине, на открытом месте — в сторону центра карты
     const zn = n.zone, home = new T.Vector3();
     if (zn.kind === 'ring') { const d = Math.hypot(n.x, n.z) || 1; home.set(n.x - n.x / d * 3.4, 0, n.z - n.z / d * 3.4); }
