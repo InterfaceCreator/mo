@@ -65,6 +65,7 @@ export const SFX = {
   note(i = 0) { const f = [523, 659, 784, 988][i % 4]; tone('triangle', f, f, 0.35, 0.24); },
   boom() { noise(0.5, 0.4, 'lowpass', 300); tone('sine', 1400, 300, 0.4, 0.06, 0.05); },
   refill() { [784, 988, 1175].forEach((f, i) => tone('sine', f, f, 0.2, 0.12, i * 0.07)); },
+  bell() { for (let i = 0; i < 6; i++) { tone('triangle', 1568, 1568, 0.18, 0.1, i * 0.16); tone('sine', 1175, 1175, 0.18, 0.06, i * 0.16 + 0.08); } },   // школьный звонок
   // аквапарк: «плюх» в бассейн и свист на горке
   splash() { noise(0.5, 0.45, 'lowpass', 900, 0, 0.8); noise(0.25, 0.25, 'bandpass', 2400, 0.05, 1); for (let i = 0; i < 4; i++) tone('sine', 300 + Math.random() * 300, 700 + Math.random() * 400, 0.08, 0.08, 0.15 + i * 0.07); },
   whoosh() { noise(0.9, 0.22, 'bandpass', 1400, 0, 2.5, 0.25); tone('sine', 500, 900, 0.6, 0.06, 0.05, 0.2); },

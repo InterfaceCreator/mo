@@ -31,13 +31,23 @@ export function sprite(tex, sx, sy = sx) {
 }
 
 // надпись, которую можно менять (таймер над яйцом, доход над питомцем)
-export function makeLabel(w = 2.4, h = 0.6) {
-  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
-  const tex = new T.CanvasTexture(cv), s = sprite(tex, w, h);
+// face — надпись на стене или доске: плоская табличка, повёрнутая на face (0 — смотрит на +z), за камерой не крутится.
+// Без face — как раньше: всегда лицом к камере (имена над головами, вывески над предметами)
+const PLANE = new T.PlaneGeometry(1, 1); PLANE.userData.cached = true;
+export function makeLabel(w = 2.4, h = 0.6, { face } = {}) {
+  const R = face === undefined ? 1 : 2;                                 // табличка бывает большой — холст вдвое чётче
+  const cv = document.createElement('canvas'); cv.width = 256 * R; cv.height = 64 * R;
+  const tex = new T.CanvasTexture(cv);
+  let s;
+  if (face === undefined) s = sprite(tex, w, h);
+  else {
+    s = new T.Mesh(PLANE, new T.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+    s.scale.set(w, h, 1); s.rotation.y = face; s.renderOrder = 10;
+  }
   // coin — нарисовать справа монетку (эмодзи монеты на разных устройствах выглядит по-разному)
   s.userData.set = (text, { color = '#fff', stroke = '#2b2340', coin = false } = {}) => {
     const key = text + color + coin; if (s.userData.text === key) return; s.userData.text = key;
-    const c = cv.getContext('2d'); c.clearRect(0, 0, 256, 64);
+    const c = cv.getContext('2d'); c.setTransform(R, 0, 0, R, 0, 0); c.clearRect(0, 0, 256, 64);
     const font = px => `bold ${px}px "Arial Rounded MT Bold","Trebuchet MS",sans-serif`;
     c.font = font(44); c.textBaseline = 'middle';
     const room = 256 - 14 - (coin ? 48 : 0), w0 = c.measureText(text).width;

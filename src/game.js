@@ -19,6 +19,7 @@ import { startKidGame, updateKidGame, kidGameOn } from './kidgames.js';
 import { buildKids, updateKidSpots, startMini, updateMini, miniGame, miniOn } from './kids.js';
 import { buildPlayground, updatePlayground } from './playground.js';
 import { buildPark, updatePark } from './park.js';
+import { buildDacha, updateDacha } from './dacha.js';
 import { dressHero, ward, openWardrobe, wardOpen } from './clothes.js';
 import { buildHouse, updateHouse, onClothesPad, updateHome, onWardPad, onUpgradePad, openUpgrades, onKitchenPad } from './home.js';
 import { openSpot, openBasket } from './furniture.js';
@@ -44,8 +45,11 @@ import { setCoins, setSun, setSpeed, setItems, toast, petNote, notify, bindNotes
 import { puff, confetti, sprite, emojiTex, makeLabel, fireworks } from './fx.js';
 import { SFX } from './sfx.js';
 import { buildGift, updateGift, mount, dismount, riding, breathe, updateDragon } from './dragon.js';
-import { updateSchool, teacherSays, boardText, SUBJECTS } from './school.js';
-import { openLesson, openDiary, openDay, addGrade, addHomework, homeworkQs, dayDone, school, COINS, openMamaLesson, openTeacher } from './lessons.js';
+import { updateSchool, teacherSays, boardText, SUBJECTS, nearNpc, holdNpc, kidToCanteen, lunchSpot, setHeroSpot, tableMates } from './school.js';
+import { openTalk, friendOf, MAX_FRIEND, DAT } from './chat.js';
+import { setupQuests, updateQuests, questFor, questTalk, questAct, foodQuest, takeFood } from './schoolq.js';
+import { getSchool } from './school.js';
+import { openLesson, openDiary, openDay, openRoom, addGrade, addHomework, homeworkQs, dayDone, school, COINS, openMamaLesson, openTeacher } from './lessons.js';
 
 // баланс — в balance.js
 const { SPEED_MAX, PEN_MAX, INC_MAX, speedCost, treadNeed, INC_COST, penCost, BANANA_COST, BANANA_PACK, SURPRISE_COST, POTION_COST, COMPASS_COST } = B;
@@ -128,7 +132,7 @@ function enter(id, spawn, owner = null) {
   if (id === 'base') { buildBase(); buildIncubators(); setIncSlots(save.incSlots); buildPen(save.pets, save.penCap); buildPlots(save); buildMailbox(); spawnVasya(); }
   spawnFriends(id, save);                          // друзья: Ряба на базе, Ёжик, Совёнок, Лисичка, Медвежонок в лесу
   buildKids(id, w);                                // места для игр детей: футбол, боулинг, цветные плиты, челнок
-  if (id === 'base') { buildPlayground(w || scene); buildPark(w || scene, save, profile); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
+  if (id === 'base') { buildPlayground(w || scene); buildPark(w || scene, save, profile); buildDacha(w || scene); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
   if (id === 'winter') buildWinterFun(save);       // головоломки, сосульки, рыбалка, сова, пингвинята, снежная битва, звёзды
   buildPickups(id, save);                                // продукты для кухни: яйца, яблоки, ягоды, грибы, мёд, снег, какао
   buildRareBox(id, save);                          // сундучок с редкой одеждой (база, лес, осень)   // качели, карусель, пузыри, мяч; свой домик и ларёк одежды
@@ -242,9 +246,10 @@ const ITEMS = [{ id: 'banana', icon: '🍌' }, { id: 'trap', icon: '🪤' }, { i
 // рядом второй игрок на своём драконе — можно сесть к нему сзади
 const canHop = () => { if (riding() || carry) return false; const pr = partnerRide(); return !!pr && Math.hypot(pr.pos.x - hero.pos.x, pr.pos.z - hero.pos.z) < 4.5 && Math.abs(pr.pos.y - hero.pos.y) < 3; };
 const DRAGON_OK = ['base', 'forest', 'autumn', 'winter', 'desert', 'ice'];          // где можно летать на драконе
-const itemCount = id => id === 'dragon' || id === 'fire' || id === 'hop' ? true : id === 'fish' ? 1 : id === 'treat' ? kitchen(save).dishes.length : id === 'snowball' ? winterAmmo() : id === 'banana' ? save.bananas : (save.items?.[id] || 0);
+const itemCount = id => id === 'dragon' || id === 'fire' || id === 'hop' || id === 'talk' ? true : id === 'fish' ? 1 : id === 'treat' ? kitchen(save).dishes.length : id === 'snowball' ? winterAmmo() : id === 'banana' ? save.bananas : (save.items?.[id] || 0);
 function useItem(id) {
   if (itemCount(id) <= 0 || hero.climb) return;
+  if (id === 'talk') { const n = nearNpc(hero.pos); if (n && !document.querySelector('.ov.on')) startTalk(n); return; }
   // на Дорожке батут перебросил бы через ворота — там каждого зверя надо пройти честно
   if (id === 'dragon') {                                                          // 🐉 сесть на дракона / слезть
     if (riding()) { dismount(hero); SFX.tap(); return; }
@@ -428,6 +433,66 @@ function schoolDay() {
   if (profile === 'mama') return openDay(save, { mama: true, sfx: SFX, start: s => openMamaLesson(s, { sfx: SFX, back: schoolDay, done: g => lessonDone(s, g) }) });
   openDay(save, { sfx: SFX, start: (s, lv) => openLesson(s, { sfx: SFX, lv, back: schoolDay, done: g => lessonDone(s, g) }) });
 }
+// ---------- школа: разговоры, столовая ----------
+let talkNpc = null, qSchool = null;
+function startTalk(n) {
+  talkNpc = n; holdNpc(n, true); SFX.tap();
+  openTalk(n, { save, who: profile, sfx: SFX, persist, schoolNow: () => ({ ...(window.__schoolNow?.() || {}) }), motya: profile === 'mama' ? readOther('motya') : null,
+    toCanteen: k => kidToCanteen(k), lunch: takeLunch, buy: buyFood, bestFriend,
+    questFor, questTalk, questAct, foodQuest, takeFood: q => { takeFood(q); SFX.pick(); }, reward: questReward });
+}
+// помог с просьбой: ❤️ дружбы (у ребят) и монетки
+function questReward(n, r) {
+  save.coins += r.coins || 0; SFX.fanfare(); confetti(hero.pos.clone().setY(hero.pos.y + 2), 50);
+  let hearts = '';
+  if (r.hearts && n.kind === 'kid') { const fr = friendOf(save, n.id); if (fr.h < MAX_FRIEND) { fr.h++; hearts = ' · ❤️ дружба'; if (fr.h >= MAX_FRIEND) bestFriend(n); } }
+  persist();
+  setTimeout(() => toast(`🤝 Ты помог${profile === 'mama' ? 'ла' : ''} ${DAT[n.name] || n.name}!<small>+${r.coins} монет${hearts}</small>`), 300);
+}
+function bestFriend(n) {
+  save.coins += 100; persist(); SFX.fanfare(); confetti(hero.pos.clone().setY(hero.pos.y + 2), 80);
+  setTimeout(() => toast(`🎁 ${n.name} — твой лучший друг!<small>подарок: +100 монет</small>`), 600);
+}
+function takeLunch() {
+  school(save).lunchDay = new Date().toDateString(); hero.tray = true; persist(); SFX.pick();
+  puff('🍲', hero.pos.clone().setY(hero.pos.y + 3.4), { size: 1.4 });
+  toast('🍽 Поднос с обедом у тебя!<small>садись за свободное место за любым столом</small>');
+}
+function buyFood(b) {
+  save.coins -= b.price; persist(); SFX.buy();
+  if (b.id === 'pie') hero.jumpT = (hero.jumpT || 0) + 40;
+  if (b.id === 'apple') hero.boostT = (hero.boostT || 0) + 30;
+  if (b.id === 'kompot') hero.bubT = (hero.bubT || 0) + 30;
+  if (b.id === 'bun') hero.bigT = (hero.bigT || 0) + 30;
+  puff(b.icon, hero.pos.clone().setY(hero.pos.y + 3.4), { size: 1.5, rise: 0.8 }); puff('😋', hero.pos.clone().setY(hero.pos.y + 4.4), { size: 1.2 });
+}
+// сел с подносом за стол — ешь 5 секунд; кто ест рядом — подружились за обедом
+function schoolLunch(dt) {
+  if (talkNpc && !document.getElementById('talk').classList.contains('on')) { holdNpc(talkNpc, false); talkNpc = null; }
+  if (hero.tray && !hero.eat && hero.grounded && hero.speed < 3) { const S = lunchSpot(hero.pos); if (S) { hero.eat = { S, t: 5, k: 0 }; setHeroSpot(S); SFX.tap(); toast('😋 Приятного аппетита!'); } }
+  if (!hero.eat) return;
+  const E = hero.eat; E.t -= dt;
+  hero.pos.set(E.S.x, 0, E.S.z); hero.vel.set(0, 0, 0); hero.face = E.S.face; hero.model.root.rotation.y = E.S.face;
+  if ((E.k -= dt) <= 0) { E.k = 1.1; puff(['🥣', '🍲', '🧃', '😋'][Math.floor(Math.random() * 4)], hero.pos.clone().setY(2.6), { size: 1, rise: 0.6 }); }
+  if (E.t > 0) return;
+  hero.eat = null; hero.tray = false; setHeroSpot(null);
+  hero.boostT = (hero.boostT || 0) + 60; save.coins += 20; SFX.levelUp();
+  const td = new Date().toDateString(), with_ = [];
+  for (const k of tableMates(E.S)) { const fr = friendOf(save, k.id); if (fr.lunch !== td && fr.h < MAX_FRIEND) { fr.lunch = td; fr.h++; with_.push(k.name); if (fr.h >= MAX_FRIEND) bestFriend(k); } }
+  persist();
+  toast(`😋 Вкусно! Ты сытый и быстрый<small>👟 бегаешь быстрее 60 с · +20 монет${with_.length ? ` · ❤️ пообедал вместе: ${with_.join(', ')}` : ''}</small>`);
+}
+
+// за партой в кабинете: урок этого предмета (по расписанию — с оценкой, иначе — тренировка)
+function classroom(room) {
+  if (profile === 'mama' || !SUBJECTS[room] || room === 'lib') return schoolDay();
+  const back = () => classroom(room);
+  openRoom(save, room, { sfx: SFX, start: (s, lv, practice) => openLesson(s, { sfx: SFX, lv, back, done: g => practice ? practiceDone(s, g) : lessonDone(s, g) }) });
+}
+function practiceDone(s, g) {
+  teacherSays(g >= 5 ? '🌟' : g >= 4 ? '👍' : '💪', s); if (g >= 4) SFX.fanfare();
+  return 'Это тренировка 🏋️ — в дневник не идёт. Оценку ставят на уроке по расписанию ⭐';
+}
 // учительская: мама меняет Мотину школу (его сохранение на этом же устройстве)
 function teacherRoom() {
   const ms = readOther('motya');
@@ -438,8 +503,8 @@ function teacherRoom() {
 function lessonDone(s, g) {
   const first = !school(save).today.tries[s];
   const r = addGrade(save, s, g), coins = profile === 'mama' && !first ? 0 : COINS[g]; save.coins += coins; persist(); stat('lessons');
-  teacherSays(g >= 5 ? '🌟' : g >= 4 ? '👍' : '💪'); if (g >= 4) { SFX.fanfare(); confetti(hero.pos, g >= 5 ? 70 : 35); }
-  boardText(`${SUBJECTS[s].icon} ${SUBJECTS[s].name}: ${g}`);
+  teacherSays(g >= 5 ? '🌟' : g >= 4 ? '👍' : '💪', s); if (g >= 4) { SFX.fanfare(); confetti(hero.pos, g >= 5 ? 70 : 35); }
+  boardText(`${SUBJECTS[s].icon} ${SUBJECTS[s].name}: ${g}`, s);
   let note = coins ? `+${coins} монет` + (profile === 'mama' ? '' : ' · оценка в дневнике 📒') : 'монеты за это занятие уже получены сегодня';
   if (r.bounty) { save.coins += r.bounty.c; persist(); note += `<br>🎁 Мамин приз за пятёрку: +${r.bounty.c} монет!`; setTimeout(() => toast(`🎁 Мамин приз!<small>+${r.bounty.c} монет за пятёрку</small>`), 900); }
   if (r.dayDone) { note += '<br>🎉 Все уроки на сегодня! Дома — домашнее задание 📝'; boardText('Уроки на сегодня закончились! До завтра 👋'); }
@@ -540,7 +605,11 @@ export function updateGame(dt) {
   hero.jumpT = Math.max(0, (hero.jumpT || 0) - dt); hero.jumpMul = hero.jumpT > 0 ? 1.3 : 1;   // грибной суп и мороженое — прыжок выше
   hero.boostT = Math.max(0, (hero.boostT || 0) - dt); hero.compassT = Math.max(0, (hero.compassT || 0) - dt); hero.dashT = Math.max(0, (hero.dashT || 0) - dt);
   hero.speedMul = speedMul(save.speed) * (carry ? B.CARRY[carry.r] * (carry.v === 'giant' ? 0.9 : 1) : 1) * (hero.boostT > 0 ? B.POTION_MUL : 1) * (hero.dashT > 0 ? 1.8 : 1);   // редкое и огромное яйцо тяжелее; стрелки разгоняют
-  hero.jumpMul = save.tools.boots ? 1.15 : 1;      // прыжок на треть выше (высота растёт как квадрат скорости)
+  hero.jumpMul = (save.tools.boots ? 1.15 : 1) * (hero.jumpT > 0 ? 1.3 : 1);      // сапоги и еда (суп, пирожок) — прыжок выше
+  // компот — пузыри вокруг, булочка — подрос
+  hero.bubT = Math.max(0, (hero.bubT || 0) - dt); hero.bigT = Math.max(0, (hero.bigT || 0) - dt);
+  if (hero.bubT > 0 && Math.random() < dt * 3) puff('🫧', hero.pos.clone().add(new T.Vector3((Math.random() - 0.5) * 2, 1 + Math.random() * 2, (Math.random() - 0.5) * 2)), { size: 0.8, rise: 1.2, life: 1.4 });
+  { const k = hero.bigT > 0 ? 1.3 : 1, r = hero.model.root.scale; if (Math.abs(r.x - k) > 0.001) r.setScalar(r.x + (k - r.x) * Math.min(1, dt * 6)); }
   hero.canGlide = !!save.tools.umbrella;
   applyBonuses();
 
@@ -712,6 +781,7 @@ export function updateGame(dt) {
     for (const k of new Set(pg.sfx)) SFX[k]();
     if (pg.say) toast(pg.say);
     if (pg.coins) save.coins += pg.coins;
+    updateDacha(dt, hero);
     const pk = updatePark(dt, hero, save);                      // аквапарк: горки, бассейн, рекорд прыжка
     for (const k of new Set(pk.sfx)) SFX[k]?.();
     if (pk.say) toast(pk.say);
@@ -752,14 +822,21 @@ export function updateGame(dt) {
   if (level.id === 'school') {                           // школа: сел за парту — расписание и уроки; у двери — дневник
     const sc = updateSchool(dt, hero);
     const anyOv = !!document.querySelector('.ov.on');
-    if (sc.sit && !anyOv && !hero.carrying) { SFX.tap(); hero.sit = sc.sit; schoolDay(); }
+    if (sc.sit && !anyOv && !hero.carrying) { SFX.tap(); hero.sit = sc.sit; classroom(sc.sit.room); }
+    if (sc.bell) { SFX.bell?.(); if (!anyOv) toast(sc.bell); }
     if (sc.teach && !anyOv && !hero.carrying && teacherRoom()) { SFX.tap(); hero.sit = { ...sc.teach, face: 0 }; }
     if (hero.sit) {
       if (!document.querySelector('.ov.on')) hero.sit = null;   // закрыл окно — встал из-за парты
       else { const f = hero.sit.face ?? Math.PI; hero.pos.set(hero.sit.x, 0, hero.sit.z); hero.vel.set(0, 0, 0); hero.face = f; hero.model.root.rotation.y = f; }
     }
     if (sc.diary && !anyOv) { SFX.tap(); diary(); }
-  } else hero.sit = null;
+    schoolLunch(dt);
+    if (getSchool() !== qSchool) { qSchool = getSchool(); setupQuests(save, profile); }
+    const qe = updateQuests(dt, hero);
+    for (const k of qe.sfx || []) SFX[k]?.();
+    if (qe.say) toast(qe.say);
+    if (qe.reward) { save.coins += qe.reward.coins; persist(); SFX.fanfare(); confetti(hero.pos.clone().setY(hero.pos.y + 2), 40); teacherSays('🌟', qe.reward.q.s); }
+  } else { hero.sit = null; hero.eat = null; hero.tray = false; }
   if (level.id === 'secret') {
     const se = updateSecret(dt, hero);
     if (se.letter) showNote(se.letter, SFX);
@@ -838,8 +915,8 @@ export function updateGame(dt) {
   setStars(Object.keys(save.stars || {}).filter(k => k.startsWith(level.id + '-')).length, total);
 
   fedCheck();
-  setEffects([['🧪', hero.boostT], ['🦘', hero.jumpT], ['🐾', fedLeft()], ['🧭', hero.compassT], ['⏱', xe.raceT]]);
-  setCoins(save.coins); setSpeed(save.speed); setItems([...(hero.passenger || canHop() ? [{ id: 'hop', icon: hero.passenger ? '🛬' : '🫶' }] : []), ...(!hero.passenger && save.dragon?.got && DRAGON_OK.includes(level.id) ? [{ id: 'dragon', icon: riding() ? '🛬' : '🐉' }] : []), ...(riding() ? [{ id: 'fire', icon: '🔥' }] : []), ...(kitchen(save).dishes.length && friendNear(hero) ? [{ id: 'treat', icon: '🍽️' }] : []), ...(level.id === 'winter' && atHole(hero) ? [{ id: 'fish', icon: '🎣' }] : []), ...(level.id === 'winter' && !inPond() ? [{ id: 'snowball', icon: '❄️' }] : []), ...ITEMS].map(i => ({ ...i, n: itemCount(i.id) })), useItem);
+  setEffects([['🧪', hero.boostT], ['🦘', hero.jumpT], ['🫧', hero.bubT], ['🍩', hero.bigT], ['🐾', fedLeft()], ['🧭', hero.compassT], ['⏱', xe.raceT]]);
+  setCoins(save.coins); setSpeed(save.speed); setItems([...(level.id === 'school' && !hero.eat && nearNpc(hero.pos) ? [{ id: 'talk', icon: '💬' }] : []), ...(hero.passenger || canHop() ? [{ id: 'hop', icon: hero.passenger ? '🛬' : '🫶' }] : []), ...(!hero.passenger && save.dragon?.got && DRAGON_OK.includes(level.id) ? [{ id: 'dragon', icon: riding() ? '🛬' : '🐉' }] : []), ...(riding() ? [{ id: 'fire', icon: '🔥' }] : []), ...(kitchen(save).dishes.length && friendNear(hero) ? [{ id: 'treat', icon: '🍽️' }] : []), ...(level.id === 'winter' && atHole(hero) ? [{ id: 'fish', icon: '🎣' }] : []), ...(level.id === 'winter' && !inPond() ? [{ id: 'snowball', icon: '❄️' }] : []), ...ITEMS].map(i => ({ ...i, n: itemCount(i.id) })), useItem);
   setRes(save.res, level.id === 'autumn');
 }
 

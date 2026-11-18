@@ -152,7 +152,7 @@ export function buildRoom(w, save, floor = 'home') {
     for (const sx of [-1, 1]) box(cup, 0.1, 0.3, 0.1, c, sx * 0.35, 0.65, 0);
     if (has) cup.children.forEach(o => { o.material = mat(0xffc21a, { emissive: 0x553300 }); });
   }
-  const tl = makeLabel(6, 1.5); tl.position.set(S.x, 5.1, S.z + 0.6); scene.add(tl);
+  const tl = makeLabel(6, 1.5, { face: 0 }); tl.position.set(S.x, 5.1, S.z + 0.6); scene.add(tl);
   tl.userData.set(`🏆 Кубков ${rounds} · ⭐ ${stars} · 🐣 ${save.pets.length}`, { color: '#ffe14d' });
 }
 

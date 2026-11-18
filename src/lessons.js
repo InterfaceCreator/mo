@@ -29,11 +29,17 @@ const MATH = [
   [2, () => { let a = 2 + rnd(9), b = 2 + rnd(9); if (a === b) b = a > 2 ? a - 1 : a + 1; return Q('Где меньше?', `${a}   или   ${b}`, Math.min(a, b), [Math.max(a, b)], `Какое число меньше: ${a} или ${b}?`); }],
   [3, () => { const a = 1 + rnd(3), b = 1 + rnd(3), e = pick(FRUIT); return Q(`${a} + ${b} = ?`, `${e.repeat(a)} ➕ ${e.repeat(b)}`, a + b, nums(a + b, 1, 8), `Сколько будет ${a} плюс ${b}?`); }],
   [3, () => { const n = 2 + rnd(4), e = pick(FRUIT); return Q('Добавили ещё один. Сколько стало?', `${e.repeat(n)} ➕ ${e}`, n + 1, nums(n + 1, 1, 8)); }],
+  // задачка в уме: картинки не считаются, надо сложить в голове
+  [3, () => { const a = 1 + rnd(4), b = 1 + rnd(3), [who, e] = pick([['У Моти', '🍎'], ['У мамы', '🌸'], ['У Коли', '⚽'], ['У Маши', '🖍️']]); return Q(`${who} ${a} ${e}, дали ещё ${b}. Сколько стало?`, `🧒 ${e}`, a + b, nums(a + b, 1, 9), `${who} было ${a}, дали ещё ${b}. Сколько стало?`); }],
   [4, () => { const a = 2 + rnd(5), b = 1 + rnd(4), e = pick(FRUIT); return Q(`${a} + ${b} = ?`, `${e.repeat(a)} ➕ ${e.repeat(b)}`, a + b, nums(a + b, 2, 10), `Сколько будет ${a} плюс ${b}?`); }],
-  [4, () => { const a = 3 + rnd(6), b = 1 + rnd(Math.min(3, a - 1)), e = pick(FRUIT); return Q(`${a} − ${b} = ?`, `${e.repeat(a - b)}${'❌'.repeat(b)}`, a - b, nums(a - b, 0, 9), `Было ${a}, убрали ${b}. Сколько осталось?`); }],
+  [4, () => { const a = 3 + rnd(6), b = 1 + rnd(Math.min(3, a - 1)), e = pick(FRUIT); return Q(`${a} − ${b} = ?`, `${e.repeat(a)} ➖ ${b}`, a - b, nums(a - b, 0, 9), `Было ${a}, убрали ${b}. Сколько осталось?`); }],
+  // сравнить две кучки: надо посчитать обе
+  [4, () => { let a = 3 + rnd(5), b = 3 + rnd(5); if (a === b) b++; const [x, y] = shuffle(FRUIT).slice(0, 2); return Q('Чего больше?', `${x.repeat(a)}<br>${y.repeat(b)}`, a > b ? x : y, [x, y], 'Посчитай. Чего больше?'); }],
   [5, () => { const a = 1 + rnd(5), b = 1 + rnd(4); return Q(`${a} + ? = ${a + b}`, `${a} ➕ ❓ = ${a + b}`, b, nums(b, 1, 9), `Сколько нужно прибавить к ${a}, чтобы получилось ${a + b}?`); }],
   [5, () => { const k = pick([2, 5]), s = 1 + rnd(3), seq = [0, 1, 2, 3].map(i => (s + i) * k); return Q('Какое число дальше?', `${seq.join(', ')}, ❓`, (s + 4) * k, nums((s + 4) * k, k, 30).filter(x => x % k === 0).concat([(s + 4) * k + 1, (s + 4) * k - 1]), `Посмотри: ${seq.join(', ')}. Какое число будет дальше?`); }],
   [5, () => { const a = 5 + rnd(5), b = 2 + rnd(4); return Q(`${a} − ${b} = ?`, `${a} ➖ ${b}`, a - b, nums(a - b, 0, 10), `Сколько будет ${a} минус ${b}?`); }],
+  [5, () => { const a = 1 + rnd(9); return Q(`${a} + ? = 10`, '🔟', 10 - a, nums(10 - a, 0, 9), `Сколько не хватает до десяти, если есть ${a}?`); }],
+  [5, () => { const a = 2 + rnd(4), b = 1 + rnd(a - 1), [who, e] = pick([['Было', '🍬'], ['На ветке', '🐦'], ['В пруду', '🦆']]); return Q(`${who} ${a} ${e}, ${e === '🐦' ? 'улетели' : e === '🦆' ? 'уплыли' : 'съели'} ${b}. Сколько осталось?`, e, a - b, nums(a - b, 0, 6), `${who} ${a}. ${e === '🐦' ? 'Улетели' : e === '🦆' ? 'Уплыли' : 'Съели'} ${b}. Сколько осталось?`); }],
 ];
 const WORDS = [['КОТ', '🐱'], ['ДОМ', '🏠'], ['МЯЧ', '⚽'], ['РЫБА', '🐟'], ['ЛИСА', '🦊'], ['СЛОН', '🐘'], ['АРБУЗ', '🍉'], ['БАНАН', '🍌'], ['УТКА', '🦆'], ['ЖИРАФ', '🦒'],
   ['ЗЕБРА', '🦓'], ['ТОРТ', '🎂'], ['РАКЕТА', '🚀'], ['МАШИНА', '🚗'], ['ГРИБ', '🍄'], ['ЛУНА', '🌙'], ['ВОЛК', '🐺'], ['ПИНГВИН', '🐧'], ['ЁЖИК', '🦔'], ['НОС', '👃'], ['ЕЛЬ', '🌲'], ['ОБЛАКО', '☁️'], ['ИНДЮК', '🦃'],
@@ -41,12 +47,18 @@ const WORDS = [['КОТ', '🐱'], ['ДОМ', '🏠'], ['МЯЧ', '⚽'], ['РЫ
 const LETTERS = 'АБВГДЕЁЖЗИКЛМНОПРСТУФХЦЧШЭЮЯ'.split('');
 const VOWELS = 'АОУЫЭЯЁЮИЕ'.split('');
 const ABC = [
-  [1, () => { const l = pick(LETTERS); return Q(`Найди букву «${l}»`, '🔎', l, LETTERS, `Найди букву ${l}`); }],
+  // буква на слух: вопрос читается вслух, сама буква не написана (нажми 🔊, чтобы послушать ещё)
+  [1, () => { const l = pick(LETTERS); return Q('Какую букву я назвала? 🔊', '👂', l, LETTERS, `Найди букву ${l}`); }],
   [1, () => { const [w, e] = pick(WORDS); return Q('На какую букву начинается?', e, w[0], LETTERS, `На какую букву начинается слово ${low(w)}?`); }],
   [2, () => { const [w, e] = pick(WORDS), wr = WORDS.filter(x => x[0][0] !== w[0]).map(x => x[1]); return Q(`Что начинается на букву «${w[0]}»?`, w[0], e, wr, `Что начинается на букву ${w[0]}?`); }],
   [2, () => { const l = pick(VOWELS); return Q('Найди гласную букву', '🗣️', l, LETTERS.filter(x => !VOWELS.includes(x)), 'Найди гласную букву. Её можно петь'); }],
+  // слог на слух
+  [2, () => { const c = pick('МПСЛНТКРДБ'.split('')), v = pick('АОУИ'.split('')), sy = c + v; return Q('Какой слог я сказала? 🔊', '👂', sy, [...'АОУИЫ'.split('').filter(x => x !== v).map(x => c + x), v + c], `Найди слог ${low(sy)}`); }],
   [3, () => { const [w, e] = pick(WORDS.filter(x => x[0].length <= 5)); return Q('Сколько букв в слове?', `${e} ${w}`, w.length, nums(w.length, 2, 7), `Сколько букв в слове ${low(w)}?`); }],
-  [3, () => { const [w, e] = pick(WORDS); const l = w[w.length - 1]; return Q('На какую букву кончается?', `${e} ${w}`, l, LETTERS, `На какую букву кончается слово ${low(w)}?`); }],
+  [3, () => { const [w, e] = pick(WORDS); const l = w[w.length - 1]; return Q('На какую букву кончается слово?', e, l, LETTERS, `На какую букву кончается слово ${low(w)}?`); }],
+  // прочитай сам: слово написано, вслух не говорится — найди картинку
+  [3, () => { const [w, e] = pick(WORDS.filter(x => x[0].length <= 5)); return Q('Прочитай слово. Что это?', w, e, WORDS.filter(x => x[0] !== w).map(x => x[1]), 'Прочитай слово и найди картинку'); }],
+  [4, () => { const [w, e] = pick(WORDS.filter(x => x[0].length >= 3)); const k = w.split('').filter(c => VOWELS.includes(c)).length; return Q('Сколько слогов в слове? 👏', e, k, nums(k, 1, 4), `Сколько слогов в слове ${low(w)}? Похлопай в ладоши`); }],
   [4, () => { const [w, e] = pick(WORDS.filter(x => x[0].length >= 3 && x[0].length <= 6)); const i = 1 + rnd(w.length - 2); return Q('Какой буквы не хватает?', `${e} ${w.slice(0, i)}_${w.slice(i + 1)}`, w[i], LETTERS, `Какой буквы не хватает в слове ${low(w)}?`); }],
   [5, () => { const [w, e] = pick(WORDS.filter(x => x[0].length <= 5)), wr = WORDS.filter(x => x[0] !== w).map(x => x[0]); return Q('Найди слово', e, w, wr, 'Найди, как пишется это слово'); }],
   [5, () => { const [w, e] = pick(WORDS.filter(x => x[0].length <= 5)); const sc = shuffle(w.split('')).join(' '); return Q('Собери слово из букв', `${e}  ${sc}`, w, [shuffle(w.split('')).join(''), ...WORDS.filter(x => x[0] !== w && x[0].length === w.length).map(x => x[0])], 'Какое слово можно собрать из этих букв?'); }],
@@ -66,8 +78,11 @@ const WORLD = [
   [2, () => { const [n, k] = pick([['🐱 Кошка', 4], ['🐔 Курица', 2], ['🕷️ Паук', 8], ['🐜 Муравей', 6], ['🐶 Собака', 4], ['🦆 Утка', 2], ['🐞 Божья коровка', 6], ['🐙 Осьминог', 8]]); return Q('Сколько лап?', n, k, [2, 4, 6, 8, 3, 5], `Сколько лап у животного ${low(n.split(' ').slice(1).join(' '))}?`); }],
   [3, () => { const [e, q, a] = pick(JOBS); return Q(q, e, a, JOBS.map(x => x[2])); }],
   [3, () => { const [q, a, wr] = pick(TRANSPORT); return Q(q, '🚦', a, wr); }],
+  // что бывает сначала: порядок событий
+  [3, () => { const seq = pick([['🥚', '🐣', '🐔'], ['🌱', '🌿', '🌳'], ['🌰', '🌱', '🌳'], ['🐛', '🦋', '🦋'], ['🌅', '☀️', '🌙']]), first = seq[0]; return Q('Что бывает сначала?', shuffle([...new Set(seq)]).join('   '), first, [...new Set(seq)], 'Что бывает сначала?'); }],
   [4, () => { const [set, odd] = pick(ODD); return Q('Что лишнее?', shuffle(set).join(' '), odd, set); }],
   [4, () => { const [e, q, a, wr] = pick(WEATHER); return Q(q, e, a, wr); }],
+  [4, () => { const [q, a, wr] = pick([['Что утонет в воде?', '🪨', ['🦆', '🎈', '🍃', '🪵']], ['Что растает на солнце?', '⛄', ['🪨', '🧸', '🪵', '🍎']], ['Что растёт на дереве?', '🍎', ['🥕', '🥔', '🍄', '🧅']], ['Что растёт в земле?', '🥕', ['🍎', '🍐', '🍒', '🍌']]]); return Q(q, '🤔', a, wr); }],
   [5, () => { const [q, a, wr] = pick(BODY); return Q(q, '🧒', a, wr); }],
   [5, () => { const [y] = pick([['🥕'], ['🍎'], ['🥦'], ['🍌'], ['🥛'], ['🐟']]); return Q('Что полезнее всего кушать?', '😋', y, ['🍭', '🍟', '🥤', '🍬', '🍩']); }],
   [5, () => { const [a, b, big] = pick([['🐘', '🐭', '🐘'], ['🐳', '🐟', '🐳'], ['🌳', '🌷', '🌳'], ['🏠', '⚽', '🏠'], ['🦒', '🐱', '🦒']]); return Q('Кто или что больше?', `${a}   ${b}`, big, [a, b]); }],
@@ -83,9 +98,16 @@ const SHAPE_Q = [
   [2, () => { const [e, n] = pick(THINGS); return Q('Какого цвета?', e, n, THINGS.filter(x => colorWord(x[1]) !== colorWord(n)).map(x => x[1])); }],
   [2, () => { const [e, n] = pick([['🍕', 'треугольник'], ['🍪', 'круг'], ['🎁', 'квадрат'], ['⚽', 'круг'], ['🧀', 'треугольник'], ['🖼️', 'квадрат']]); return Q('На какую фигуру похоже?', e, n, ['круг', 'треугольник', 'квадрат', 'звезда']); }],
   [3, () => { const a = pick(['🔴', '🟦', '⭐']), b = pick(['🟡', '🔺', '❤️']); return Q('Что дальше?', `${a}${b}${a}${b}${a} ❓`, b, [a, '🟢', '⚪', '🟣'], 'Посмотри на узор. Что будет дальше?'); }],
+  // смешай краски
+  [3, () => { const [a, b, c] = pick([['🔴', '🟡', '🟠'], ['🔵', '🟡', '🟢'], ['🔴', '🔵', '🟣']]); return Q('Смешали краски. Какой цвет получится?', `🖌️ ${a} ➕ ${b}`, c, ['🟠', '🟢', '🟣', '🟤', '⚫'], 'Смешали две краски. Какой цвет получится?'); }],
+  // углы: фигура названа словом — надо знать, сколько у неё углов
+  [3, () => { const [n, k] = pick([['треугольник', 3], ['квадрат', 4], ['круг', 0], ['прямоугольник', 4]]); return Q(`Сколько углов у фигуры «${n}»?`, '📐', k, [0, 2, 3, 4, 5], `Сколько углов у фигуры ${n}?`); }],
   [4, () => { const [e, n] = pick(SHAPES), k = 2 + rnd(4), others = shuffle(SHAPES.filter(x => x[0] !== e).map(x => x[0])).slice(0, 2); const all = shuffle([...Array(k).fill(e), ...others, ...others.slice(0, 1 + rnd(2))]); return Q(`Сколько тут: ${n}?`, all.join(''), k, nums(k, 1, 7), `Посчитай, сколько тут фигур ${n}`); }],
   [4, () => { const a = pick(['🔴', '🟦']), b = pick(['🟡', '🔺']), c = pick(['⭐', '❤️']); return Q('Что дальше?', `${a}${b}${c}${a}${b} ❓`, c, [a, b, '⚪'], 'Посмотри на узор. Что будет дальше?'); }],
-  [5, () => { const [e] = pick(SHAPES), odd = pick(SHAPES.filter(x => x[0] !== e))[0]; return Q('Что лишнее?', shuffle([e, e, e, odd]).join(' '), odd, [e, '🟢', '⚫']); }],
+  // что лишнее по форме: цвета все разные — смотреть надо на форму, а не на цвет
+  [5, () => { const C = ['🔴', '🟢', '🔵', '🟡', '🟣', '🟠'], Sq = ['🟥', '🟩', '🟦', '🟨', '🟪', '🟧'], circ = Math.random() < 0.5, [A, B] = circ ? [C, Sq] : [Sq, C];
+    const idx = shuffle([0, 1, 2, 3, 4, 5]), three = idx.slice(0, 3).map(i => A[i]), odd = B[idx[3]], set = shuffle([...three, odd]);
+    return Q('Что лишнее? Смотри на форму', set.join(' '), odd, three, 'Что лишнее? Подумай про форму, а не про цвет'); }],
   [5, () => { const a = pick(['🔴', '🟦']), b = pick(['🟡', '🔺']); return Q('Что дальше?', `${a}${a}${b}${a}${a}${b}${a} ❓`, a, [b, '⚪', '🟢'], 'Посмотри внимательно на узор. Что будет дальше?'); }],
 ];
 const GEN = { math: MATH, abc: ABC, world: WORLD, shapes: SHAPE_Q };
@@ -96,7 +118,7 @@ export function makeLesson(s, lv = 1, n = 5) {
   const out = [], seen = new Set();
   for (let tries = 0; out.length < n && tries < 80; tries++) {
     const q = pick(Math.random() < 0.6 ? top : all)[1]();
-    const k = q.q + q.pic; if (!seen.has(k) && q.a >= 0) { seen.add(k); out.push(q); }
+    const k = q.q + q.pic + q.say + q.opts[q.a]; if (!seen.has(k) && q.a >= 0) { seen.add(k); out.push(q); }
   }
   return out;
 }
@@ -243,6 +265,30 @@ export function openDay(save, o) {
   if (k > 1) html += `<div class="lnote">🔥 Ходишь в школу ${k} дн. подряд!</div>`;
   $('lessonBody').innerHTML = html;
   $('lessonBody').querySelectorAll('[data-s]').forEach(b => b.onclick = () => { o.sfx.tap?.(); o.start(b.dataset.s, levelOf(save, b.dataset.s)); });
+  openOv('lesson');
+}
+
+// ================= ЗА ПАРТОЙ В КАБИНЕТЕ =================
+// урок предмета s: если он сегодня по расписанию — как обычно (оценка, монеты); если нет — тренировка без оценки
+export function openRoom(save, s, o) {
+  const S = school(save), L = todayList(save), U = SUBJECTS[s], lv = levelOf(save, s), wd = new Date().getDay();
+  $('lessonT').textContent = `${U.icon} ${U.name}`;
+  let html;
+  if (L.includes(s)) {
+    const n = S.today.tries[s] || 0, g = S.today.grade[s];
+    html = `<div class="lpic">${U.icon}</div><div class="lq">Урок «${U.name}» — сегодня по расписанию!</div>`
+      + `<div class="lnote">уровень ${lv} ${'⭐'.repeat(lv)}${g ? ` · оценка: <b>${g}</b>` : ''}</div><div class="lopts col">`
+      + (!n ? `<button data-go="1">▶ Начать урок</button>` : n < 2 && g < 5 ? `<button data-go="1">🔁 Исправить оценку</button>` : `<button data-go="p">🏋️ Ещё потренироваться</button>`) + '</div>';
+    if (n && (n >= 2 || g >= 5)) html += `<div class="lnote">✅ Этот урок на сегодня сделан</div>`;
+  } else {
+    html = `<div class="lpic">${U.icon}</div><div class="lq">Сегодня ${DAY_NAME[wd].toLowerCase()} — урока «${U.name}» нет по расписанию</div>`
+      + `<div class="lnote">Он будет ${DAYS[nextDay(s)]}. А пока можно потренироваться — без оценки</div><div class="lopts col"><button data-go="p">🏋️ Потренироваться</button></div>`;
+  }
+  const left = L.filter(x => !S.today.tries[x] && x !== s);
+  if (left.length && L.length) html += `<div class="lnote">📅 Сегодня ещё: ${left.map(x => `${SUBJECTS[x].icon} ${SUBJECTS[x].name}`).join(' · ')} — ищи таблички у дверей</div>`;
+  else if (L.length && dayDone(save)) html += `<div class="lnote">🎉 Все уроки на сегодня сделаны!</div>`;
+  $('lessonBody').innerHTML = html;
+  $('lessonBody').querySelectorAll('[data-go]').forEach(b => b.onclick = () => { o.sfx.tap?.(); o.start(s, lv, b.dataset.go === 'p'); });
   openOv('lesson');
 }
 

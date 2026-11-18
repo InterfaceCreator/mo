@@ -41,7 +41,7 @@ function room(w, RW, RD, H, wall, floor) {
   // дверь назад, в домик — к зеркалу
   box(w, 2.2, 3, 0.2, 0x9a5a2a, 0, 1.5, hd + 0.05);
   door({ x: 0, z: hd - 0.4, w: 2.2, to: 'home', label: '🏠 Домик', spawn: { x: -1.6, z: -5.2, face: 0 } });
-  const l = makeLabel(3.6, 0.9); l.position.set(0, 3.7, hd - 0.3); scene.add(l); l.userData.set('🚪 Назад, в домик', { color: '#ffffff' });
+  const l = makeLabel(3.6, 0.9, { face: Math.PI }); l.position.set(0, 3.7, hd - 0.3); scene.add(l); l.userData.set('🚪 Назад, в домик', { color: '#ffffff' });
   return { hw, hd };
 }
 
@@ -84,7 +84,7 @@ function mamaRoom(w) {
     box(g, 0.3, 0.38, 0.3, c, 0, 0, 0).material = mat(c, { emissive: new T.Color(c).multiplyScalar(0.55).getHex() }); box(g, 0.34, 0.06, 0.34, 0x6a3f2a, 0, 0.21, 0); box(g, 0.34, 0.06, 0.34, 0x6a3f2a, 0, -0.21, 0);
     st.lanterns.push({ g, y0: g.position.y, ph: i * 0.7 });
   }
-  const hi = makeLabel(5, 1.25); hi.position.set(0, 4.8, -hd + 0.5); scene.add(hi); hi.userData.set('🏮 Тайная комната', { color: '#ffe0b0' });
+  const hi = makeLabel(5, 1.25, { face: 0 }); hi.position.set(0, 4.8, -hd + 0.5); scene.add(hi); hi.userData.set('🏮 Тайная комната', { color: '#ffe0b0' });
 }
 
 // ---------- Мотина секретная база: интересно ----------
@@ -123,7 +123,7 @@ function motyaRoom(w, save) {
   const ll = makeLabel(3, 0.75); ll.position.set(-5.5, 2.2, -4.5); scene.add(ll); ll.userData.set('✉️ Письмо тебе', { color: '#9dffb0' });
   const cl = makeLabel(3.2, 0.8); cl.position.set(6, 2.6, -5); scene.add(cl); st.chestLabel = cl;
   chestLabel(save);
-  const hi = makeLabel(6, 1.5); hi.position.set(0, 5.6, -hd + 0.5); scene.add(hi); hi.userData.set('🚀 Секретная база Моти', { color: '#9dffb0' });
+  const hi = makeLabel(6, 1.5, { face: 0 }); hi.position.set(0, 5.6, -hd + 0.5); scene.add(hi); hi.userData.set('🚀 Секретная база Моти', { color: '#9dffb0' });
 }
 // редкий подарок: светящаяся коробка, открывается один раз — внутри питомец, которого больше нигде нет
 const GIFT = { mama: { s: 'starfox', x: 4.5, z: 1.5, c: 0xff8ab0 }, motya: { s: 'spacedragon', x: 6, z: -1.5, c: 0x6a5aff } };

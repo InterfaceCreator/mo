@@ -102,12 +102,12 @@ export function buildHome(save, profile) {
   windowBox(w, 6, 2.8, -hd + 0.02, 2.4, 1.8); windowBox(w, -hw + 0.02, 2.8, -2, 2.4, 1.8, Math.PI / 2); windowBox(w, hw - 0.02, 2.8, -2, 2.4, 1.8, -Math.PI / 2);
   // дверь на улицу
   box(w, 2.6, 3.4, 0.2, 0xffffff, 0, 1.7, hd + 0.02); box(w, 2.1, 3.1, 0.24, 0x9a5a2a, 0, 1.55, hd);
-  const ex = makeLabel(4, 1); ex.position.set(0, 4.2, hd - 0.4); scene.add(ex); ex.userData.set('🚪 На улицу', { color: '#ffffff' });
+  const ex = makeLabel(4, 1, { face: Math.PI }); ex.position.set(0, 4.2, hd - 0.4); scene.add(ex); ex.userData.set('🚪 На улицу', { color: '#ffffff' });
   door({ x: 0, z: hd - 0.6, w: 2.4, to: 'base', label: '🏠 База' });
   // доска «Улучшения дома» правее двери, перед ней — зелёный коврик
   box(w, 2.2, 1.6, 0.15, 0x9a5a2a, UPGRADE.x, 2.6, hd - 0.1); box(w, 1.9, 1.3, 0.17, 0xfff3c8, UPGRADE.x, 2.6, hd - 0.1);
   box(w, 2.4, 0.05, 1.4, 0x5fd35f, UPGRADE.x, 0.03, UPGRADE.z - 0.6, { shadow: false });
-  const ul = makeLabel(5, 1.25); ul.position.set(UPGRADE.x, 3.9, hd - 0.5); scene.add(ul); ul.userData.set('🔨 Улучшения дома', { color: '#ffffff' });
+  const ul = makeLabel(5, 1.25, { face: Math.PI }); ul.position.set(UPGRADE.x, 3.9, hd - 0.5); scene.add(ul); ul.userData.set('🔨 Улучшения дома', { color: '#ffffff' });
   if (homeOf(save).floor2) stairs(w);
   kitchenCorner(w, hd);
   // ковёр посередине, лампа, цветок, картина
@@ -122,7 +122,7 @@ export function buildHome(save, profile) {
   for (const sx of [-1, 1]) { box(w, 1.65, 3.6, 0.08, 0xb5793e, W.x + sx * 0.88, 2.1, W.z + 0.72); box(w, 0.12, 0.5, 0.1, 0xffc21a, W.x + sx * 0.18, 2.1, W.z + 0.78, { shadow: false }); }
   box(w, 1.6, 0.6, 1, 0xffd23f, W.x + 0.6, 4.3, W.z);
   box(w, 3.2, 0.05, 2, 0x9b6bff, W.pad.x, 0.03, W.pad.z, { shadow: false });
-  const wl = makeLabel(5, 1.25); wl.position.set(W.x, 5.6, W.z + 0.6); scene.add(wl); wl.userData.set('🚪 Шкаф — встань на коврик', { color: '#ffffff' });
+  const wl = makeLabel(5, 1.25, { face: 0 }); wl.position.set(W.x, 5.6, W.z + 0.6); scene.add(wl); wl.userData.set('🚪 Шкаф — встань на коврик', { color: '#ffffff' });
   // зеркало: в нём видно тебя (отдельная камера рисует героя в текстуру)
   const M = MIRROR;
   box(w, M.w + 0.4, M.h + 0.4, 0.14, 0xffc21a, M.x, 2.2, M.z);
@@ -130,11 +130,11 @@ export function buildHome(save, profile) {
   const glass = new T.Mesh(new T.PlaneGeometry(M.w, M.h), new T.MeshBasicMaterial({ map: rt.texture })); glass.position.set(M.x, 2.2, M.z + 0.09); w.add(glass); glass.userData.dynamic = true;
   const cam = new T.PerspectiveCamera(48, M.w / M.h, 0.1, 60); cam.position.set(M.x, 2.2, M.z + 0.2);
   st.mirror = { rt, glass, cam };
-  const ml = makeLabel(3, 0.75); ml.position.set(M.x, 4.3, M.z + 0.3); scene.add(ml); ml.userData.set('🪞 Зеркало', { color: '#ffffff' });
+  const ml = makeLabel(3, 0.75, { face: 0 }); ml.position.set(M.x, 4.3, M.z + 0.3); scene.add(ml); ml.userData.set('🪞 Зеркало', { color: '#ffffff' });
   // мамина пасхалка: подошла к зеркалу — над отражением «самая красивая ✨»
-  const cl = makeLabel(3.2, 0.8); cl.position.set(M.x, 3.55, M.z + 0.35); scene.add(cl); cl.visible = false; cl.userData.set('самая красивая ✨', { color: '#ff8ab8' });
+  const cl = makeLabel(3.2, 0.8, { face: 0 }); cl.position.set(M.x, 3.55, M.z + 0.35); scene.add(cl); cl.visible = false; cl.userData.set('самая красивая ✨', { color: '#ff8ab8' });
   st.compl = { cl, t: 0, sp: 0 };
-  const hi = makeLabel(7, 1.75); hi.position.set(5, 4.7, -hd + 0.6); scene.add(hi); hi.userData.set('🏠 ' + nameOf(profile), { color: '#ffe14d' });
+  const hi = makeLabel(7, 1.75, { face: 0 }); hi.position.set(5, 4.7, -hd + 0.6); scene.add(hi); hi.userData.set('🏠 ' + nameOf(profile), { color: '#ffe14d' });
   buildRoom(w, save);
   return w;
 }
@@ -148,7 +148,7 @@ function stairs(p) {
   for (let i = 0; i < S.n; i++) box(p, 0.1, 1, 0.1, 0xffffff, S.x + 1.25, 0.5 * (i + 1) + 0.5, S.z0 + 0.36 + i * 0.72);   // перила
   const rail = box(p, 0.1, 0.1, S.n * 0.75, 0xffffff, S.x + 1.25, 2.6, S.z0 + S.n * 0.36); rail.rotation.x = -Math.atan(0.5 / 0.72);
   box(p, 2.2, 2.6, 0.12, 0xffffff, S.x, 0.5 * S.n + 1.3, hd - 0.1); box(p, 1.8, 2.3, 0.14, 0x3a4a7a, S.x, 0.5 * S.n + 1.2, hd - 0.1);
-  const l = makeLabel(3.6, 0.9); l.position.set(S.x, 0.5 * S.n + 3.2, hd - 0.6); scene.add(l); l.userData.set('⬆ 2 этаж', { color: '#ffe14d' });
+  const l = makeLabel(3.6, 0.9, { face: Math.PI }); l.position.set(S.x, 0.5 * S.n + 3.2, hd - 0.6); scene.add(l); l.userData.set('⬆ 2 этаж', { color: '#ffe14d' });
   door({ x: S.x, z: hd - 0.9, w: 2.4, to: 'loft', label: '⬆ 2 этаж', spawn: LOFT_SPAWN });
 }
 const LOFT_SPAWN = { x: -6, z: 0, face: Math.PI / 2 }, HOME_FROM_LOFT = { x: STAIRS.x, z: STAIRS.z0 - 1.4, face: Math.PI };
@@ -191,7 +191,7 @@ export function buildLoft(save, profile) {
   // телескоп у окна
   const tg = group(w, 0.5, 0, 5.4); for (const [x, z] of [[-0.4, 0.3], [0.4, 0.3], [0, -0.4]]) { const l = box(tg, 0.08, 1.4, 0.08, 0x5a3a20, x, 0.7, z); l.rotation.x = z * 0.4; }
   const tube = box(tg, 0.3, 0.3, 1.6, 0x3f8fff, 0, 1.6, 0.2); tube.rotation.x = -0.5; box(tg, 0.36, 0.36, 0.2, 0xffd23f, 0, 1.95, 0.85);
-  const hi = makeLabel(6, 1.5); hi.position.set(0.5, 4.8, -hd + 0.6); scene.add(hi); hi.userData.set(`🏠 ${nameOf(profile)} · 2 этаж`, { color: '#ffe14d' });
+  const hi = makeLabel(6, 1.5, { face: 0 }); hi.position.set(0.5, 4.8, -hd + 0.6); scene.add(hi); hi.userData.set(`🏠 ${nameOf(profile)} · 2 этаж`, { color: '#ffe14d' });
   buildRoom(w, save, 'loft');
   return w;
 }
@@ -211,7 +211,7 @@ function kitchenCorner(w, hd) {
   box(w, 4, 0.12, 0.5, 0x9a5a2a, K.x, 3.2, -hd + 0.3);                                      // полка с баночками
   [0xff9f1a, 0xffd23f, 0xd8261a, 0x5fd35f, 0xffffff].forEach((c, i) => { box(w, 0.4, 0.5, 0.35, c, K.x - 1.6 + i * 0.8, 3.52, -hd + 0.3); box(w, 0.42, 0.1, 0.37, 0x9a5a2a, K.x - 1.6 + i * 0.8, 3.82, -hd + 0.3); });
   box(w, 2.6, 0.04, 1.4, 0xff9f1a, K.pad.x, 0.03, K.pad.z, { shadow: false });              // оранжевый коврик
-  const l = makeLabel(4, 1); l.position.set(K.x, 4.4, K.z + 0.3); scene.add(l); l.userData.set('🍳 Кухня — встань на коврик', { color: '#ffffff' });
+  const l = makeLabel(4, 1, { face: 0 }); l.position.set(K.x, 4.4, K.z + 0.3); scene.add(l); l.userData.set('🍳 Кухня — встань на коврик', { color: '#ffffff' });
 }
 export const onKitchenPad = p => near(p, KITCHEN.pad, 1.3, 0.8) && p.y < 0.8;
 

@@ -126,7 +126,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 #lesson .panel,#diary .panel{width:min(94vw,560px)}
 #lessonBody,#diaryBody{overflow-y:auto;text-align:center}
 .lprog{display:flex;gap:6px;justify-content:center;margin:2px 0 8px}.lprog i{width:26px;height:8px;border-radius:4px;background:#dfe4ee}.lprog i.ok{background:#4ad04a}.lprog i.now{background:#ffb020}
-.lq{font-size:min(5.6vw,24px);font-weight:800;margin:6px 0}.lq small{font-weight:600;opacity:.7}
+.lq{font-size:min(5.6vw,24px);font-weight:800;margin:6px 0}.tline{background:#fff6e0;border-radius:16px;padding:12px 14px;color:#3a2a1a}#talk .lopts button small{display:block;font-weight:600;opacity:.7;font-size:.75em}.lq small{font-weight:600;opacity:.7}
 .lsay{font-size:22px;border:0;background:#eaf3ff;border-radius:12px;padding:2px 10px;margin-left:6px;cursor:pointer}
 .lpic{font-size:min(11vw,52px);line-height:1.25;margin:6px 0 10px;word-break:break-word}
 .lopts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}.lopts.col{grid-template-columns:1fr}
@@ -490,6 +490,7 @@ body.spy #spyBar{top:auto;bottom:max(10px,env(safe-area-inset-bottom))}
 <div id="kidhud"></div>
 <div id="toast"></div>
 <div id="lesson" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2 id="lessonT">📚 Урок</h2><div id="lessonBody"></div></div></div>
+<div id="talk" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2 id="talkT">💬</h2><div id="talkBody"></div></div></div>
 <div id="diary" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2 id="diaryT">📒 Дневник</h2><div id="diaryBody"></div></div></div>
 <div id="cook" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🍳 Кухня</h2><div id="cookBody"></div></div></div>
 <div id="ward" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2 id="wardT">👕 Магазин одежды</h2><div class="wardTop"><img id="wardPic" alt=""><div id="wardTabs"></div></div><div id="wardList"></div></div></div>

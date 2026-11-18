@@ -8,6 +8,7 @@ import { T, scene, group, box } from './engine.js';
 import { solid, addCollider, onLevelReset } from './world.js';
 import { water } from './terrain.js';
 import { makeLabel, puff } from './fx.js';
+import { DACHA_GATE } from './dacha.js';
 
 export const PARK = { x0: -46, x1: 46, z0: 66, z1: 106, gate: { x: 0, w: 12 } };
 export const POOL = { x0: -8, x1: 38, z0: 74, z1: 102, floor: -1, surf: -0.25 };
@@ -127,8 +128,14 @@ export function buildPark(w, save, who) {
   // стены парка
   solid(w, 2, 12, P.z1 - P.z0 + 1, 0xb8672a, P.x0, 0, mid(P.z0, P.z1) + 0.5, { cam: true });
   solid(w, 2, 12, P.z1 - P.z0 + 1, 0xb8672a, P.x1, 0, mid(P.z0, P.z1) + 0.5, { cam: true });
-  solid(w, P.x1 - P.x0 + 2, 12, 2, 0xb8672a, 0, 0, P.z1 + 1, { cam: true });
+  // южная стена — с калиткой на дачу (dacha.js) в западном углу
+  const G = DACHA_GATE, gx0 = G.x - G.w / 2, gx1 = G.x + G.w / 2;
+  solid(w, gx0 - P.x0 + 1, 12, 2, 0xb8672a, (P.x0 - 1 + gx0) / 2, 0, P.z1 + 1, { cam: true });
+  solid(w, P.x1 + 1 - gx1, 12, 2, 0xb8672a, (gx1 + P.x1 + 1) / 2, 0, P.z1 + 1, { cam: true });
+  solid(w, G.w, 4.5, 2, 0xb8672a, G.x, 7.5, P.z1 + 1, { cam: true });
   box(w, P.x1 - P.x0 + 2, 1, 2.4, 0xff7b22, 0, 12.5, P.z1 + 1, { studs: true });
+  const dl = makeLabel(5.6, 1.4, { face: Math.PI }); dl.position.set(G.x, 8.6, P.z1 - 0.08); scene.add(dl); dl.userData.set('🏡 На дачу', { color: '#ffe14d' });
+  const dl2 = makeLabel(5.6, 1.4, { face: 0 }); dl2.position.set(G.x, 8.6, P.z1 + 2.08); scene.add(dl2); dl2.userData.set('🎢 Аквапарк', { color: '#ffffff' });
   solid(w, P.gate.w + 2, 1, 4, 0x5fd84a, 0, -1, P.z0);                                          // земля под аркой
   // дорожка от арки к лестнице
   solid(w, 30, 0.08, 2.4, 0xe9d9a6, -12, 0, 68.2, { shadow: false });
@@ -169,10 +176,10 @@ export function buildPark(w, save, who) {
   }
   // табло рекорда у трамплина
   box(w, 0.25, 3.2, 0.25, 0x8a5a2b, -12, 1.6, 79); box(w, 4.4, 1.6, 0.2, 0x2b2b3a, -12, 3.6, 79);
-  st.board = makeLabel(5.2, 1.3); st.board.position.set(-12, 3.6, 78.85); scene.add(st.board);
+  st.board = makeLabel(4.2, 1.05, { face: Math.PI }); st.board.position.set(-12, 3.6, 78.88); scene.add(st.board);
   st.who = who; showBest();
   // большая вывеска над аркой
-  const gl = makeLabel(8, 2); gl.position.set(0, 10, 65); scene.add(gl); gl.userData.set('🎢 Аквапарк', { color: '#ffffff' });
+  const gl = makeLabel(8, 2, { face: Math.PI }); gl.position.set(0, 10, 64.88); scene.add(gl); gl.userData.set('🎢 Аквапарк', { color: '#ffffff' });
 }
 function showBest() { st.board.userData.set(st.best ? `🚀 Рекорд: ${st.best.toFixed(1)} м` : '🚀 Рекорд: прыгни!', { color: '#ffe14d' }); }
 
