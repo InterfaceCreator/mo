@@ -20,6 +20,9 @@ import { buildKids, updateKidSpots, startMini, updateMini, miniGame, miniOn } fr
 import { buildPlayground, updatePlayground } from './playground.js';
 import { buildPark, updatePark } from './park.js';
 import { buildDacha, updateDacha } from './dacha.js';
+import { buildVillage, updateVillage, nearVillager, takeRider } from './village.js';
+import { buildGarden, updateGarden, gardenNear, plant, startFill, startWater, harvest, CROPS, garden, isRipe, isThirsty, timeLeft, busy as gardenBusy } from './garden.js';
+import { openOv as openOverlay, closeOv as closeOverlay } from './ui.js';
 import { dressHero, ward, openWardrobe, wardOpen } from './clothes.js';
 import { buildHouse, updateHouse, onClothesPad, updateHome, onWardPad, onUpgradePad, openUpgrades, onKitchenPad } from './home.js';
 import { openSpot, openBasket } from './furniture.js';
@@ -132,7 +135,7 @@ function enter(id, spawn, owner = null) {
   if (id === 'base') { buildBase(); buildIncubators(); setIncSlots(save.incSlots); buildPen(save.pets, save.penCap); buildPlots(save); buildMailbox(); spawnVasya(); }
   spawnFriends(id, save);                          // друзья: Ряба на базе, Ёжик, Совёнок, Лисичка, Медвежонок в лесу
   buildKids(id, w);                                // места для игр детей: футбол, боулинг, цветные плиты, челнок
-  if (id === 'base') { buildPlayground(w || scene); buildPark(w || scene, save, profile); buildDacha(w || scene); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
+  if (id === 'base') { buildPlayground(w || scene); buildPark(w || scene, save, profile); buildDacha(w || scene); buildGarden(save, hero); buildVillage(w || scene, save); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
   if (id === 'winter') buildWinterFun(save);       // головоломки, сосульки, рыбалка, сова, пингвинята, снежная битва, звёзды
   buildPickups(id, save);                                // продукты для кухни: яйца, яблоки, ягоды, грибы, мёд, снег, какао
   buildRareBox(id, save);                          // сундучок с редкой одеждой (база, лес, осень)   // качели, карусель, пузыри, мяч; свой домик и ларёк одежды
@@ -140,7 +143,7 @@ function enter(id, spawn, owner = null) {
   hero.pos.set(spawn.x, groundY(spawn.x, spawn.z), spawn.z); hero.vel.set(0, 0, 0);
   hero.face = spawn.face; hero.model.root.rotation.y = spawn.face; hero.safe = hero.pos.clone();
   hero.swing = hero.climb = null; hero.stun = 0;
-  hero.sled = false; hero.ice = false;                // санки и каток — только в Зимней долине
+  hero.sled = false; hero.ice = false; hero.swim = false;                // санки и каток — только в Зимней долине
   cam.yaw = spawn.face + Math.PI; cam.init = false;
   portalCool = 1;
 }
@@ -246,10 +249,11 @@ const ITEMS = [{ id: 'banana', icon: '🍌' }, { id: 'trap', icon: '🪤' }, { i
 // рядом второй игрок на своём драконе — можно сесть к нему сзади
 const canHop = () => { if (riding() || carry) return false; const pr = partnerRide(); return !!pr && Math.hypot(pr.pos.x - hero.pos.x, pr.pos.z - hero.pos.z) < 4.5 && Math.abs(pr.pos.y - hero.pos.y) < 3; };
 const DRAGON_OK = ['base', 'forest', 'autumn', 'winter', 'desert', 'ice'];          // где можно летать на драконе
-const itemCount = id => id === 'dragon' || id === 'fire' || id === 'hop' || id === 'talk' ? true : id === 'fish' ? 1 : id === 'treat' ? kitchen(save).dishes.length : id === 'snowball' ? winterAmmo() : id === 'banana' ? save.bananas : (save.items?.[id] || 0);
+const itemCount = id => id === 'dragon' || id === 'fire' || id === 'hop' || id === 'talk' || id.startsWith('g_') ? true : id === 'fish' ? 1 : id === 'treat' ? kitchen(save).dishes.length : id === 'snowball' ? winterAmmo() : id === 'banana' ? save.bananas : (save.items?.[id] || 0);
 function useItem(id) {
   if (itemCount(id) <= 0 || hero.climb) return;
-  if (id === 'talk') { const n = nearNpc(hero.pos); if (n && !document.querySelector('.ov.on')) startTalk(n); return; }
+  if (id === 'talk') { const n = level.id === 'school' ? nearNpc(hero.pos) : nearVillager(hero.pos); if (n && !document.querySelector('.ov.on')) startTalk(n); return; }
+  if (id.startsWith('g_')) return gardenUse(id);
   // на Дорожке батут перебросил бы через ворота — там каждого зверя надо пройти честно
   if (id === 'dragon') {                                                          // 🐉 сесть на дракона / слезть
     if (riding()) { dismount(hero); SFX.tap(); return; }
@@ -433,13 +437,73 @@ function schoolDay() {
   if (profile === 'mama') return openDay(save, { mama: true, sfx: SFX, start: s => openMamaLesson(s, { sfx: SFX, back: schoolDay, done: g => lessonDone(s, g) }) });
   openDay(save, { sfx: SFX, start: (s, lv) => openLesson(s, { sfx: SFX, lv, back: schoolDay, done: g => lessonDone(s, g) }) });
 }
+// ---------- огород на даче ----------
+// кнопки у грядки: 🌱 посадить, 💧 полить, 🧺 собрать, ⏳ сколько ждать; у колодца 🪣; у крыльца 💰 продать
+function gardenItems() {
+  if (level.id !== 'base' || hero.climb || riding() || gardenBusy()) return [];
+  const g = gardenNear(hero.pos); if (!g) return [];
+  if (g.well) return [{ id: 'g_fill', icon: '🪣' }];
+  if (g.porch) return Object.values(garden(save).crop).some(n => n > 0) ? [{ id: 'g_sell', icon: '💰' }] : [];
+  if (!g.P) return [{ id: 'g_plant', icon: '🌱' }];
+  if (isRipe(g.P)) return [{ id: 'g_harvest', icon: '🧺' }];
+  return isThirsty(g.P) ? [{ id: 'g_water', icon: '💧' }] : [{ id: 'g_info', icon: '⏳' }];
+}
+// маленькое окно выбора (то же, что для разговоров)
+function pickMenu(title, line, opts) {
+  document.getElementById('talkT').textContent = title;
+  const b = document.getElementById('talkBody');
+  b.innerHTML = `<div class="lq tline">${line}</div><div class="lopts col">${opts.map((o, k) => `<button data-k="${k}">${o[0]}</button>`).join('')}</div>`;
+  b.querySelectorAll('[data-k]').forEach(x => x.onclick = () => { SFX.tap(); opts[+x.dataset.k][1](); });
+  openOverlay('talk');
+}
+const MOTYA = () => profile === 'mama' ? 'а' : '';
+function gardenUse(id) {
+  const g = gardenNear(hero.pos), G = garden(save);
+  if (id === 'g_fill') { startFill(hero); SFX.splash?.(); return; }
+  if (id === 'g_sell') {
+    const have = Object.entries(G.crop).filter(([, n]) => n > 0), sum = have.reduce((a, [s, n]) => a + CROPS[s].sell * n, 0);
+    return pickMenu('💰 Продать урожай', `Урожай: ${have.map(([s, n]) => `${CROPS[s].icon}×${n}`).join(' ')}`, [
+      [`💰 Продать всё — +${sum} 🪙`, () => { for (const [s] of have) G.crop[s] = 0; save.coins += sum; persist(); SFX.coins(); closeOverlay(document.getElementById('talk')); toast(`💰 Продано! +${sum} монет`); }],
+      ['🤔 Оставлю — угощу друзей', () => closeOverlay(document.getElementById('talk'))]]);
+  }
+  if (!g || g.slot === undefined) return;
+  const k = g.slot;
+  if (id === 'g_plant') return pickMenu('🌱 Что посадим?', `Семена за монетки. Растёт, пока полито 💧`, [
+    ...Object.entries(CROPS).map(([s, C]) => [`${C.icon} ${C.name} — ${C.seed} 🪙<small>растёт ${C.grow / 60000} мин · продашь за ${C.sell}</small>`, () => {
+      if (save.coins < C.seed) return pickMenu('🌱 Что посадим?', 'Не хватает монеток 🪙', [['👌 Ладно', () => closeOverlay(document.getElementById('talk'))]]);
+      plant(k, s); persist(); SFX.place?.(); closeOverlay(document.getElementById('talk'));
+      toast(`🌱 Посадил${MOTYA()}: ${C.icon} ${C.name}!<small>теперь полей 💧 — воду набери в колодце 🪣</small>`);
+    }]),
+    ['👋 Потом', () => closeOverlay(document.getElementById('talk'))]]);
+  if (id === 'g_water') {
+    if (G.can <= 0) { SFX.nope(); return toast('🪣 Лейка пустая<small>набери воды в колодце</small>'); }
+    startWater(hero, k); SFX.whoosh?.(); return;
+  }
+  if (id === 'g_harvest') { const s = harvest(k); persist(); SFX.fanfare(); confetti(hero.pos.clone().setY(hero.pos.y + 1.5), 30); return toast(`🧺 Урожай: ${CROPS[s].icon} ${CROPS[s].name}!<small>продай у крыльца 💰 или угости друзей в школе 🎁</small>`); }
+  if (id === 'g_info') return toast(`⏳ ${CROPS[g.P.s].icon} ${CROPS[g.P.s].name} растёт<small>ещё ${timeLeft(g.P)} — не забывай поливать 💧</small>`);
+}
+// новости почтальона: что сейчас на базе (по сохранению)
+function baseNews() {
+  const N = ['Говорят, в Лесу видели гориллу! 🦍', 'Тётя Галя завезла в магазин свежие бананы 🍌', 'Дедушка Иван полил все клумбы — красота! 🌷', 'Бабушка Нина печёт пирожки — загляни к ней 🥧', 'В школе Тётя Валя сварила вкусный суп 🍲'];
+  if (save.park?.best) N.push(`В аквапарке рекорд прыжка — ${save.park.best} м! Побьёшь? 🚀`); else N.push('В аквапарке новый трамплин — кто дальше всех прыгнет? 🚀');
+  N.push(`В загоне уже ${save.pets.length} питомцев! 🐣`);
+  const cr = Object.values(garden(save).crop || {}).reduce((a, b) => a + b, 0); N.push(cr ? `У тебя на даче урожай — ${cr} шт.! 🥕` : 'На даче грядки ждут семян — посади морковку! 🥕');
+  return N;
+}
+// урожай друзьям и тёте Вале (из разговора в школе)
+const cropsHave = () => Object.entries(garden(save).crop).filter(([, n]) => n > 0).map(([s, n]) => ({ s, n, ...CROPS[s] }));
+function giveCrop(s) { const G = garden(save); if (!(G.crop[s] > 0)) return false; G.crop[s]--; persist(); return true; }
+
 // ---------- школа: разговоры, столовая ----------
 let talkNpc = null, qSchool = null;
 function startTalk(n) {
   talkNpc = n; holdNpc(n, true); SFX.tap();
   openTalk(n, { save, who: profile, sfx: SFX, persist, schoolNow: () => ({ ...(window.__schoolNow?.() || {}) }), motya: profile === 'mama' ? readOther('motya') : null,
     toCanteen: k => kidToCanteen(k), lunch: takeLunch, buy: buyFood, bestFriend,
-    questFor, questTalk, questAct, foodQuest, takeFood: q => { takeFood(q); SFX.pick(); }, reward: questReward });
+    questFor, questTalk, questAct, foodQuest, takeFood: q => { takeFood(q); SFX.pick(); }, reward: questReward,
+    crops: cropsHave, giveCrop,
+    canRide: k => level.id === 'base' && !!save.dragon?.got && !!k.plan && !carry && !hero.passenger,
+    rideKid: k => { closeOverlay(document.getElementById('talk')); if (!riding()) mount(hero); takeRider(k); SFX.fanfare(); toast(`🐉 ${k.name} — позади тебя на драконе!<small>прыжок — взлететь · джойстик — куда лететь · 🛬 — высадить</small>`); }, pie: () => { hero.jumpT = (hero.jumpT || 0) + 40; save.coins += 15; persist(); SFX.levelUp(); }, coins: c => { save.coins += c; persist(); SFX.coins(); }, news: baseNews, gardenBusy: () => garden(save).slots.some(Boolean), special: () => { hero.boostT = (hero.boostT || 0) + 90; hero.jumpT = (hero.jumpT || 0) + 60; save.coins += 20; persist(); SFX.levelUp(); } });
 }
 // помог с просьбой: ❤️ дружбы (у ребят) и монетки
 function questReward(n, r) {
@@ -529,6 +593,7 @@ function inventory() {
     { title: 'Продукты для кухни 🍳', cells: Object.keys(FOOD).map(k => { const n = k === 'pumpkin' ? (save.res.pumpkin || 0) : (kitchen(save).have[k] || 0); return { icon: FOOD[k][0], n, name: FOOD[k][1], sub: FOOD[k][2], dim: !n }; }) },
     { title: 'Блюда — съешь, будет польза', cells: kitchen(save).dishes.length ? kitchen(save).dishes.map((d, i) => { const r = DISHES.find(x => x.id === d.id); return { icon: r.icon, name: r.name, sub: '⭐'.repeat(d.s) + ' · ' + r.what, use: () => { const dd = kitchen(save).dishes.splice(i, 1)[0]; persist(); eatDish(dd); } }; }) : [{ icon: '🍳', name: 'Пока нет', sub: 'готовь на кухне в своём домике', dim: true }] },
     { title: 'Инструменты — навсегда', cells: TOOLS.map(t => ({ icon: t.icon, name: t.name, sub: save.tools[t.id] ? t.info : known(t, save) ? 'сделай на верстаке 🔨' : 'найди свиток 📜', dim: !save.tools[t.id] })) },
+    { title: 'Дача 🏡', cells: [{ icon: '🪣', name: 'Лейка', sub: `поливов: ${garden(save).can}`, dim: !garden(save).can }, ...Object.entries(CROPS).map(([s, C]) => ({ icon: C.icon, n: garden(save).crop[s] || 0, name: C.name, sub: 'урожай', dim: !garden(save).crop[s] }))] },
     { title: 'Школа 🏫', cells: [profile === 'mama' ? (() => { const d = readOther('motya')?.school?.diary || []; return { icon: '📒', name: 'Дневник Моти', sub: `оценок: ${d.length}` + (d.some(x => !x.signed) ? ' · ждёт подписи ✍️' : ''), btn: 'Открыть', use: () => diary() }; })()
       : { icon: '📒', name: 'Дневник', sub: (hwReady() ? '📝 есть домашка! ' : '') + `оценок: ${school(save).diary.length}` + (school(save).diary.some(d => !d.signed) ? ' · мама ещё не подписала' : ''), btn: 'Открыть', use: () => diary() }] },
     { title: 'Находки', cells: [
@@ -743,7 +808,7 @@ export function updateGame(dt) {
   if (mg.lose) { SFX.nope(); toast(mg.say); }
   const ks = updateKidSpots(dt, hero);           // футбольный мяч на базе — можно пинать и без игры
   if (ks.sfx) SFX.kick();
-  if (ks.goal) { SFX.fanfare(); toast('⚽ ГОЛ!<small>позови Колю и Олю — сыграем на счёт</small>'); }
+  if (ks.goal && Math.hypot(p.x + 35, p.z - 9) < 22) { SFX.fanfare(); toast(Math.hypot(p.x + 35, p.z - 9) < 13 ? '⚽ ГОЛ!<small>позови Колю и Олю — сыграем на счёт</small>' : '⚽ Оля забила гол! Коля не поймал 😄'); }
   // магазин одежды на базе и шкаф дома: встал на коврик — открылось окно
   const onCloth = atBase && onClothesPad(p), onWard = level.id === 'home' && !visiting() && onWardPad(p);
   if ((onCloth && !wasOnCloth || onWard && !wasOnWard) && !wardOpen()) { SFX.tap(); openWardrobe({ save, profile, hero: hero.model, shop: onCloth, sfx: SFX, persist }); }
@@ -782,6 +847,16 @@ export function updateGame(dt) {
     if (pg.say) toast(pg.say);
     if (pg.coins) save.coins += pg.coins;
     updateDacha(dt, hero);
+    const vg = updateVillage(dt, hero);
+    if (vg.splash) SFX.splash?.();
+    if (vg.riderOff) {                                         // слез с дракона — пассажир спрыгнул: спасибо и ❤️ (раз в день)
+      const n = vg.riderOff, fr = friendOf(save, n.id), td = new Date().toDateString(); let h = '';
+      if (fr.ride !== td && fr.h < MAX_FRIEND) { fr.ride = td; fr.h++; h = ' · ❤️ дружба'; if (fr.h >= MAX_FRIEND) bestFriend(n); persist(); }
+      toast(`🐉 ${n.name}: «Ура! Это было круто! Спасибо!»<small>покатал${profile === 'mama' ? 'а' : ''} на драконе${h}</small>`);
+    }
+    const gd = updateGarden(dt, hero);
+    if (gd.done === 'fill') { persist(); SFX.refill?.(); toast('🪣 Лейка полная!<small>хватит на 6 поливов — иди к грядке и жми 💧</small>'); }
+    if (gd.done === 'water') { persist(); toast(`💧 Полил${MOTYA()}! Теперь растёт<small>воды хватит на 20 минут · в лейке ещё ${garden(save).can}</small>`); }
     const pk = updatePark(dt, hero, save);                      // аквапарк: горки, бассейн, рекорд прыжка
     for (const k of new Set(pk.sfx)) SFX[k]?.();
     if (pk.say) toast(pk.say);
@@ -916,7 +991,7 @@ export function updateGame(dt) {
 
   fedCheck();
   setEffects([['🧪', hero.boostT], ['🦘', hero.jumpT], ['🫧', hero.bubT], ['🍩', hero.bigT], ['🐾', fedLeft()], ['🧭', hero.compassT], ['⏱', xe.raceT]]);
-  setCoins(save.coins); setSpeed(save.speed); setItems([...(level.id === 'school' && !hero.eat && nearNpc(hero.pos) ? [{ id: 'talk', icon: '💬' }] : []), ...(hero.passenger || canHop() ? [{ id: 'hop', icon: hero.passenger ? '🛬' : '🫶' }] : []), ...(!hero.passenger && save.dragon?.got && DRAGON_OK.includes(level.id) ? [{ id: 'dragon', icon: riding() ? '🛬' : '🐉' }] : []), ...(riding() ? [{ id: 'fire', icon: '🔥' }] : []), ...(kitchen(save).dishes.length && friendNear(hero) ? [{ id: 'treat', icon: '🍽️' }] : []), ...(level.id === 'winter' && atHole(hero) ? [{ id: 'fish', icon: '🎣' }] : []), ...(level.id === 'winter' && !inPond() ? [{ id: 'snowball', icon: '❄️' }] : []), ...ITEMS].map(i => ({ ...i, n: itemCount(i.id) })), useItem);
+  setCoins(save.coins); setSpeed(save.speed); setItems([...((level.id === 'school' && !hero.eat && nearNpc(hero.pos)) || (level.id === 'base' && !hero.climb && !riding() && nearVillager(hero.pos)) ? [{ id: 'talk', icon: '💬' }] : []), ...gardenItems(), ...(hero.passenger || canHop() ? [{ id: 'hop', icon: hero.passenger ? '🛬' : '🫶' }] : []), ...(!hero.passenger && save.dragon?.got && DRAGON_OK.includes(level.id) ? [{ id: 'dragon', icon: riding() ? '🛬' : '🐉' }] : []), ...(riding() ? [{ id: 'fire', icon: '🔥' }] : []), ...(kitchen(save).dishes.length && friendNear(hero) ? [{ id: 'treat', icon: '🍽️' }] : []), ...(level.id === 'winter' && atHole(hero) ? [{ id: 'fish', icon: '🎣' }] : []), ...(level.id === 'winter' && !inPond() ? [{ id: 'snowball', icon: '❄️' }] : []), ...ITEMS].map(i => ({ ...i, n: itemCount(i.id) })), useItem);
   setRes(save.res, level.id === 'autumn');
 }
 

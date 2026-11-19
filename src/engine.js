@@ -155,13 +155,14 @@ export function mergeMeshes(root, meshes, { split = false } = {}) {
     const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), col = new Float32Array(nv * 3), idx = (nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni));
     let vo = 0, io = 0;
     for (const m of list) {
-      const g = m.geometry, P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv, I = g.index, c = m.material.color || WHITE;
+      const g = m.geometry, P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv, I = g.index, c = m.material.color || WHITE, Cv = m.material.vertexColors ? g.attributes.color : null;
       mm.multiplyMatrices(inv, m.matrixWorld); nm.getNormalMatrix(mm);
       for (let i = 0; i < P.count; i++) {
         const j = (vo + i) * 3;
         v.fromBufferAttribute(P, i).applyMatrix4(mm); pos[j] = v.x; pos[j + 1] = v.y; pos[j + 2] = v.z;
         v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); nor[j] = v.x; nor[j + 1] = v.y; nor[j + 2] = v.z;
-        col[j] = c.r; col[j + 1] = c.g; col[j + 2] = c.b;
+        if (Cv) { col[j] = Cv.getX(i); col[j + 1] = Cv.getY(i); col[j + 2] = Cv.getZ(i); }   // уже склеенный кусок: цвета уже в вершинах
+        else { col[j] = c.r; col[j + 1] = c.g; col[j + 2] = c.b; }
         if (U) { uv[(vo + i) * 2] = U.getX(i); uv[(vo + i) * 2 + 1] = U.getY(i); }
       }
       for (let i = 0; i < I.count; i++) idx[io + i] = I.getX(i) + vo;
@@ -170,8 +171,8 @@ export function mergeMeshes(root, meshes, { split = false } = {}) {
     }
     const geo = new T.BufferGeometry();
     geo.setAttribute('position', new T.BufferAttribute(pos, 3)); geo.setAttribute('normal', new T.BufferAttribute(nor, 3));
-    const paint = paintable(list[0].material);
-    geo.setAttribute('uv', new T.BufferAttribute(uv, 2)); if (paint) geo.setAttribute('color', new T.BufferAttribute(col, 3));
+    const paint = paintable(list[0].material), vc = paint || list[0].material.vertexColors;
+    geo.setAttribute('uv', new T.BufferAttribute(uv, 2)); if (vc) geo.setAttribute('color', new T.BufferAttribute(col, 3));
     geo.setIndex(new T.BufferAttribute(idx, 1)); geo.computeBoundingSphere();
     const merged = new T.Mesh(geo, paint ? vcMat(list[0].material) : list[0].material);
     merged.castShadow = split ? list[0].castShadow : true; merged.receiveShadow = true;

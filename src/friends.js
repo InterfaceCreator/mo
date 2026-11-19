@@ -31,10 +31,10 @@ export const FRIENDS = [
     hi: 'Я строю берлогу! Принесёшь 4 бревна?', yes: 'Ур-р! Берлога будет самая лучшая!',
     build: p => buildBeast(p, { body: 0x8a5a2e, snout: 0xd9a066, ear: 'round', w: 0.9, h: 0.7, d: 1.1, hd: 0.72, leg: 0.3 }) },
   // люди: scale — рост (1 — взрослый, 0.8 — ребёнок), r — с какого расстояния заговорит, stay — стоит на месте
-  { id: 'galya', place: 'база, у магазина (справа от прилавка)', name: 'Тётя Галя', loc: 'base', x: 13, z: 51.5, human: true, scale: 1, r: 2.8, stay: true, k: 'leaf', n: 3, where: 'листики — на кустах',
+  { id: 'galya', place: 'база, у магазина (справа от прилавка)', name: 'Тётя Галя', loc: 'base', x: 13, z: 51.5, human: true, scale: 1, r: 2.8, stay: true, work: 'shop', k: 'leaf', n: 3, where: 'листики — на кустах',
     hi: 'Здравствуй, покупатель! Принесёшь 3 листика? Заварю травяной чай.', yes: 'Ох, какой душистый будет чай! Спасибо!',
     build: p => buildHero(p, PEOPLE.galya) },
-  { id: 'gena', place: 'база, у верстака (слева)', name: 'Дядя Гена', loc: 'base', x: -3.4, z: 55, human: true, scale: 1, r: 2.8, stay: true, k: 'plank', n: 2, where: 'доски делают из брёвен на верстаке',
+  { id: 'gena', place: 'база, у верстака (слева)', name: 'Дядя Гена', loc: 'base', x: -11.5, z: 55, human: true, scale: 1, r: 2.8, stay: true, work: 'hammer', k: 'plank', n: 2, where: 'доски делают из брёвен на верстаке',
     hi: 'Мастерим? Сделай на верстаке 2 доски и принеси мне — научу секретам!', yes: 'Вот это доски! Настоящий мастер растёт!',
     build: p => buildHero(p, PEOPLE.gena) },
   { id: 'misha', place: 'Дорожка, у линии', name: 'Тренер Миша', loc: 'track', x: 4.5, z: 1, human: true, scale: 1, r: 3.2, stay: true, special: 'побеждай зверей на Дорожке',
@@ -49,7 +49,7 @@ export const FRIENDS = [
     where: 'тыквы растут на грядке рядом', hi: 'Я стерегу грядку! Принеси 2 тыквы — сделаю фонарики к празднику.', yes: 'Какие тыквы! Будут самые яркие фонарики!',
     build: p => buildHero(p, PEOPLE.scarecrow) },
   // дети — ровесники Моти: подойди — позовут играть (kids.js). Выиграл — дружба растёт
-  { id: 'sonya', place: 'база, у дальней стены за магазином', name: 'Соня', loc: 'base', x: 36, z: 52, human: true, scale: 0.8, r: 2.8, special: 'собирай с ней мячики наперегонки',
+  { id: 'sonya', place: 'база, на детской площадке', name: 'Соня', loc: 'base', x: 40, z: 10, box: { x0: 35.5, x1: 44.5, z0: 9.6, z1: 14 }, run: 2.8, human: true, scale: 0.8, r: 2.8, special: 'собирай с ней мячики наперегонки',
     talk: () => ({ game: 'balls' }), build: p => buildHero(p, PEOPLE.sonya) },
   { id: 'kolya', place: 'база, футбольное поле у портала в Пустыню (на воротах)', name: 'Коля', loc: 'base', x: -27.4, z: 9, human: true, scale: 0.8, r: 2.6, stay: true, special: 'забей ему 3 гола',
     talk: () => ({ game: 'football' }), build: p => buildHero(p, PEOPLE.kolya) },
@@ -121,7 +121,8 @@ export function updateFriends(dt, hero, save) {
   for (const n of here) {
     const g = n.g, q = g.position, dx = p.x - q.x, dz = p.z - q.z, d = Math.hypot(dx, dz);
     let spd = 0;
-    if (n.busy) { n.label.visible = false; continue; }                 // Елисей сейчас играет — им управляет игра
+    if (n.busy) { n.label.visible = !!n.ambient; continue; }           // играет — им управляет игра (сам с собой — подпись видна)
+    if (d > 70) continue;                                              // далеко (за туманом) — «спит»: не ходит и не анимируется
     n.label.visible = true;
     if (d < (n.f.r || 2.6) && Math.abs(p.y - q.y) < 2) {
       // рядом: поворачивается к герою; постоял секунду — разговор (один раз за подход)
@@ -135,14 +136,24 @@ export function updateFriends(dt, hero, save) {
       if (n.to) {
         const vx = n.to.x - q.x, vz = n.to.z - q.z, l = Math.hypot(vx, vz);
         if (l < 0.2) { n.to = null; n.wait = 2 + Math.random() * 4; }
-        else { spd = 1.2; q.x += vx / l * spd * dt; q.z += vz / l * spd * dt; n.face = dampAngle(n.face, Math.atan2(vx, vz), 6, dt); }
-      } else if (!n.f.stay && (n.wait -= dt) <= 0) { const a = Math.random() * 6.28, r = 1 + Math.random() * 2.5; n.to = { x: n.home.x + Math.cos(a) * r, z: n.home.z + Math.sin(a) * r }; }
+        else { spd = n.f.run || 1.2; q.x += vx / l * spd * dt; q.z += vz / l * spd * dt; n.face = dampAngle(n.face, Math.atan2(vx, vz), 6, dt); }
+      } else if (!n.f.stay && (n.wait -= dt) <= 0) {
+        const B = n.f.box;                                                // бегает по своей площадке (Соня) — или гуляет у дома
+        if (B) { n.to = { x: B.x0 + Math.random() * (B.x1 - B.x0), z: B.z0 + Math.random() * (B.z1 - B.z0) }; n.wait = 0.3 + Math.random() * 1.2; }
+        else { const a = Math.random() * 6.28, r = 1 + Math.random() * 2.5; n.to = { x: n.home.x + Math.cos(a) * r, z: n.home.z + Math.sin(a) * r }; }
+      }
       q.y = damp(q.y, groundY(q.x, q.z), 10, dt);
     }
     g.rotation.y = n.face;
     // от радости подпрыгивает
     if (n.hop > 0) { n.hop -= dt; n.m.root.position.y = Math.abs(Math.sin(n.hop * 12)) * 0.6; } else n.m.root.position.y = 0;
     if (n.f.human) animateHero(n.m, dt, { speed: spd, maxSpeed: 3 }); else animateAnimal(n.m, dt, spd);
+    // за работой (пока Мотя не подошёл): дядя Гена стучит молотком, тётя Галя раскладывает товар
+    if (n.f.work && !n.near && d > (n.f.r || 2.6) + 0.5) {
+      const t = performance.now() / 1000;
+      if (n.f.work === 'hammer') { n.m.armR.rotation.x = -1.4 + Math.abs(Math.sin(t * 5)) * -0.9; if (Math.sin(t * 5) > 0.97 && Math.random() < 0.5) puff('✨', g.position.clone().add(new T.Vector3(Math.sin(n.face) * 1.2, 1.4, Math.cos(n.face) * 1.2)), { size: 0.5, rise: 0.5, life: 0.4 }); }
+      else { n.m.armL.rotation.x = -0.8 + Math.sin(t * 2) * 0.4; n.m.armR.rotation.x = -0.8 - Math.sin(t * 2.3) * 0.4; n.face = dampAngle(n.face, n.f.workFace ?? n.face, 4, dt); }
+    }
     setLabel(n, save);
   }
   // за кадр говорит только один — ближайший (чтобы реплики не перебивали друг друга)

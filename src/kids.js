@@ -158,11 +158,37 @@ export function buildKids(loc, w) {
 // футбольный мяч на базе можно пинать и без игры; забил — «ГОЛ!»
 export function updateKidSpots(dt, hero) {
   const ev = {};
+  ambientFootball(dt, hero);
   if (st.ball && game?.kind !== 'football') {
     if (stepBall(st.ball, dt, hero, { kick: 13, lift: 2.5, friction: 0.6, box: { x0: -45, x1: 45, z0: -3, z1: 63 } })) { ev.sfx = 'kick'; aim(st.ball); }
     if (goal(st.ball)) { puff('⚽', st.ball.m.position.clone().setY(3), { size: 2 }); ev.goal = true; setTimeout(() => st.ball && placeBall(st.ball, KICKOFF, FIELD.z), 1200); }
   }
   return ev;
+}
+// Коля и Оля играют сами, пока Мотя не подошёл к полю: Оля бьёт по воротам, Коля в воротах ловит и выбивает обратно.
+// Подошёл — отпускаем их (стоят, говорят, зовут сыграть на счёт, как раньше)
+function ambientFootball(dt, hero) {
+  const K = nodeOf('kolya'), O = nodeOf('olya'), b = st.ball, F = FIELD;
+  if (!K || !O || !b) return;
+  const A = st.amb || (st.amb = { on: false, ocool: 1, catch: false });
+  const far = Math.hypot(hero.pos.x - (F.x0 + F.x1) / 2, hero.pos.z - F.z) > 13 && !game;
+  if (!far) { if (A.on) { A.on = false; K.ambient = O.ambient = false; if (!game) K.busy = O.busy = false; } return; }
+  A.on = true; K.busy = O.busy = true; K.ambient = O.ambient = true;
+  const q = b.m.position;
+  // вратарь ходит по линии ворот за мячом
+  const kz = q.x > F.x1 - 9 ? clamp(q.z, F.z - 1.2, F.z + 1.2) : F.z;
+  if (run(K, F.x1 - 0.9, kz, 2.4, dt) < 0.1) look(K, q.x, q.z, dt);
+  if (A.catch && Math.hypot(q.x - K.g.position.x, q.z - K.g.position.z) < 0.85 + b.r && q.y < 2.2 && b.v.x > -1) {
+    A.catch = false; b.v.set(-rnd(6, 9), 3, rnd(-2.5, 2.5)); bump(K, '🧤');
+  }
+  // нападающая: бежит за мячом (держится внутри поля), заходит со стороны и бьёт по воротам
+  A.ocool -= dt;
+  const tx = clamp(q.x - 0.7, F.x0 + 1, F.x1 - 3), tz = clamp(q.z, F.z0 + 0.8, F.z1 - 0.8);
+  const od = run(O, tx, tz, A.ocool > 0 ? 1.6 : 3.4, dt);
+  if (od < 0.6 + b.r && A.ocool <= 0 && q.x < F.x1 - 2) {
+    b.v.set(rnd(9, 13), rnd(1.5, 3), rnd(-2.5, 2.5)); aim(b); A.catch = Math.random() < 0.5; A.ocool = rnd(1.8, 3);
+    if (!A.catch) setTimeout(() => { if (st.amb?.on) bump(O, '🎉'); }, 900);
+  }
 }
 // подсказка прицела: пнул примерно в сторону ворот — мяч сам подворачивает в створ (детям так легче попасть)
 function aim(b) {

@@ -71,6 +71,7 @@ export function updateVasya(dt, hero) {
   if (!cat) return {};
   const ev = {}, m = cat.m, p = m.root.position, h = hero.pos, now = performance.now() / 1000;
   const dx = h.x - p.x, dz = h.z - p.z, dist = Math.hypot(dx, dz);
+  if (dist > 80) return ev;                                          // далеко — кот дремлет на месте
   const petting = dist < 2.4 && hero.speed < 1.2 && Math.abs(h.y - p.y) < 1.5;
   if (dist < 3.5 && !cat.near) ev.meow = true;                    // подошёл — «мяу»
   cat.near = dist < 3.5;

@@ -188,7 +188,7 @@ function swingArm(p) {
 }
 
 // анимация: speed — скорость по земле, air — в воздухе
-export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 0, carry = false, stun = false, tool = null, swing = -1, glide = false, sit = false, ride = false } = {}) {
+export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 0, carry = false, stun = false, tool = null, swing = -1, glide = false, sit = false, ride = false, swim = false } = {}) {
   animMove(m, dt, speed, maxSpeed, air, vy);
   if (ride) {                                                              // верхом на драконе: сидит в седле, ноги по бокам, руки вперёд; ride 2 — сзади, на втором седле
     m.body.position.y = 1.45; m.body.position.z = ride === 2 ? -0.95 : 0; m.legL.rotation.x = m.legR.rotation.x = -1.1; m.legL.rotation.z = -0.45; m.legR.rotation.z = 0.45;
@@ -222,6 +222,17 @@ export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 
     m.armL.rotation.x = m.armR.rotation.x = -2.95;
     m.armL.rotation.z = -0.12; m.armR.rotation.z = 0.12;
   }
+  // плывёт: лёг на воду животом, гребёт руками по очереди (кроль), болтает ногами; чуть покачивается на волне
+  if (swim) {
+    m.swimT = (m.swimT || 0) + dt * (speed > 0.3 ? 5 : 2.2);
+    const t = m.swimT;
+    // тело поворачивается вокруг ступней: поднимаем к поверхности (стоим на дне — вода по пояс) и сдвигаем назад, чтобы пловец был по центру
+    m.body.rotation.x = 1.35; m.body.position.y = 0.55 + Math.sin(t * 0.8) * 0.05; m.body.position.z = -1.3;
+    m.armL.rotation.x = -(t % (Math.PI * 2)); m.armR.rotation.x = -((t + Math.PI) % (Math.PI * 2));
+    m.armL.rotation.z = -0.15; m.armR.rotation.z = 0.15;
+    m.legL.rotation.x = Math.sin(t * 2.6) * 0.45; m.legR.rotation.x = -Math.sin(t * 2.6) * 0.45;
+    m.head.rotation.x = -0.9;                                             // голову поднимает над водой
+  } else if (m.head.rotation.x < -0.5) m.head.rotation.x = 0;
   // поймали — плюхнулся и сплющился
   const sy = stun ? 0.6 : 1;
   m.body.scale.y = damp(m.body.scale.y, sy, stun ? 20 : 8, dt);

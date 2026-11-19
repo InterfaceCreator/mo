@@ -2,8 +2,9 @@
 // (берёзы и яблони, полевые цветы, ручеёк с мостиком, скамейка, указатель), а в конце — участок:
 // забор-штакетник, бревенчатый домик с крылечком и дымком из трубы, колодец, яблони, будка, пугало и грядки
 // (пока пустые — на них потом будем сажать). Всё неподвижное — склеивается в общие меши (почти не грузит).
-import { T, group, box } from './engine.js';
+import { T, group, box, mat } from './engine.js';
 import { solid, tree, addCollider, onLevelReset } from './world.js';
+import { water } from './terrain.js';
 import { makeLabel, puff } from './fx.js';
 import { buildHero, compactHero, PEOPLE } from './hero.js';
 import { scene } from './engine.js';
@@ -35,21 +36,65 @@ export function buildDacha(w) {
   // дорога: плавная грунтовка
   const curve = new T.CatmullRomCurve3(ROAD.map(([x, z]) => new T.Vector3(x, 0, z))), L = curve.getLength(), n = Math.ceil(L / 1.2);
   const P = curve.getSpacedPoints(n), road = [];
-  for (let i = 0; i < n; i++) {
-    const a = P[i], b = P[i + 1], d = b.clone().sub(a), m = box(w, 3.2, 0.06, d.length() + 0.25, i % 7 === 3 ? 0xcaa877 : 0xd9b98a, mid(a.x, b.x), 0.03, mid(a.z, b.z), { shadow: false, studs: false });
-    m.rotation.y = Math.atan2(d.x, d.z); road.push({ x: a.x, z: a.z, rx: Math.cos(m.rotation.y), rz: -Math.sin(m.rotation.y) });
+  // дорога — одна гладкая лента (без брусков, которые на поворотах налезают друг на друга углами)
+  const RW = 1.6, pos = [], nor = [], uv = [], idx = [];
+  for (let i = 0; i <= n; i++) {
+    const t = curve.getTangentAt(Math.min(1, i / n)), rx = t.z, rz = -t.x, l = Math.hypot(rx, rz) || 1, a = P[i];
+    road.push({ x: a.x, z: a.z, rx: rx / l, rz: rz / l });
+    pos.push(a.x - rx / l * RW, 0.05, a.z - rz / l * RW, a.x + rx / l * RW, 0.05, a.z + rz / l * RW);
+    nor.push(0, 1, 0, 0, 1, 0); uv.push(0, i / 2, 1, i / 2);
+    if (i < n) { const k = i * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); }
+  }
+  const rg = new T.BufferGeometry();
+  rg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); rg.setAttribute('normal', new T.Float32BufferAttribute(nor, 3)); rg.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); rg.setIndex(idx);
+  const rm = new T.Mesh(rg, mat(0xd9b98a)); rm.receiveShadow = true; w.add(rm);
+  // обочина чуть темнее — аккуратный край
+  for (const sd of [-1, 1]) {
+    const ep = [], en = [], eu = [], ei = [];
+    road.forEach((q, i) => { const o1 = RW * sd, o2 = (RW + 0.35) * sd; ep.push(q.x + q.rx * o1, 0.045, q.z + q.rz * o1, q.x + q.rx * o2, 0.045, q.z + q.rz * o2); en.push(0, 1, 0, 0, 1, 0); eu.push(0, 0, 1, 0); if (i < n) { const k = i * 2; ei.push(...(sd > 0 ? [k, k + 2, k + 1, k + 1, k + 2, k + 3] : [k, k + 1, k + 2, k + 1, k + 3, k + 2])); } });
+    const eg = new T.BufferGeometry(); eg.setAttribute('position', new T.Float32BufferAttribute(ep, 3)); eg.setAttribute('normal', new T.Float32BufferAttribute(en, 3)); eg.setAttribute('uv', new T.Float32BufferAttribute(eu, 2)); eg.setIndex(ei);
+    const em = new T.Mesh(eg, mat(0xbfa070)); em.receiveShadow = true; w.add(em);
   }
   st.road = road;
   // ручеёк поперёк и мостик на дороге
-  const bz = STREAM_Z, br = road.reduce((p, q) => Math.abs(q.z - bz) < Math.abs(p.z - bz) ? q : p);
-  box(w, G.x1 - G.x0 - 3, 0.05, 2.6, 0x5ac8ff, mid(G.x0, G.x1), 0.04, bz, { shadow: false, studs: false });
-  for (let x = G.x0 + 3; x < G.x1 - 3; x += 4.5) box(w, 0.6, 0.06, 0.3, 0xd8f4ff, x + R() * 2, 0.08, bz + (R() - 0.5) * 1.4, { shadow: false, studs: false });   // блики
-  const bridge = group(w, br.x, 0, bz); bridge.rotation.y = Math.atan2(-br.rz, br.rx);          // доски — поперёк, сам мост — вдоль дороги
+  // ручей: извилистая лента воды (рябь бежит — как в Лесу), тёмные берега, камни и камыши
+  const bz = STREAM_Z, zs = x => bz + 2.4 * Math.sin(x * 0.11 + 0.8);
+  const br = road.reduce((p, q) => Math.abs(q.z - zs(q.x)) < Math.abs(p.z - zs(p.x)) ? q : p);
+  st.stream = [];
+  {
+    const SW = 1.5, wp = [], wi = [], wu = [], bank = [[], []];
+    const xs = []; for (let x = G.x0 + 1.4; x <= G.x1 - 1.4; x += 1) xs.push(x);
+    xs.forEach((x, i) => {
+      const z = zs(x), dz = 2.4 * 0.11 * Math.cos(x * 0.11 + 0.8), l = Math.hypot(1, dz), nx = -dz / l, nz = 1 / l;
+      wp.push(x + nx * SW, 0.06, z + nz * SW, x - nx * SW, 0.06, z - nz * SW); wu.push(0, i / 4, 1, i / 4);
+      if (i < xs.length - 1) { const k = i * 2; wi.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); }   // лицом вверх
+      for (const [sd, B] of [[1, bank[0]], [-1, bank[1]]]) B.push(x + nx * sd * SW, 0.05, z + nz * sd * SW, x + nx * sd * (SW + 0.8), 0.05, z + nz * sd * (SW + 0.8));
+      st.stream.push({ x, z });
+    });
+    const wm = water(w, 4, 0.06, 0x3fb0ff), wg = new T.BufferGeometry();   // берём материал с бегущей рябью, сама плоскость не нужна
+    w.remove(wm);
+    wg.setAttribute('position', new T.Float32BufferAttribute(wp, 3)); wg.setAttribute('uv', new T.Float32BufferAttribute(wu, 2)); wg.setIndex(wi); wg.computeVertexNormals();
+    const stream = new T.Mesh(wg, wm.material); stream.receiveShadow = true; stream.userData.dynamic = true; w.add(stream);
+    bank.forEach((B, b) => {
+      const bi = [], bn = [], bu = []; for (let i = 0; i < xs.length; i++) { bn.push(0, 1, 0, 0, 1, 0); bu.push(0, 0, 1, 0); if (i < xs.length - 1) { const k = i * 2; bi.push(...(b ? [k, k + 2, k + 1, k + 1, k + 2, k + 3] : [k, k + 1, k + 2, k + 1, k + 3, k + 2])); } }
+      const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(B, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(bn, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(bu, 2)); g.setIndex(bi);
+      const m = new T.Mesh(g, mat(0x5a7a32)); m.receiveShadow = true; w.add(m);
+    });
+    // камни по берегам и в воде, камыши
+    for (let i = 0; i < 46; i++) {
+      const x = G.x0 + 3 + R() * (G.x1 - G.x0 - 6); if (Math.abs(x - br.x) < 4) continue;
+      const side = R() < 0.5 ? -1 : 1, z = zs(x) + side * (1.3 + R() * 1.2), sz = 0.35 + R() * 0.5;
+      if (R() < 0.6) { const st0 = box(w, sz * 1.3, sz * 0.7, sz, [0x9aa4ad, 0x8a8f9a, 0xb0b4bc][Math.floor(R() * 3)], x, sz * 0.3, z); st0.rotation.y = R() * 3; }
+      else for (let k = 0; k < 4; k++) { const rx = x + (R() - 0.5) * 0.8, rz = z + (R() - 0.5) * 0.6, h = 1 + R() * 0.8; box(w, 0.08, h, 0.08, 0x3f8a2e, rx, h / 2, rz, { shadow: false, studs: false }); if (k % 2 === 0) box(w, 0.14, 0.4, 0.14, 0x7a4a24, rx, h + 0.15, rz, { shadow: false, studs: false }); }
+    }
+    for (let i = 0; i < 6; i++) { const x = G.x0 + 8 + i * 12 + R() * 4; if (Math.abs(x - br.x) < 4) continue; box(w, 0.6, 0.18, 0.5, 0x8a8f9a, x, 0.08, zs(x) + (R() - 0.5) * 1.2); }   // камушки в воде
+  }
+  const bridge = group(w, br.x, 0, br.z); bridge.rotation.y = Math.atan2(-br.rz, br.rx);          // доски — поперёк, сам мост — вдоль дороги
   for (let i = 0; i < 9; i++) box(bridge, 3.6, 0.18, 0.5, i % 2 ? 0x9c6a3c : 0x8a5a2b, 0, 0.22 + Math.sin(i / 8 * Math.PI) * 0.25, -2 + i * 0.5);
   for (const sx of [-1, 1]) { for (const zz of [-2, 0, 2]) box(bridge, 0.18, 1.1, 0.18, 0x6a3f1e, sx * 1.75, 0.75 + (zz ? 0 : 0.25), zz); box(bridge, 0.14, 0.14, 4.4, 0x8a5a2b, sx * 1.75, 1.3 + 0.1, 0); }
   // деревья вдоль дороги: берёзы и яблони по обе стороны
   for (let i = 4; i < road.length - 6; i += 5) {
-    const q = road[i]; if (Math.abs(q.z - bz) < 4) continue;
+    const q = road[i]; if (Math.abs(q.z - zs(q.x)) < 5) continue;
     for (const sd of [-1, 1]) {
       const off = 5 + R() * 1.5;
       tree(w, q.x + q.rx * off * sd, q.z + q.rz * off * sd, 0.85 + R() * 0.3, 0, (i / 5 + (sd > 0 ? 1 : 0)) % 2 ? 'birch' : 'apple');
@@ -58,7 +103,7 @@ export function buildDacha(w) {
   // дальше от дороги — роща (не ближе 9 м к дороге)
   for (let k = 0, placed = 0; k < 200 && placed < 34; k++) {
     const x = G.x0 + 4 + R() * (G.x1 - G.x0 - 8), z = G.z0 + 6 + R() * (DACHA.z0 - G.z0 - 10);
-    if (Math.abs(z - bz) < 3.5 || road.some(q => Math.hypot(q.x - x, q.z - z) < 9)) continue;
+    if (Math.abs(z - zs(x)) < 5 || road.some(q => Math.hypot(q.x - x, q.z - z) < 9)) continue;
     tree(w, x, z, 0.8 + R() * 0.5, 0, ['birch', 'oak', 'pine', 'birch'][Math.floor(R() * 4)]); placed++;
   }
   // полевые цветы у обочин
@@ -133,7 +178,7 @@ export function buildDacha(w) {
   solid(w, 2, 1, 2, 0x9aa4ad, Wl.x, 0, Wl.z).visible = false;
   box(w, 1.2, 0.05, 1.2, 0x2a5ad8, Wl.x, 0.85, Wl.z, { shadow: false });
   for (const sx of [-1, 1]) box(w, 0.2, 2.6, 0.2, 0x6a3f1e, Wl.x + sx * 1, 1.3, Wl.z);
-  box(w, 2.4, 0.15, 0.15, 0x6a3f1e, Wl.x, 2.2, Wl.z); box(w, 0.4, 0.45, 0.4, 0x8a8a8a, Wl.x, 1.6, Wl.z);
+  box(w, 2.4, 0.15, 0.15, 0x6a3f1e, Wl.x, 2.2, Wl.z);                                      // ворот (ведро на верёвке — живое, garden.js)
   for (const sx of [-1, 1]) { const r = box(w, 2.6, 0.12, 1.4, 0xc0392b, Wl.x, 2.8, Wl.z + sx * 0.5); r.rotation.x = sx * 0.5; }
   // грядки (пока пустые — посадка будет потом)
   for (const B of D.beds) {
@@ -141,7 +186,9 @@ export function buildDacha(w) {
     for (const sz of [-1, 1]) box(w, 8.2, 0.3, 0.15, 0xc8a87a, B.x, 0.15, B.z + sz * 1.05, { shadow: false });
     for (const sx of [-1, 1]) box(w, 0.15, 0.3, 2.2, 0xc8a87a, B.x + sx * 4.05, 0.15, B.z, { shadow: false });
   }
-  const bl = makeLabel(3.6, 0.9); bl.position.set(D.beds[0].x, 2, D.beds[0].z - 1.6); scene.add(bl); bl.userData.set('🌱 Грядки', { color: '#c8ffb0' });
+  // табличка на колышке у края грядок (плоская — не закрывает обзор)
+  box(w, 0.15, 1.3, 0.15, 0x8a5a2b, D.beds[0].x - 5, 0.65, D.beds[0].z - 1.3); box(w, 1.9, 0.6, 0.08, 0xc8a87a, D.beds[0].x - 5, 1.35, D.beds[0].z - 1.3);
+  const bl = makeLabel(1.8, 0.45, { face: Math.PI }); bl.position.set(D.beds[0].x - 5, 1.35, D.beds[0].z - 1.36); scene.add(bl); bl.userData.set('🌱 Грядки', { color: '#c8ffb0' });
   // пугало у грядок (руки в стороны)
   const sg = group(w, -15.5, 0, 197.5); sg.rotation.y = -Math.PI / 2;
   const sc = buildHero(sg, PEOPLE.scarecrow); sc.armL.rotation.z = -1.45; sc.armR.rotation.z = 1.45; compactHero(sc);
@@ -158,6 +205,12 @@ export function buildDacha(w) {
 // раз в кадр: дымок из трубы
 export function updateDacha(dt, hero) {
   if (!st) return;
+  // в ручье иногда выпрыгивает рыбка (если герой рядом)
+  if (st.stream && (st.fishT = (st.fishT ?? 3) - dt) <= 0) {
+    st.fishT = 2.5 + Math.random() * 4;
+    const q = st.stream[Math.floor(Math.random() * st.stream.length)];
+    if (Math.hypot(hero.pos.x - q.x, hero.pos.z - q.z) < 30) { puff('🐟', new T.Vector3(q.x, 0.4, q.z), { size: 0.8, rise: 1.6, life: 0.7, dx: 0.8 }); puff('💦', new T.Vector3(q.x, 0.3, q.z), { size: 0.6, rise: 0.8, life: 0.5 }); }
+  }
   if ((st.smokeT -= dt) <= 0 && Math.hypot(hero.pos.x - st.chimney.x, hero.pos.z - st.chimney.z) < 70) {
     st.smokeT = 0.5; puff('💨', st.chimney.clone().add(new T.Vector3((Math.random() - 0.5) * 0.4, 0, (Math.random() - 0.5) * 0.4)), { size: 1.1, rise: 1.2, life: 2.2, dx: 0.3 });
   }

@@ -42,7 +42,7 @@ export function craft(r, save) {
   else if (r.type === 'tool') save.tools[r.id] = true;
   else { const id = r.give || r.id; (save.items || (save.items = {}))[id] = (save.items[id] || 0) + r.out; }
 }
-export const WORKBENCH = { x: 0, z: 57, pad: { x: 0, z: 53.5 } };
+export const WORKBENCH = { x: -8, z: 57, pad: { x: -8, z: 53.5 } };   // в «деревеньке», слева от аллеи
 
 const PICK_R = 1.3;
 const near = (p, x, z, r) => Math.hypot(p.x - x, p.z - z) < r;

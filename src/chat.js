@@ -11,8 +11,8 @@ const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { cons
 const today = () => new Date().toDateString();
 export const MAX_FRIEND = 5;
 // имена ребят: «для кого» и «кому»
-export const GEN = { Коля: 'Коли', Оля: 'Оли', Петя: 'Пети', Маша: 'Маши', Соня: 'Сони', Тимур: 'Тимура', Алиса: 'Алисы' };
-export const DAT = { Коля: 'Коле', Оля: 'Оле', Петя: 'Пете', Маша: 'Маше', Соня: 'Соне', Тимур: 'Тимуру', Алиса: 'Алисе' };
+export const GEN = { Коля: 'Коли', Оля: 'Оли', Петя: 'Пети', Маша: 'Маши', Соня: 'Сони', Тимур: 'Тимура', Алиса: 'Алисы', Даша: 'Даши', Егор: 'Егора', Лёша: 'Лёши', Вика: 'Вики', Ника: 'Ники' };
+export const DAT = { Коля: 'Коле', Оля: 'Оле', Петя: 'Пете', Маша: 'Маше', Соня: 'Соне', Тимур: 'Тимуру', Алиса: 'Алисе', Даша: 'Даше', Егор: 'Егору', Лёша: 'Лёше', Вика: 'Вике', Ника: 'Нике', 'Бабушка Нина': 'бабушке Нине', 'Дедушка Иван': 'дедушке Ивану', 'Почтальон Пётр': 'почтальону Петру' };
 
 // одноклассники: эмодзи, что любят, как здороваются
 const KIDS = {
@@ -23,6 +23,12 @@ const KIDS = {
   sonya: { e: '🎈', like: 'Я люблю мячики, шарики и когда все смеются!', hi: ['Привет! Ура, ты пришёл! 😊', 'Привет! Давай играть!'] },
   timur: { e: '🎳', like: 'Я люблю боулинг. И знаю, что осьминог — с тремя сердцами!', hi: ['Привет. А ты знал, что улитки спят по три года?', 'Привет! Всё хорошо, спасибо.'] },
   alisa: { e: '🦆', like: 'Я люблю утят и всех зверей! У меня дома хомячок Пончик 🐹', hi: ['Привет! Я сегодня видела белку! 🐿️', 'Привет! Как дела?'] },
+  // ребята на базе и в аквапарке (village.js)
+  dasha: { e: '🎈', like: 'Я люблю качели и догонялки! Егор меня никогда не догонит 😜', hi: ['Привет! Поиграем в догонялки?', 'Привет! Я сегодня на карусели десять кругов проехала!'] },
+  egor: { e: '🧗', like: 'Я люблю лазать! Видел, как я на лесенку забрался? Я и на башню залезу!', hi: ['Привет! Смотри, как я умею прыгать!', 'Привет! Я самый быстрый на площадке!'] },
+  lyosha: { e: '🏊', like: 'Я люблю нырять и плавать! И кататься с камикадзе!', hi: ['Привет! Ты уже катался с камикадзе? Я далеко улетел!', 'Привет! Вода сегодня тёпленькая!'] },
+  vika: { e: '🎨', like: 'Я люблю рисовать и купаться! Я нарисовала аквапарк 🖍️', hi: ['Привет! Спираль — моя любимая горка!', 'Привет! Пойдём на горку?'] },
+  nika: { e: '🐬', like: 'Я люблю дельфинов! Я плаваю как дельфин — смотри! 🐬', hi: ['Привет! А в трубе темно и огоньки!', 'Привет! Давай наперегонки до бортика?'] },
 };
 const JOKES = [
   'Что можно приготовить, но нельзя съесть? Уроки! 📚',
@@ -55,7 +61,7 @@ const hearts = h => '❤️'.repeat(h) + '🤍'.repeat(MAX_FRIEND - h);
 // n — житель школы (school.js), ctx: { save, who, sfx, schoolNow(), toCanteen(n), motya (Мотино сохранение — для мамы), buy(item), lunch(), persist() }
 export function openTalk(n, ctx) {
   const mama = ctx.who === 'mama';
-  $('talkT').textContent = n.kind === 'kid' ? `${KIDS[n.id]?.e || '🙂'} ${n.name}` : n.kind === 'cook' ? `👩‍🍳 ${n.name}` : `👩‍🏫 ${n.name}`;
+  $('talkT').textContent = n.kind === 'kid' ? `${KIDS[n.id]?.e || '🙂'} ${n.name}` : n.kind === 'cook' ? `👩‍🍳 ${n.name}` : n.kind === 'adult' ? `${ELDER[n.id]?.e || '🙂'} ${n.name}` : `👩‍🏫 ${n.name}`;
   const show = (line, opts, extra = '') => {
     $('talkBody').innerHTML = `<div class="lq tline">${line}</div>${extra}<div class="lopts col">${opts.map((o, k) => `<button data-k="${k}">${o[0]}</button>`).join('')}</div>`;
     $('talkBody').querySelectorAll('[data-k]').forEach(b => b.onclick = () => { ctx.sfx.tap?.(); opts[+b.dataset.k][1](); });
@@ -64,20 +70,26 @@ export function openTalk(n, ctx) {
   const bye = ['👋 Пока!', () => closeOv($('talk'))];
   // просьба ❗ этого жителя: кнопка «помогу» / «держи» — первой в списке
   let menu;
-  const qBtn = () => { const q = ctx.questFor(n); if (!q) return []; const Tq = ctx.questTalk(q, n);
+  const qBtn = () => { const q = ctx.questFor?.(n); if (!q) return []; const Tq = ctx.questTalk(q, n);
     return Tq.btn ? [[Tq.btn[0], () => { const r = ctx.questAct(q, Tq.btn[1]); if (r.reward) ctx.reward(n, r.reward); menu(r.line); }]] : []; };
-  const qLine = () => { const q = ctx.questFor(n); return q ? ctx.questTalk(q, n).line : null; };
+  const qLine = () => { const q = ctx.questFor?.(n); return q ? ctx.questTalk(q, n).line : null; };
   const now = ctx.schoolNow() || {};
 
   // разговор — цепочка: реплика собеседника → твои варианты → его ответ → новые варианты …
   const node = (line, opts, extra) => show(line, opts.map(o => [o[0], o[1]]), extra);
   if (n.kind === 'kid') kidTalk(n, ctx, { node, qBtn, qLine, now, mama, setMenu: f => { menu = f; } });
   else if (n.kind === 'teacher') teacherTalk(n, ctx, { node, qBtn, qLine, now, mama, setMenu: f => { menu = f; } });
+  else if (n.kind === 'adult') elderTalk(n, ctx, { node, mama });
   else {                                                             // повариха
     const S = school(ctx.save), free = S.lunchDay !== today(), fq = ctx.foodQuest();
     menu = line => show(line, [
       ...(fq && fq.state === 'go' ? [[`${fq.e} ${fq.what[0].toUpperCase() + fq.what.slice(1)} для ${GEN[fq.name] || fq.name} — бесплатно`, () => { ctx.takeFood(fq); menu(`Держи! Передай привет ${DAT[fq.name] || fq.name} 😊`); }]] : []),
       ...(free ? [['🍽 Обед дня — бесплатно', () => { ctx.lunch(); closeOv($('talk')); }]] : []),
+      ...((ctx.crops?.() || []).length ? [['🧺 Отдать урожай с дачи', () => node('Ой, какой урожай! Что принёс? 😍', ctx.crops().map(c => [`${c.icon} ${c.name} ×${c.n}`, () => {
+        if (!ctx.giveCrop(c.s)) return menu('Ой, кончилось…');
+        ctx.special();
+        menu(`${c.icon} Спасибо, огородник! Вот тебе особый обед — будешь быстрым и прыгучим! 💪<br><small>👟 бег быстрее 90 с · 🦘 прыжок выше 60 с · +20 монет</small>`);
+      }]).concat([['⬅ Назад', () => menu('Что ещё? 😊')]]))]] : []),
       ...BUFFET.map(b => [`${b.icon} ${b.name} — ${b.price} 🪙<small>${b.fx}</small>`, () => {
         if (ctx.save.coins < b.price) return menu('Ой, не хватает монеток… Приходи потом! 🪙');
         ctx.buy(b); menu(pick(['Кушай на здоровье! 😋', 'Свеженькое! 😊', 'Приятного аппетита!']));
@@ -99,6 +111,11 @@ const ME = {
   sonya: { hobby: 'games', animal: 'зайчиков', color: 'жёлтый', food: 'блинчики', dream: 'клоуном в цирке', pet: 'У меня рыбки — Буль и Бульбуль 🐠' },
   timur: { hobby: 'books', animal: 'осьминога', color: 'зелёный', food: 'плов', dream: 'учёным', pet: 'Пока нет. Но я хочу собаку 🐕' },
   alisa: { hobby: 'animals', animal: 'утят', color: 'жёлтый', food: 'яблоки', dream: 'ветеринаром — лечить зверей', pet: 'У меня хомячок Пончик 🐹' },
+  dasha: { hobby: 'games', animal: 'котят', color: 'жёлтый', food: 'мороженое', dream: 'воспитательницей в детском саду', pet: 'У меня кошка Ириска 🐱' },
+  egor: { hobby: 'run', animal: 'тигров', color: 'зелёный', food: 'пиццу', dream: 'альпинистом — лазать по горам!', pet: 'У меня ящерица Гоша 🦎' },
+  lyosha: { hobby: 'run', animal: 'дельфинов', color: 'синий', food: 'арбуз', dream: 'пловцом', pet: 'Пока нет, но я хочу рыбок 🐠' },
+  vika: { hobby: 'draw', animal: 'морских коньков', color: 'красный', food: 'клубнику', dream: 'художницей', pet: 'У меня хомячок Бублик 🐹' },
+  nika: { hobby: 'animals', animal: 'дельфинов', color: 'синий', food: 'блинчики', dream: 'учёным — изучать китов', pet: 'У меня черепашка Шурша 🐢' },
 };
 const HOBBY = { football: '⚽ Играть в футбол', draw: '🎨 Рисовать', dragons: '🐉 Летать на драконе', games: '🎮 Играть в игры', books: '📚 Читать книжки', run: '🏃 Бегать', animals: '🐾 Возиться со зверятами' };
 const HOBBY_SAY = { football: 'футбол', draw: 'рисовать', dragons: 'драконов', games: 'играть', books: 'книжки', run: 'бегать', animals: 'зверят' };
@@ -135,7 +152,7 @@ const RIDDLES = [
 ];
 const RPS = [['✊', 'Камень'], ['✌️', 'Ножницы'], ['✋', 'Бумага']];
 const moodOf = id => { let h = 0; for (const c of today() + id) h = (h * 31 + c.charCodeAt(0)) | 0; return MOODS[Math.abs(h) % MOODS.length]; };
-const fem = id => ['olya', 'masha', 'sonya', 'alisa'].includes(id);
+const fem = id => ['olya', 'masha', 'sonya', 'alisa', 'dasha', 'vika', 'nika'].includes(id);
 const g = (id, m, f) => fem(id) ? f : m;                             // упал / упала
 
 function kidTalk(n, ctx, { node, qBtn, qLine, now, mama, setMenu }) {
@@ -163,7 +180,8 @@ function kidTalk(n, ctx, { node, qBtn, qLine, now, mama, setMenu }) {
       const same = A.k !== 'pet' && (mine[A.k] || '').startsWith(v.slice(0, 4));
       const react = same ? pick(['Я тоже!!! 🤩', 'Ого, как и я! 🤩']) : A.k === 'pet' && v === 'дракон' ? 'Дракон?! Вот это да! Покатаешь меня? 🐉' : pick(['Здорово! 😃', 'Круто! 😎', 'Классно!']);
       const h = friendly();
-      N(`${react}${h}`, [['❓ А у тебя?', () => N(A.mine(mine), [['🗣 Спроси меня ещё!', askMe], back, bye])], ['🗣 Спроси меня ещё!', askMe], back]);
+      const ride = A.k === 'pet' && v === 'дракон' && ctx.canRide?.(n) ? [['🐉 Садись, покатаю!', () => ctx.rideKid(n)]] : [];
+      N(`${react}${h}`, [...ride, ['❓ А у тебя?', () => N(A.mine(mine), [['🗣 Спроси меня ещё!', askMe], back, bye])], ['🗣 Спроси меня ещё!', askMe], back]);
     }]));
   };
   // ты спрашиваешь его
@@ -201,12 +219,23 @@ function kidTalk(n, ctx, { node, qBtn, qLine, now, mama, setMenu }) {
     else N(line, [['➡ Дальше!', () => rps(s2)], back]);
   }]).concat([back]));
 
+  // угостить урожаем с дачи: раз в день от каждого — ❤️
+  const YUM = { carrot: 'Морковка! Хрум-хрум! 🥕', straw: 'Клубничка! Сладкая-сладкая! 🍓', cucumber: 'Огурчик! Свежий-свежий! 🥒', pumpkin: 'Ого, целая тыква! Мама сварит кашу! 🎃' };
+  const gift = () => N('Ой, а что у тебя есть? 😍', (ctx.crops?.() || []).map(c => [`${c.icon} ${c.name} ×${c.n}`, () => {
+    if (!ctx.giveCrop(c.s)) return menu('Ой, кончилось…');
+    let h = '';
+    if (fr.gift !== today() && fr.h < MAX_FRIEND) { fr.h++; fr.gift = today(); ctx.persist(); ctx.sfx.collect?.(); h = ' ❤️'; if (fr.h >= MAX_FRIEND) ctx.bestFriend(n); }
+    const fav = mine.food && c.s === 'straw' && mine.food.startsWith('клубник') ? ' Это моя любимая ягода!' : '';
+    N(`${YUM[c.s]}${fav} Спасибо! С твоей дачи?${h}`, [[`😊 Да, сам${mama ? 'а' : ''} вырастил${mama ? 'а' : ''}!`, () => N(`Вот это да! Ты настоящий огородник! 👨‍🌾`, [back, bye])], back]);
+  }]).concat([back]));
   const menu = line => node(fix(line), [
     ...qBtn(),
+    ...((ctx.crops?.() || []).length ? [['🎁 Угостить урожаем', gift]] : []),
     ['🗣 Поболтаем?', askMe],
     ['❓ Спросить…', askHim],
     ['🧩 Загадай загадку!', () => riddle()],
     ['✊ Камень-ножницы-бумага?', () => rps()],
+    ...(ctx.canRide?.(n) ? [['🐉 Покатать на драконе', () => N('Правда?! На настоящем драконе?! 🤩', [['🐉 Садись!', () => ctx.rideKid(n)], back])]] : []),
     ...(now.phase === 'break' ? [['🍽 Пойдём в столовую!', () => { const ok = ctx.toCanteen(n); N(ok ? 'Пойдём! Я займу место 🍽' : 'Ой, там все места заняты…', [back, bye]); }]] : []),
     bye,
   ], heartLine());
@@ -269,4 +298,76 @@ function teacherTalk(n, ctx, { node, qBtn, qLine, now, mama, setMenu }) {
   ]);
   setMenu(menu);
   menu(qLine() || (mama ? `Здравствуйте, Юлия! Я веду «${U.name}» у Моти ${U.icon}` : now.phase === 'lesson' && now.cur === s && n.mode === 'teach' ? `Урок идёт! Садись за свободную парту ${U.icon}` : `Здравствуй, Мотя! Я веду «${U.name}» ${U.icon}`));
+}
+
+// ================= ЖИТЕЛИ БАЗЫ (village.js) =================
+const ELDER = { nina: { e: '👵' }, ivan: { e: '👴' }, petr: { e: '📮' } };
+const STORIES = [
+  'Жил-был ёжик, который боялся темноты. Однажды светлячки позвали его гулять ночью — и оказалось, ночью столько красивого: звёзды, луна, огоньки! С тех пор ёжик ждёт вечера 🦔✨',
+  'Маленькое облачко хотело быть большим и важным. Но в жаркий день оно закрыло собой цветочек от солнца — и цветочек сказал «спасибо». Облачко поняло: важно не быть большим, а быть добрым ☁️🌼',
+  'Медвежонок учился кататься на велосипеде. Падал — вставал, падал — вставал. На десятый раз поехал! Мама сказала: «Ты молодец, что не сдался» 🐻🚲',
+  'Курочка нашла зёрнышко и поделилась им с воробьём. А на следующий день воробей принёс ей целый колосок! Добро всегда возвращается 🐔🌾',
+  'Зайчик боялся прыгать через ручеёк. Друзья не смеялись — они взялись за лапки и прыгнули вместе. Вместе не страшно! 🐰💧',
+];
+const PLANT = [
+  'Растениям нужны три вещи: водичка, солнышко и земля. Как нам — еда, вода и тёплый дом 🌱☀️💧',
+  'Из маленького семечка вырастает большое дерево. Даже дуб когда-то был жёлудем! 🌰🌳',
+  'Корни у растения — как трубочки: пьют воду из земли и держат его, чтобы ветер не унёс 🌿',
+  'Пчёлы перелетают с цветка на цветок и помогают растениям делать плоды — яблоки, вишни, огурцы 🐝🍎',
+];
+function elderTalk(n, ctx, { node, mama }) {
+  const V = ctx.save.village || (ctx.save.village = {}), you = mama ? 'дочка' : 'внучок';
+  const bye = ['👋 До свидания!', () => node(pick(['До свидания! Заходи ещё 😊', 'Беги, играй! 👋']), [['👋', () => closeOv($('talk'))]])];
+  const riddle = (back, left = shuffle(RIDDLES)) => {
+    const [q, right, wrong] = left[0], rest = left.slice(1);
+    node(`Отгадай-ка! 🧩<br>${q}`, shuffle([right, ...wrong]).map(o => [o, () => {
+      const ok = o === right; ok ? ctx.sfx.collect?.() : ctx.sfx.nope?.();
+      node(ok ? 'Правильно! Умница! 🎉' : `Не-а! Это ${right} 😄`, [...(rest.length ? [['🧩 Ещё загадку!', () => riddle(back, rest)]] : []), back]);
+    }]));
+  };
+  let menu;
+  if (n.id === 'nina') {
+    const back = ['⬅ О другом', () => menu('О чём поговорим? 😊')];
+    menu = line => node(line, [
+      ['📖 Расскажи сказку', () => { const s0 = pick(STORIES); node(s0, [['😊 Ещё сказку!', () => node(pick(STORIES.filter(x => x !== s0)), [back, bye])], back]); }],
+      ['🧩 Загадай загадку', () => riddle(back)],
+      ['🥧 А пирожок есть?', () => {
+        if (V.pie === today()) return node('Сегодня уже съели! Завтра испеку ещё 😊', [back, bye]);
+        V.pie = today(); ctx.pie(); node('Конечно! С яблочком, тёпленький 🥧 Кушай на здоровье!<br><small>🦘 прыжок выше 40 с · +15 монет</small>', [['😋 Спасибо, бабушка!', () => node(`На здоровье, ${you}! 🥰`, [back, bye])]]);
+      }],
+      ['🧶 Что вы вяжете?', () => node(`Шарфик ${mama ? 'для Моти' : 'для тебя'}! К зиме будет готов 🧣`, [['🥰 Спасибо!', () => node('Тёпленький будет, мягонький 😊', [back, bye])], back])],
+      bye,
+    ]);
+    return menu(mama ? 'Здравствуй, дочка! Присаживайся рядышком 😊' : 'Здравствуй, внучок! Присаживайся рядышком 😊');
+  }
+  if (n.id === 'ivan') {
+    const back = ['⬅ О другом', () => menu('Что ещё хочешь узнать? 🌻')];
+    menu = line => node(line, [
+      ['🌱 Как растут растения?', () => { const f = pick(PLANT); node(f, [['🤔 А почему листья зелёные?', () => node('В листьях есть зелёные «кухоньки» — они из солнышка и воды готовят еду для растения ☀️🍃', [['🤯 Вот это да!', () => node('Природа — она умная! 🌳', [back, bye])], back])], ['🌿 Ещё!', () => node(pick(PLANT.filter(x => x !== f)), [back, bye])], back]); }],
+      ['🥕 А у меня дача есть!', () => node(ctx.gardenBusy?.() ? 'Молодец! Не забывай поливать — растения любят заботу 💧' : 'Посади морковку — она быстрее всех растёт! И поливай из колодца 🥕💧', [['👍 Хорошо!', () => node('Будешь настоящим огородником! 👨‍🌾', [back, bye])], back])],
+      ['💧 Можно помочь полить?', () => {
+        if (V.help === today()) return node('Сегодня всё уже полили, спасибо! Приходи завтра 😊', [back, bye]);
+        V.help = today(); ctx.coins(30); node('Спасибо, помощник! Держи 30 монеток 🪙', [['😊 Пожалуйста!', () => node('Вот это помощник растёт! 💪', [back, bye])]]);
+      }],
+      ['🧩 Загадку!', () => riddle(back)],
+      bye,
+    ]);
+    return menu('А, здравствуй, помощник! Я тут цветы поливаю 🌻');
+  }
+  // почтальон
+  const back = ['⬅ Другой вопрос', () => menu('Что ещё? 📬')];
+  const news = () => pick(ctx.news?.() || ['Всё спокойно на базе! ☀️']);
+  menu = line => node(line, [
+    ['📰 Какие новости?', () => { const nw = () => node(news(), [['📰 Ещё новость!', nw], back]); nw(); }],
+    ['🗺 Как пройти…', () => node('Куда тебе? 🗺', [
+      ['🎢 В Аквапарк', () => node('Иди по главной аллее на юг — прямо в Аквапарк! 🎢', [back, bye])],
+      ['🏡 На дачу', () => node('Через Аквапарк: по дорожке мимо башни с горками, вдоль стены — там калитка 🏡', [back, bye])],
+      ['🏫 В Школу', () => node('Порталы — у дальней стены, все в ряд. Школа — второй справа 🏫', [back, bye])],
+      ['🎠 На детскую площадку', () => node('Справа от загонов, на песочке! Там Даша и Егор 🎠', [back, bye])],
+      ['⚽ На футбол', () => node('Слева от загонов, у порталов. Коля и Оля всегда там ⚽', [back, bye])],
+      back])],
+    ['📬 Мне есть письма?', () => node('Загляни в почтовый ящик у главной аллеи — там бывают письма и подарки 📬', [back, bye])],
+    bye,
+  ]);
+  menu(mama ? 'Здравствуйте! Почта, почта! 📬' : 'Привет! Почта, почта, всем письма! 📬');
 }

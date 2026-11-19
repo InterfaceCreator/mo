@@ -52,7 +52,7 @@ export const portals = [];     // { x, z, w, to, locked, ... }
 const resetters = [];
 export const onLevelReset = f => resetters.push(f);
 export function clearLevel() {
-  colliders.length = 0; grid.clear(); trees.length = 0; spinners.length = 0; portals.length = 0;
+  colliders.length = 0; grid.clear(); trees.length = 0; spinners.length = 0; portals.length = 0; chunks.length = 0;
   for (const o of [...scene.children]) {
     if (o.userData.keep) continue;
     scene.remove(o);
@@ -191,31 +191,31 @@ const RIM = new T.RingGeometry(0.93, 1, 48); RIM.userData.cached = true;
 const GEM = new T.OctahedronGeometry(1); GEM.userData.cached = true;
 export function portal(p, { x, z, w = 18, to, color, label, rot = 0, locked = false, req = 0 }) {
   const g = group(p, x, 0, z); g.rotation.y = rot;                 // каменная арка неподвижна — склеится с локацией; движется только то, что помечено dynamic
-  const half = w / 2 + 1.5, H = 10.4, ARCH = 2.6;
+  const half = w / 2 + 0.9, H = 7.6, ARCH = 1.6;                  // лёгкая арка: тонкие столбы, ниже, без тяжёлых капителей
   const light = new T.Color(color).lerp(new T.Color(0xffffff), 0.55), dark = new T.Color(color).multiplyScalar(0.62).getHex();
   // столбы: подножие, ствол с цветными поясами, капитель
   for (const sx of [-1, 1]) {
     const px = sx * half;
-    box(g, 4.4, 1, 4.4, C.stone, px, 0.5, 0, { studs: true });
-    box(g, 3.4, H - 1, 3.4, C.stone, px, 0.5 + (H - 1) / 2, 0, { studs: true });
-    for (const y of [3.2, 6.6]) box(g, 3.7, 0.5, 3.7, color, px, y, 0);
-    box(g, 4.2, 0.8, 4.2, dark, px, H + 0.4, 0, { studs: true });
+    box(g, 2.2, 0.6, 2.2, C.stone, px, 0.3, 0, { studs: true });
+    box(g, 1.6, H - 0.6, 1.6, C.stone, px, 0.6 + (H - 0.6) / 2, 0, { studs: true });
+    for (const y of [2.4, 5]) box(g, 1.8, 0.35, 1.8, color, px, y, 0);
+    box(g, 2, 0.5, 2, dark, px, H + 0.25, 0, { studs: true });
   }
   // арка: кирпичики дугой от столба к столбу
   const n = 11;
   for (let i = 0; i < n; i++) {
-    const t = (i + 0.5) / n, b = box(g, 2 * half / n + 0.35, 1.5, 2.8, i % 2 ? color : dark, -half + t * 2 * half, H + 0.9 + Math.sin(t * Math.PI) * ARCH, 0, { studs: true });
+    const t = (i + 0.5) / n, b = box(g, 2 * half / n + 0.25, 0.8, 1.5, i % 2 ? color : dark, -half + t * 2 * half, H + 0.55 + Math.sin(t * Math.PI) * ARCH, 0, { studs: true });
     b.rotation.z = Math.atan(Math.cos(t * Math.PI) * Math.PI * ARCH / (2 * half));
   }
   // наверху — светящийся кристалл, медленно крутится
-  const gem = new T.Mesh(GEM, new T.MeshBasicMaterial({ color: light })); gem.scale.set(0.9, 1.3, 0.9); gem.position.set(0, H + ARCH + 2.6, 0); gem.userData.dynamic = true; g.add(gem);
+  const gem = new T.Mesh(GEM, new T.MeshBasicMaterial({ color: light })); gem.scale.set(0.6, 0.9, 0.6); gem.position.set(0, H + ARCH + 1.8, 0); gem.userData.dynamic = true; g.add(gem);
   // воронка: овал между столбами, по краю — светлый обод; крутится
-  const oval = group(g, 0, 4.9, 0); oval.scale.set(w / 2 - 0.1, 4.7, 1); oval.userData.dynamic = true;
+  const oval = group(g, 0, H * 0.48, 0); oval.scale.set(w / 2 + 0.1, H * 0.46, 1); oval.userData.dynamic = true;
   const swirl = new T.Mesh(DISC, new T.MeshBasicMaterial({ color, map: swirlTex, transparent: true, opacity: 0.8, side: T.DoubleSide, depthWrite: false })); oval.add(swirl);
   oval.add(new T.Mesh(RIM, new T.MeshBasicMaterial({ color: light, transparent: true, opacity: 0.9, side: T.DoubleSide, depthWrite: false })));
   // искорки поднимаются сквозь портал
   const N = 36, pos = new Float32Array(N * 3);
-  for (let i = 0; i < N; i++) { pos[i * 3] = (Math.random() - 0.5) * (w - 2); pos[i * 3 + 1] = Math.random() * 9.4; pos[i * 3 + 2] = (Math.random() - 0.5) * 1.6; }
+  for (let i = 0; i < N; i++) { pos[i * 3] = (Math.random() - 0.5) * (w - 2); pos[i * 3 + 1] = Math.random() * (H - 0.6); pos[i * 3 + 2] = (Math.random() - 0.5) * 1.6; }
   const pg = new T.BufferGeometry(); pg.setAttribute('position', new T.BufferAttribute(pos, 3));
   const sparks = new T.Points(pg, new T.PointsMaterial({ color: light, size: 0.4, transparent: true, opacity: 0.95, depthWrite: false })); sparks.position.y = 0.2; sparks.userData.dynamic = true; g.add(sparks);
   // светлое пятно на земле под порталом
@@ -223,17 +223,17 @@ export function portal(p, { x, z, w = 18, to, color, label, rot = 0, locked = fa
   // столбы твёрдые; портал стоит поперёк оси z (rot 0 или 180°) или поперёк оси x (rot ±90° — в боковой стене)
   const side = Math.abs(Math.sin(rot)) > 0.5;
   for (const sx of [-1, 1]) addCollider(side
-    ? { x0: x - 1.7, x1: x + 1.7, y0: 0, y1: 10.4, z0: z + sx * half - 1.7, z1: z + sx * half + 1.7, cam: true }
-    : { x0: x + sx * half - 1.7, x1: x + sx * half + 1.7, y0: 0, y1: 10.4, z0: z - 1.7, z1: z + 1.7, cam: true });
+    ? { x0: x - 1, x1: x + 1, y0: 0, y1: H, z0: z + sx * half - 1, z1: z + sx * half + 1, cam: true }
+    : { x0: x + sx * half - 1, x1: x + sx * half + 1, y0: 0, y1: H, z0: z - 1, z1: z + 1, cam: true });
   const pt = { x, z, w, to, g, swirl, oval, gem, sparks, glow, label, req, locked, bars: null, col: null, side };
-  if (label) { pt.sign = makeLabel(7, 1.75); pt.sign.userData.set(label, { color: '#ffffff' }); pt.sign.position.set(0, H + ARCH + 5.2, 0); g.add(pt.sign); }
+  if (label) { pt.sign = makeLabel(7, 1.75); pt.sign.userData.set(label, { color: '#ffffff' }); pt.sign.position.set(0, H + ARCH + 3.8, 0); g.add(pt.sign); }
   if (locked) {
     pt.bars = group(g); pt.bars.userData.dynamic = true;
-    for (let i = 0; i < 9; i++) box(pt.bars, 0.5, 7, 0.5, 0x666a7a, -w / 2 + 1 + i * (w - 2) / 8, 3.5, 0.9, { studs: false });
-    box(pt.bars, w, 0.6, 0.6, 0x555a6a, 0, 6.6, 0.9, { studs: false }); box(pt.bars, w, 0.6, 0.6, 0x555a6a, 0, 2, 0.9, { studs: false });
-    pt.col = addCollider({ x0: x - w / 2, x1: x + w / 2, y0: 0, y1: 7, z0: z - 0.5, z1: z + 1.5 });
+    for (let i = 0; i < 9; i++) box(pt.bars, 0.4, H - 0.6, 0.4, 0x666a7a, -w / 2 + 0.6 + i * (w - 1.2) / 8, (H - 0.6) / 2, 0.9, { studs: false });
+    box(pt.bars, w, 0.5, 0.5, 0x555a6a, 0, H - 1, 0.9, { studs: false }); box(pt.bars, w, 0.6, 0.6, 0x555a6a, 0, 2, 0.9, { studs: false });
+    pt.col = addCollider({ x0: x - w / 2, x1: x + w / 2, y0: 0, y1: H - 0.6, z0: z - 0.5, z1: z + 1.5 });
     // табличка на решётке: сколько скорости нужно (текст обновляет game.js)
-    pt.lockSign = makeLabel(7, 1.75); pt.lockSign.position.set(0, 8.2, 1.2); g.add(pt.lockSign);
+    pt.lockSign = makeLabel(5, 1.25); pt.lockSign.position.set(0, H - 1.2, 1.3); g.add(pt.lockSign);
   }
   portals.push(pt);
   return pt;
@@ -288,52 +288,51 @@ export function setPenSide(right) {
 // где гуляют питомцы в другом загоне (не в своём)
 export const otherRoam = () => { const R = PEN0.roam, k = penSide.right ? 1 : -1; return { x0: Math.min(R.x0 * k, R.x1 * k), x1: Math.max(R.x0 * k, R.x1 * k), z0: R.z0, z1: R.z1 }; };
 export const SHOP = { x: 8, z: 52, pad: { x: 8, z: 48.5 } };
-export const TREADMILL = { x: -8, z: 51, w: 3, d: 6 };
+export const TREADMILL = { x: -38, z: 27, w: 3, d: 6 };                        // беговая дорожка — в зоне «Спорт» (запад)
 export const CAVE = { x0: -76, x1: -45, z0: 36, z1: 62, gap: [46, 52] };   // кристальная пещера за валуном (кирка)
-export const TOWER = { x: 38, z: 24, h: 10 };                                // башня с сундуком (верёвка)
+export const TOWER = { x: 41.5, z: 31, h: 10 };                                // башня с сундуком (верёвка)
 
 // ---------- «запекание» неподвижного ----------
-// все неподвижные кубики локации одного материала склеиваются в один меш: рисуется в разы быстрее.
+// все неподвижные кубики локации склеиваются в общие меши: рисуется в разы быстрее.
+// Склеиваем КУСКАМИ (клетки BAKE_CELL×BAKE_CELL по земле): кусок за спиной камеры или за туманом видеокарта пропускает.
+// Огромные детали (земля, длинные стены) — отдельной группой: они видны почти всегда.
 // Не трогаем то, что помечено userData.dynamic (облака, порталы, крылья мельницы) и материалы не из общего кэша
+const BAKE_CELL = 40;
+export const chunks = [];                                        // склеенные куски — для отсечения по дальности (cullChunks)
 export function bake(root) {
   root.updateMatrixWorld(true);
   const buckets = new Map();
   (function walk(o) {
-    if (o.userData.dynamic) return;
+    if (o.userData.dynamic || !o.visible) return;                 // спрятанное (зонтик, инструменты) не склеиваем — иначе станет видно
     if (o.isMesh && !o.isInstancedMesh && o.material?.userData?.cached && o.geometry.index) {
       if (!buckets.has(o.material)) buckets.set(o.material, []);
       buckets.get(o.material).push(o);
     }
     for (const c of o.children) walk(c);
   })(root);
-  // обычные матовые кусочки — все вместе, цвет в вершинах (разные цвета → одна команда видеокарте)
-  const paint = [];
-  for (const [material, meshes] of buckets) if (meshes.length >= 2 && paintable(material)) { paint.push(...meshes); buckets.delete(material); }
-  mergeMeshes(root, paint);
-  for (const [material, meshes] of buckets) {
+  // склеиваем только то, чего хотя бы две штуки одного материала (одиночки могут двигаться — их не трогаем)
+  const cells = new Map(), v = new T.Vector3(), sc = new T.Vector3();
+  for (const meshes of buckets.values()) {
     if (meshes.length < 2) continue;
-    let nv = 0, ni = 0;
-    for (const m of meshes) { nv += m.geometry.attributes.position.count; ni += m.geometry.index.count; }
-    const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), idx = new Uint32Array(ni);
-    const v = new T.Vector3(), nm = new T.Matrix3(), mm = new T.Matrix4(), inv = root.matrixWorld.clone().invert();
-    let vo = 0, io = 0;
     for (const m of meshes) {
-      const g = m.geometry, P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv, I = g.index;
-      mm.multiplyMatrices(inv, m.matrixWorld);        // в координаты root: склеенный меш лежит внутри него
-      nm.getNormalMatrix(mm);
-      for (let i = 0; i < P.count; i++) {
-        v.fromBufferAttribute(P, i).applyMatrix4(mm); pos.set([v.x, v.y, v.z], (vo + i) * 3);
-        v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); nor.set([v.x, v.y, v.z], (vo + i) * 3);
-        uv.set([U.getX(i), U.getY(i)], (vo + i) * 2);
-      }
-      for (let i = 0; i < I.count; i++) idx[io + i] = I.getX(i) + vo;
-      vo += P.count; io += I.count;
-      m.parent.remove(m);
+      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+      m.matrixWorld.decompose(v, new T.Quaternion(), sc);
+      const big = m.geometry.boundingSphere.radius * Math.max(sc.x, sc.y, sc.z) > BAKE_CELL * 0.6;
+      v.setFromMatrixPosition(m.matrixWorld);
+      const k = big ? 'big' : Math.floor(v.x / BAKE_CELL) + ',' + Math.floor(v.z / BAKE_CELL);
+      if (!cells.has(k)) cells.set(k, []);
+      cells.get(k).push(m);
     }
-    const geo = new T.BufferGeometry();
-    geo.setAttribute('position', new T.BufferAttribute(pos, 3)); geo.setAttribute('normal', new T.BufferAttribute(nor, 3)); geo.setAttribute('uv', new T.BufferAttribute(uv, 2));
-    geo.setIndex(new T.BufferAttribute(idx, 1)); geo.computeBoundingSphere();
-    const merged = new T.Mesh(geo, material); merged.castShadow = merged.receiveShadow = true;
-    root.add(merged);
   }
+  for (const list of cells.values()) for (const merged of mergeMeshes(root, list)) {
+    merged.updateMatrixWorld(true);
+    const S = merged.geometry.boundingSphere;
+    merged.userData.center = S.center.clone().applyMatrix4(merged.matrixWorld); merged.userData.radius = S.radius;
+    chunks.push(merged);
+  }
+}
+// раз в кадр: куски дальше тумана не рисуем (их всё равно не видно); за спиной камеры их и так пропускает видеокарта
+export function cullChunks(p) {
+  const far = (scene.fog?.far || 150) + 12;
+  for (const m of chunks) { const c = m.userData.center; m.visible = Math.hypot(c.x - p.x, c.y - p.y, c.z - p.z) - m.userData.radius < far; }
 }

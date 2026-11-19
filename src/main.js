@@ -1,7 +1,7 @@
 // Запуск и главный цикл.
 import { renderer, scene, camera, resize, followSun, followSky, ECO } from './engine.js';
 import { updateWater } from './terrain.js';
-import { updateWorld } from './world.js';
+import { updateWorld, cullChunks } from './world.js';
 import { LOCS } from './locations.js';
 import { buildHero, animateHero, LOOK_OF } from './hero.js';
 import { makePlayer, updatePlayer, WALK } from './player.js';
@@ -105,7 +105,7 @@ function start(who) {
       pollInput();
       updateCam(cam, dt, hero, { look: takeLook(), zoom: takeZoom(), lastLook: input.lastLook });
       updateSpyGame(dt); duoAfterAnimate(dt);
-      updateWorld(dt); updateFx(dt); followSun(hero.pos); followSky(); updateWater(dt);
+      updateWorld(dt); updateFx(dt); followSun(hero.pos); followSky(); updateWater(dt); cullChunks(camera.position);
       renderer.render(scene, camera);
       return;
     }
@@ -116,11 +116,11 @@ function start(who) {
     updateCam(cam, dt, hero, { look: takeLook(), zoom: takeZoom(), lastLook: input.lastLook });
     updateGame(dt);
     animateHero(hero.model, dt, { speed: hero.animSpeed ?? hero.speed, maxSpeed: WALK, air: !hero.grounded, vy: hero.vel.y, carry: !!hero.carrying || !!hero.climb, stun: hero.stun > 0,
-      tool: hero.toolOut, swing: hero.swing ? hero.swing.t : -1, glide: hero.gliding, sit: !!hero.sit || !!hero.slide || !!hero.eat, ride: hero.fly ? 1 : hero.passenger ? 2 : 0 });
+      tool: hero.gardenTool || hero.toolOut, swing: hero.swing ? hero.swing.t : -1, glide: hero.gliding, sit: !!hero.sit || !!hero.slide || !!hero.eat, swim: !!hero.swim, ride: hero.fly ? 1 : hero.passenger ? 2 : 0 });
     duoAfterAnimate(dt);                // вдвоём: рядом — сердечки
     updateWorld(dt);
     updateFx(dt);
-    followSun(hero.pos); followSky(); updateWater(dt);
+    followSun(hero.pos); followSky(); updateWater(dt); cullChunks(camera.position);
 
     // звуки шагов, прыжка и приземления
     if (hero.jumped) SFX.jump();

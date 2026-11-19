@@ -136,9 +136,10 @@ export function buildPark(w, save, who) {
   box(w, P.x1 - P.x0 + 2, 1, 2.4, 0xff7b22, 0, 12.5, P.z1 + 1, { studs: true });
   const dl = makeLabel(5.6, 1.4, { face: Math.PI }); dl.position.set(G.x, 8.6, P.z1 - 0.08); scene.add(dl); dl.userData.set('🏡 На дачу', { color: '#ffe14d' });
   const dl2 = makeLabel(5.6, 1.4, { face: 0 }); dl2.position.set(G.x, 8.6, P.z1 + 2.08); scene.add(dl2); dl2.userData.set('🎢 Аквапарк', { color: '#ffffff' });
-  solid(w, P.gate.w + 2, 1, 4, 0x5fd84a, 0, -1, P.z0);                                          // земля под аркой
   // дорожка от арки к лестнице
-  solid(w, 30, 0.08, 2.4, 0xe9d9a6, -12, 0, 68.2, { shadow: false });
+  // дорожка: от аллеи базы (x 0) на запад — мимо лестницы на башню — и вдоль западной стены до калитки на дачу
+  solid(w, 42.2, 0.08, 2.4, 0xe9d9a6, -18.1, 0, 68.2, { shadow: false });          // x −39.2…3, z 67…69.4
+  solid(w, 2.4, 0.08, P.z1 - 69.4, 0xe9d9a6, -38, 0, (69.4 + P.z1) / 2, { shadow: false });   // x −39.2…−36.8, z 69.4…106 — к калитке
 
   // башня: четыре столба, площадка с бортиком, флажки; лестница с юга
   const T0 = TOWER_P;
@@ -178,8 +179,8 @@ export function buildPark(w, save, who) {
   box(w, 0.25, 3.2, 0.25, 0x8a5a2b, -12, 1.6, 79); box(w, 4.4, 1.6, 0.2, 0x2b2b3a, -12, 3.6, 79);
   st.board = makeLabel(4.2, 1.05, { face: Math.PI }); st.board.position.set(-12, 3.6, 78.88); scene.add(st.board);
   st.who = who; showBest();
-  // большая вывеска над аркой
-  const gl = makeLabel(8, 2, { face: Math.PI }); gl.position.set(0, 10, 64.88); scene.add(gl); gl.userData.set('🎢 Аквапарк', { color: '#ffffff' });
+  // вход в Аквапарк с базы (стены нет): вывеска на столбе у аллеи
+  box(w, 0.3, 4.4, 0.3, 0x8a5a2b, 4.2, 2.2, 67); const gl = makeLabel(6, 1.5); gl.position.set(4.2, 5.4, 67); scene.add(gl); gl.userData.set('🎢 Аквапарк', { color: '#ffe14d' });
 }
 function showBest() { st.board.userData.set(st.best ? `🚀 Рекорд: ${st.best.toFixed(1)} м` : '🚀 Рекорд: прыгни!', { color: '#ffe14d' }); }
 
@@ -275,5 +276,6 @@ export function updatePark(dt, hero, save) {
     splash(p, big); if (big) ev.sfx.push('splash');
   }
   st.lastY = p.y;
+  hero.swim = inPool(p) && p.y < POOL.surf - 0.3 && !hero.climb && !hero.fly;   // в воде — плывёт (поза в animateHero)
   return ev;
 }

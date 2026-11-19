@@ -2,7 +2,7 @@
 // Каждая локация строится заново при входе; что в ней сохраняется между заходами — живёт в save и в eggs.js.
 import { B } from './balance.js';
 import { T, scene, group, box } from './engine.js';
-import { C, solid, tree, fence, clouds, portal, groundY, level, addCollider, PEN, CAVE, TOWER } from './world.js';
+import { C, solid, tree, fence, clouds, portal, groundY, level, addCollider, PEN, TOWER, TREADMILL } from './world.js';
 import { addZip, addRace, addDig, addWell, addArrow, addBeaver } from './extras.js';
 import { buildTrack } from './track.js';
 import { buildAutumn, AUTUMN } from './autumn.js';
@@ -15,52 +15,55 @@ import { makeLabel } from './fx.js';
 import { addStar, addScroll, addPad, addBunny, addCritter, addDuck, addButterfly, addRotor, addWaterfall, addMushroom, addPlates } from './fun.js';
 import { buildTerrain, water } from './terrain.js';
 import { defineNests } from './eggs.js';
-import { addLoose, addRock, addDoor, addHook, addChest, buildWorkbench } from './craft.js';
+import { addLoose, addRock, addDoor, addHook, addChest, buildWorkbench, WORKBENCH } from './craft.js';
 
 // случайные числа с «зерном»: локация каждый раз одинаковая
 function seeded(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
 // ================= БАЗА =================
-// порталы в северной стене: x — центр прохода
-export const BASE_PORTALS = { forest: 0, desert: -26, ice: 26 };
-const TRACK_PORTAL = { x: 46, z: 34 };
-const SCHOOL_PORTAL = { z: 1 };                                     // Школа — в восточной стене, у Маяка удачи
-const WINTER_PORTAL = { z: 29 };                                    // Зимняя долина — в западной стене базы, между Инкубаторной и Стадионом
-const AUTUMN_PORTAL = { x: -70, z: 49 };                             // Осень — в бывшей пещере за валуном                               // Дорожка — в восточной стене
+// все порталы — в один ряд в северной стене, одинаковой ширины: x — центр прохода
+export const BASE_PORTALS = { autumn: -39, winter: -26, desert: -13, forest: 0, ice: 13, school: 26, track: 39 };
+const PORTAL_W = 5.5;                                               // ширина прохода (столбы с аркой — по бокам)
+const PORTAL_LOOK = {
+  autumn: { color: 0xff8a1a, label: '🍂 Осень' }, winter: { color: 0x7fd4ff, label: '⛄ Зима' }, desert: { color: 0xffb02e, label: '🏜️ Пустыня' },
+  forest: { color: 0x5fd84a, label: '🌲 Лес' }, ice: { color: 0x9ad8ff, label: '❄️ Лёд' }, school: { color: 0xffb020, label: '🏫 Школа' }, track: { color: 0xff5a3d, label: '🏁 Дорожка' },
+};
 
 function buildBase(save) {
   const w = group(scene);
   solid(w, 90, 1, 70, C.grass, 0, -1, 30);
-  // западная стена с проходом в пещеру, восточная — сплошная
-  // западная стена: проём под портал в Зимнюю долину (z от 22 до 36) и проход в пещеру
-  solid(w, 2, 12, WINTER_PORTAL.z - 7 + 5, C.wall, -46, 0, (WINTER_PORTAL.z - 7 - 5) / 2, { cam: true });
-  solid(w, 2, 12, CAVE.gap[0] - WINTER_PORTAL.z - 7, C.wall, -46, 0, (CAVE.gap[0] + WINTER_PORTAL.z + 7) / 2, { cam: true });
-  portal(w, { x: -46, z: WINTER_PORTAL.z, w: 10, to: 'winter', color: 0x7fd4ff, label: '⛄ Зима', rot: Math.PI / 2 });
-  solid(w, 2, 12, 65 - CAVE.gap[1], C.wall, -46, 0, (CAVE.gap[1] + 65) / 2, { cam: true });
-  // восточная стена с проёмом под портал Дорожки (z от 25 до 43)
-  solid(w, 2, 12, 17, C.wall, 46, 0, 16.5, { cam: true }); solid(w, 2, 12, 22, C.wall, 46, 0, 54, { cam: true });
-  portal(w, { x: 46, z: SCHOOL_PORTAL.z, w: 8, to: 'school', color: 0xffb020, label: '🏫 Школа', rot: -Math.PI / 2 });
-  portal(w, { x: 46, z: TRACK_PORTAL.z, to: 'track', color: 0xff5a3d, label: '🏁 Дорожка', rot: -Math.PI / 2 });
-  // песчаная тропинка от дома к Дорожке и указатель
-  solid(w, 41, 0.08, 3, 0xe9d9a6, 23.5, 0, 42.5, { shadow: false }); solid(w, 3, 0.08, 9, 0xe9d9a6, 43, 0, 37.5, { shadow: false });
-  box(w, 0.3, 2.4, 0.3, 0x8a5a2b, 5, 1.2, 40.5, { studs: false }); box(w, 2.6, 0.9, 0.15, 0xffd23f, 6, 2.2, 40.5, { studs: false });
-  const sign = makeLabel(5, 1.25); sign.position.set(6, 3.4, 40.5); scene.add(sign); sign.userData.set('🏁 Дорожка →', { color: '#ffffff' });
-  // южная стена с аркой в Аквапарк (park.js): проход по центру, над ним — перемычка
-  solid(w, 41, 12, 2, C.wall, -26.5, 0, 66, { cam: true }); solid(w, 41, 12, 2, C.wall, 26.5, 0, 66, { cam: true });
-  solid(w, 12, 4, 2, C.wall, 0, 8, 66, { cam: true }); box(w, 12.4, 1, 2.4, C.wallBand, 0, 8.2, 66, { studs: true });
-  // северная стена с тремя порталами
-  for (const [x0, x1] of [[-47, -35], [-17, -9], [9, 17], [35, 47]]) {
-    solid(w, x1 - x0, 12, 2, C.wall, (x0 + x1) / 2, 0, -6, { cam: true });
-    box(w, x1 - x0, 1, 2.4, C.wallBand, (x0 + x1) / 2, 12.5, -6, { studs: true });
+  // западная и восточная стены — сплошные
+  solid(w, 2, 12, 72, C.wall, -46, 0, 30, { cam: true }); solid(w, 2, 12, 72, C.wall, 46, 0, 30, { cam: true });
+  // южной стены нет: база открыта в Аквапарк (park.js); полоса земли на стыке, чтобы не было щели
+  solid(w, 92, 1, 1, C.grass, 0, -1, 65.5);              // z 65…66: ровно между землёй базы и Аквапарка
+  // северная стена: семь порталов в ряд, между ними — простенки
+  const xs = Object.values(BASE_PORTALS).sort((a, b) => a - b), half = PORTAL_W / 2 + 0.9;
+  let x0 = -47;
+  for (const px of [...xs, 47 + half]) {
+    const x1 = px - half;
+    if (x1 > x0 + 0.1) { solid(w, x1 - x0, 7, 2, C.wall, (x0 + x1) / 2, 0, -6, { cam: true }); box(w, x1 - x0, 0.8, 2.4, C.wallBand, (x0 + x1) / 2, 7.4, -6, { studs: true }); }   // ниже порталов — арки видно
+    x0 = px + half;
   }
-  portal(w, { x: BASE_PORTALS.forest, z: -6, to: 'forest', color: 0x5fd84a, label: '🌲 Лес' });
-  portal(w, { x: BASE_PORTALS.desert, z: -6, to: 'desert', color: 0xffb02e, label: '🏜️ Пустыня', locked: save.speed < LOCS.desert.req, req: LOCS.desert.req });
-  portal(w, { x: BASE_PORTALS.ice, z: -6, to: 'ice', color: 0x7fd4ff, label: '❄️ Лёд', locked: save.speed < LOCS.ice.req, req: LOCS.ice.req });
+  for (const [id, px] of Object.entries(BASE_PORTALS)) {
+    const L = PORTAL_LOOK[id], lock = LOCS[id]?.req && save.speed < LOCS[id].req;
+    portal(w, { x: px, z: -6, w: PORTAL_W, to: id, color: L.color, label: L.label, locked: !!lock, req: LOCS[id]?.req || 0 });
+  }
 
   // дорожки к порталам
-  solid(w, 6, 0.1, 34, 0xe9d9a6, 0, 0, 14, { shadow: false });
-  solid(w, 46, 0.06, 5, 0xe9d9a6, 0, 0, 0, { shadow: false });     // ниже главной дорожки, чтобы верх не совпадал
-  for (const sx of [-1, 1]) solid(w, 5, 0.1, 3, 0xe9d9a6, sx * 26, 0, -3.5, { shadow: false });
+  // дорожки — встык, одной высоты, края по сетке пупырышек (шаг 0.6): не налезают и узор не съезжает
+  const road = (x0, x1, z0, z1) => solid(w, x1 - x0, 0.08, z1 - z0, 0xe9d9a6, (x0 + x1) / 2, 0, (z0 + z1) / 2, { shadow: false });
+  road(-46.2, 46.2, -4.8, 2.4);                    // площадь вдоль всех порталов
+  road(-3, 3, 2.4, 67);                            // центральная аллея: от порталов насквозь до дорожки Аквапарка (встык)
+  road(-45, -3, 41.4, 44.4); road(3, 45, 41.4, 44.4);   // поперечная дорожка за загонами (перекрёсток на аллее)
+  road(-37.8, -35.4, 44.4, 54);                    // к домику
+  road(3, 6.6, 47.4, 49.8);                        // к магазину
+  road(-6.6, -3, 52.2, 54.6);                      // к верстаку
+  road(-34.8, -32.4, 37.2, 41.4);                  // к стадиону
+  // детская площадка: песок от площади порталов до поперечной дорожки, между правым загоном и стеной
+  box(w, 14.4, 0.04, 39, 0xf3dfa8, 37.8, 0.02, 21.9, { shadow: false, studs: true });
+  // лесенка из кубиков (забирайся наверх) — на детской площадке
+  for (let i = 0; i < 5; i++) solid(w, 3, 1 + i, 3, [0x3fa7ff, 0xff5a5a, 0xffd93b, 0x9b6bff, 0x40e0d0][i], 33.5, 0, 24 + i * 3, { cam: true });
+  solid(w, 3.6, 5, 3.6, 0x3fa7ff, 33.5, 0, 39.3, { cam: true });
 
   // загоны: свой и для второго игрока (на этапе 4)
   fence(w, -30, 16, -8, 16, [[9, 13]]); fence(w, -30, 40, -8, 40); fence(w, -30, 16, -30, 40); fence(w, -8, 16, -8, 40, [[10, 14]]);
@@ -69,22 +72,8 @@ function buildBase(save) {
   if (save.tools.house) petHouse();
 
   // деревья и площадка с лесенкой
-  for (const [x, z, s, k] of [[-44, 0, 1, 'apple'], [-25, 44, 1.2, 'pine'], [38, 58, 1, 'birch'], [34, -3, 1.1, 'oak'], [-22, 58, 0.9, 'pine'], [24, 60, 1, 'apple'], [-40, 50, 0.9, 'birch']]) tree(w, x, z, s, 0, k);
-  for (let i = 0; i < 5; i++) solid(w, 3, 1 + i, 3, [0x3fa7ff, 0xff5a5a, 0xffd93b, 0x9b6bff, 0x40e0d0][i], 38 - i * 3, 0, 46, { cam: true });
-  solid(w, 6, 5, 6, 0x3fa7ff, 21.5, 0, 46, { cam: true });
+  for (const [x, z, s, k] of [[-43.5, 20, 1, 'apple'], [-12, 47.5, 1.2, 'pine'], [38, 58, 1, 'birch'], [22, 50, 1.1, 'oak'], [-22, 58, 0.9, 'pine'], [24, 60, 1, 'apple'], [-40, 50, 0.9, 'birch']]) tree(w, x, z, s, 0, k);
 
-  // бывшая пещера за валуном (кирка): теперь осенний дворик с порталом в Осеннюю долину
-  const K = CAVE, kx = (K.x0 + K.x1) / 2, kz = (K.z0 + K.z1) / 2;
-  solid(w, K.x1 - K.x0, 1, K.z1 - K.z0, 0xd9a443, kx, -1, kz);
-  solid(w, 31, 12, 2, 0x8a4a1e, kx - 1, 0, K.z0 - 1, { cam: true }); solid(w, 31, 12, 2, 0x8a4a1e, kx - 1, 0, K.z1 + 1, { cam: true });
-  solid(w, 2, 12, K.z1 - K.z0, 0x8a4a1e, K.x0 - 1, 0, kz, { cam: true });
-  for (const z of [K.z0 - 1, K.z1 + 1]) box(w, 31, 1, 2.4, 0xff7b22, kx - 1, 12.5, z, { studs: true });
-  portal(w, { x: AUTUMN_PORTAL.x, z: AUTUMN_PORTAL.z, to: 'autumn', color: 0xff8a1a, label: '🍂 Осень', rot: Math.PI / 2 });
-  for (const [x, z, k] of [[-52, 39, 'maple'], [-52, 59, 'golden'], [-60, 38, 'rust'], [-60, 60, 'maple']]) tree(w, x, z, 0.7, 0, k);
-  for (let i = 0; i < 18; i++) { const x = K.x0 + 8 + (i * 37) % 22, z = K.z0 + 2 + (i * 23) % 22; const lf = box(w, 0.5, 0.04, 0.4, [0xe2442a, 0xff8a1a, 0xffc22a][i % 3], x, 0.03, z, { shadow: false, studs: false }); lf.rotation.y = i; }
-  const kg = (K.gap[0] + K.gap[1]) / 2;
-  addDoor(save, { id: 'cave', x: -46, z: kg, look: 'boulder', col: { x0: -47.8, x1: -44.2, z0: K.gap[0], z1: K.gap[1] } });
-  const toAutumn = makeLabel(6.5, 1.6); toAutumn.position.set(-44, 6, kg); scene.add(toAutumn); toAutumn.userData.set('🍂 Осень — за валуном', { color: '#ffd23f' });
 
   // башня с сундуком (верёвка)
   solid(w, 4, TOWER.h, 4, 0x8f8fa8, TOWER.x, 0, TOWER.z, { cam: true });
@@ -94,8 +83,8 @@ function buildBase(save) {
   addChest('tower', TOWER.x + 0.6, TOWER.h, TOWER.z);
 
   // ресурсы на базе
-  for (const [x, z] of [[-38, 0], [-36, 46], [-16, 56], [6, 64], [30, 52], [42, 42], [-40, 26], [4, 40]]) addLoose(x, z, 'wood');
-  for (const [x, z] of [[-10, 12], [-4, 46], [30, 2], [44, 24], [-28, 52], [-4, 64], [-56, 40], [-55, 58], [-62, 44]]) addLoose(x, z, 'stone');
+  for (const [x, z] of [[-38, 0], [-36, 46], [-16, 56], [6, 64], [30, 52], [42, 42], [-43, 34], [4, 40]]) addLoose(x, z, 'wood');
+  for (const [x, z] of [[-10, 12], [-4, 46], [30, 2], [44, 24], [-28, 52], [-4, 64], [-40, 40], [-20, 62], [40, 60]]) addLoose(x, z, 'stone');
   for (const [x, z] of [[-30, 50], [28, 4]]) addRock(x, z);
   for (const [x, z] of [[-42, 30], [-14, 44], [36, 30], [-12, 5], [22, 64], [42, 50]]) addLoose(x, z, 'leaf');
   buildWorkbench();
@@ -555,7 +544,7 @@ export const LOCS = {
   },
 };
 // куда ставить героя на базе, когда он вернулся из локации
-export const backFrom = id => id === 'school' ? { x: 46 - 6, z: SCHOOL_PORTAL.z, face: -Math.PI / 2 } : id === 'winter' ? { x: -46 + 7, z: WINTER_PORTAL.z, face: Math.PI / 2 } : id === 'home' ? { x: HOUSE.door.x, z: HOUSE.door.z - 2.4, face: Math.PI } : id === 'autumn' ? { x: AUTUMN_PORTAL.x + 7, z: AUTUMN_PORTAL.z, face: Math.PI / 2 } : id === 'track' ? { x: TRACK_PORTAL.x - 6, z: TRACK_PORTAL.z, face: -Math.PI / 2 } : { x: BASE_PORTALS[id] ?? 0, z: 0, face: 0 };
+export const backFrom = id => id === 'home' ? { x: HOUSE.door.x, z: HOUSE.door.z - 2.4, face: Math.PI } : BASE_PORTALS[id] !== undefined ? { x: BASE_PORTALS[id], z: 0, face: 0 } : { x: 0, z: 0, face: 0 };
 // все гнёзда описываются сразу — их таймеры идут, даже если в локации ни разу не были
 export function defineAllNests() {
   // (гнездо в пещере переехало: в бывшей пещере теперь портал в Осеннюю долину)
@@ -567,17 +556,17 @@ export { PEN };
 export function mapData(id) {
   const F = FOREST;
   if (id === 'base') return {
-    bounds: { x0: -78, x1: 50, z0: -10, z1: 214 }, ground: '#7fd86a',
+    bounds: { x0: -70, x1: 50, z0: -10, z1: 214 }, ground: '#7fd86a',
     areas: [
-      { rect: [-46, 46, -6, 66], fill: '#8fe07a' }, { rect: [-76, -45, 36, 62], fill: '#e0b050' },
+      { rect: [-46, 46, -6, 66], fill: '#8fe07a' },
       { rect: [-30, -8, 16, 40], fill: '#c8e88a' }, { rect: [8, 30, 16, 40], fill: '#c8e88a' },
       { rect: [-46, 46, 66, 106], fill: '#8fe07a' }, { rect: [-66, 10, 106, 213], fill: '#7fd06a' }, { rect: [-48, -12, 182, 208], fill: '#c8e88a' }, { rect: [-66, 10, 145, 147.5], fill: '#7fd4ff' }, { rect: [-8, 38, 74, 102], fill: '#7fd4ff' }, { rect: [-29, -19, 81, 91], fill: '#3fa7ff' },
-      { rect: [-3, 3, -3, 31], fill: '#efe2b8' }, { rect: [-23, 23, -2.5, 2.5], fill: '#efe2b8' }, { rect: [3, 44, 41, 44], fill: '#efe2b8' },
+      { rect: [30.6, 45, 2.4, 41.4], fill: '#f3dfa8' }, { rect: [-46, 46, -4.8, 2.4], fill: '#efe2b8' }, { rect: [-3, 3, 2.4, 67], fill: '#efe2b8' }, { rect: [-39.2, 3, 67, 69.4], fill: '#efe2b8' }, { rect: [-39.2, -36.8, 69.4, 106], fill: '#efe2b8' }, { rect: [-45, 45, 41.4, 44.4], fill: '#efe2b8' },
     ],
     marks: [
-      ['🌲', 'Лес', 0, -6], ['🏜️', 'Пустыня', -26, -6], ['❄️', 'Лёд', 26, -6], ['🏁', 'Дорожка', 46, 34],
-      ['🐣', 'Загон', -19, 28], ['🛒', 'Магазин', 8, 52], ['🔨', 'Верстак', 0, 57], ['👟', 'Тренировка', -8, 49],
-      ['📬', 'Почта', 5, 30], ['🗼', 'Башня', 38, 24], ['🎠', 'Площадка', 22, 6], ['🏠', 'Мой дом', HOUSE.x, HOUSE.z], ['⛄', 'Зима', -44, WINTER_PORTAL.z], ['👕', 'Одежда', CLOTHES_SHOP.x, CLOTHES_SHOP.z], ['🥅', 'Футбол', -35, 5], ['🍂', 'Осень (за валуном)', -62, 49], ['🎢', 'Аквапарк', -24, 86], ['🏡', 'Дача', -36, 198], ['🌳', 'Дорога на дачу', -30, 140], ['🏊', 'Бассейн', 15, 88],
+      ['🍂', 'Осень', BASE_PORTALS.autumn, -6], ['⛄', 'Зима', BASE_PORTALS.winter, -6], ['🏜️', 'Пустыня', BASE_PORTALS.desert, -6], ['🌲', 'Лес', 0, -6], ['❄️', 'Лёд', BASE_PORTALS.ice, -6], ['🏫', 'Школа', BASE_PORTALS.school, -6], ['🏁', 'Дорожка', BASE_PORTALS.track, -6],
+      ['🐣', 'Загон', -19, 28], ['🛒', 'Магазин', 8, 52], ['🔨', 'Верстак', WORKBENCH.x, WORKBENCH.z], ['👟', 'Тренировка', TREADMILL.x, TREADMILL.z],
+      ['📬', 'Почта', 5, 30], ['🗼', 'Башня', TOWER.x, TOWER.z], ['🎠', 'Детская площадка', 38, 15], ['🏠', 'Мой дом', HOUSE.x, HOUSE.z], ['👕', 'Одежда', CLOTHES_SHOP.x, CLOTHES_SHOP.z], ['🥅', 'Футбол', -35, 9], ['🎢', 'Аквапарк', -24, 86], ['🏡', 'Дача', -36, 198], ['🌳', 'Дорога на дачу', -30, 140], ['🏊', 'Бассейн', 15, 88],
     ],
   };
   if (id === 'forest') return {

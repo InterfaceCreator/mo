@@ -143,11 +143,12 @@ export function buildPen(all, cap) {
 
 // раз в кадр: питомцы гуляют, монеты капают в копилку; герой на плите — забирает
 export function updatePen(dt, heroPos) {
+  const far = Math.hypot(heroPos.x - PEN.pad.x, heroPos.z - PEN.pad.z) > 80;   // герой далеко — питомцы «спят» (доход идёт)
   RAINBOW_MAT.color.setHSL((performance.now() / 4000) % 1, 0.8, 0.6);
   pen.pending += penIncome() * dt;                // доход идёт, где бы ни был герой
   if (!pen.built) return 0;
   const R = PEN.roam;
-  for (const p of pen.pets) {
+  for (const p of far ? [] : pen.pets) {
     const pos = p.g.position;
     const dx = p.target.x - pos.x, dz = p.target.z - pos.z, d = Math.hypot(dx, dz);
     let spd = 0;

@@ -158,6 +158,7 @@ export function updateFun(dt, hero, save) {
   // зайчики: гуляют, а если герой рядом — убегают прыжками
   for (const c of critters) {
     const g = c.g.position, dh = Math.hypot(p.x - g.x, p.z - g.z);
+    if (dh > 70) continue;                                             // далеко — «спит»
     if (dh < 5) { c.target.set(g.x + (g.x - p.x) / dh * 8, 0, g.z + (g.z - p.z) / dh * 8); c.wait = 0; }
     const dx = c.target.x - g.x, dz = c.target.z - g.z, d = Math.hypot(dx, dz);
     let spd = 0;
