@@ -22,7 +22,7 @@ const SPOTS = [
   { x: -10, z: 5.5, where: 'в столовой' }, { x: -25.5, z: 5.8, where: 'в столовой, в углу' },
   { x: 5.5, z: 4.6, where: 'в холле, у вешалки' }, { x: 29, z: -12.5, where: 'в самом конце коридора' }, { x: -29, z: -9.6, where: 'в коридоре, у цветка' },
 ];
-const LOST = [['✏️', 'ластик', 'ластик'], ['📕', 'книжку', 'книжка'], ['🧢', 'кепку', 'кепка'], ['🖍️', 'фломастер', 'фломастер'], ['🧸', 'мишку', 'мишка'], ['🎒', 'рюкзак', 'рюкзак']];   // кого/что — что
+const LOST = [['✏️', 'ластик', 'ластик'], ['📕', 'книжку', 'книжка'], ['🖍️', 'фломастер', 'фломастер'], ['🧸', 'мишку', 'мишка']];   // кого/что — что
 const GIRLS = ['olya', 'masha', 'sonya', 'alisa'];
 const la = q => GIRLS.includes(q.who) ? 'а' : '';                 // потерял / потеряла
 const FOOD = [['🧃', 'компот'], ['🥟', 'пирожок'], ['🍎', 'яблоко'], ['🍩', 'булочку']];
@@ -49,6 +49,7 @@ export function setupQuests(save, who) {
   const st = getSchool(); if (!st) return;
   const Sc = school(save);
   if (!Sc.q || Sc.q.day !== today()) Sc.q = makeDay(save, st);
+  for (const q of Sc.q.list) if (q.type === 'find' && (q.e === '🧢' || q.e === '🎒')) [q.e, q.what, q.nom] = pick(LOST);   // кепок и рюкзаков больше не теряем
   S = { save, who, st, list: Sc.q.list, items: [], marks: new Map(), bubbles: [], bubT: 2, callT: 4, erase: 0 };
   for (const q of S.list) if (q.type === 'find' && q.state !== 'got' && q.state !== 'done') placeItem(q);
 }

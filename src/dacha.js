@@ -8,6 +8,7 @@ import { water } from './terrain.js';
 import { makeLabel, puff } from './fx.js';
 import { buildHero, compactHero, PEOPLE } from './hero.js';
 import { scene } from './engine.js';
+import { BANYA } from './spa.js';
 
 export const DACHA_GATE = { x: -38, z: 107, w: 6 };
 export const DACHA = { x0: -48, x1: -12, z0: 182, z1: 208, house: { x: -36, z: 198 }, well: { x: -22, z: 188 }, beds: [194, 197.5, 201].map(z => ({ x: -21, z })) };
@@ -82,7 +83,7 @@ export function buildDacha(w) {
     });
     // камни по берегам и в воде, камыши
     for (let i = 0; i < 46; i++) {
-      const x = G.x0 + 3 + R() * (G.x1 - G.x0 - 6); if (Math.abs(x - br.x) < 4) continue;
+      const x = G.x0 + 3 + R() * (G.x1 - G.x0 - 6); if (Math.abs(x - br.x) < 4 || Math.abs(x - BANYA.x) < 2) continue;
       const side = R() < 0.5 ? -1 : 1, z = zs(x) + side * (1.3 + R() * 1.2), sz = 0.35 + R() * 0.5;
       if (R() < 0.6) { const st0 = box(w, sz * 1.3, sz * 0.7, sz, [0x9aa4ad, 0x8a8f9a, 0xb0b4bc][Math.floor(R() * 3)], x, sz * 0.3, z); st0.rotation.y = R() * 3; }
       else for (let k = 0; k < 4; k++) { const rx = x + (R() - 0.5) * 0.8, rz = z + (R() - 0.5) * 0.6, h = 1 + R() * 0.8; box(w, 0.08, h, 0.08, 0x3f8a2e, rx, h / 2, rz, { shadow: false, studs: false }); if (k % 2 === 0) box(w, 0.14, 0.4, 0.14, 0x7a4a24, rx, h + 0.15, rz, { shadow: false, studs: false }); }
@@ -103,6 +104,7 @@ export function buildDacha(w) {
   // дальше от дороги — роща (не ближе 9 м к дороге)
   for (let k = 0, placed = 0; k < 200 && placed < 34; k++) {
     const x = G.x0 + 4 + R() * (G.x1 - G.x0 - 8), z = G.z0 + 6 + R() * (DACHA.z0 - G.z0 - 10);
+    if (x > BANYA.x - 9 && x < BANYA.x + 16 && Math.abs(z - BANYA.z) < 9) continue;   // место под баню и джакузи          // место под баню
     if (Math.abs(z - zs(x)) < 5 || road.some(q => Math.hypot(q.x - x, q.z - z) < 9)) continue;
     tree(w, x, z, 0.8 + R() * 0.5, 0, ['birch', 'oak', 'pine', 'birch'][Math.floor(R() * 4)]); placed++;
   }

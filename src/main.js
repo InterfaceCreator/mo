@@ -89,24 +89,29 @@ function start(who) {
   if (Q.has('fps')) fpsEl.style.display = 'block';
 
   let last = performance.now(), stepT = 0, wasGrounded = true, lastVy = 0, pausedDrawn = false;
-  const MIN_FRAME = ECO ? 1000 / 40 - 2 : 0;          // экономный режим: не чаще 40 кадров в секунду
+  // экономный режим: не чаще 30 кадров в секунду; никто не трогает экран 30 с и герой стоит — 15 кадров («дремлет», меньше греется)
+  const MIN_FRAME = ECO ? 1000 / 30 - 2 : 0, IDLE_FRAME = 1000 / 15 - 2;
+  let lastAct = performance.now(), shN = 0;
+  for (const ev of ['pointerdown', 'pointermove', 'keydown', 'touchstart']) addEventListener(ev, () => { lastAct = performance.now(); }, { capture: true, passive: true });
+  const draw = () => { if (ECO && (++shN & 1)) renderer.shadowMap.needsUpdate = true; renderer.render(scene, camera); };
   function frame(now) {
     requestAnimationFrame(frame);
     window.__running = true;
-    if (now - last < MIN_FRAME) return;
-    const dt = Math.min((now - last) / 1000, 0.05); last = now;
+    const idle = ECO && now - lastAct > 30000 && hero.speed < 0.1 && !hero.climb && !hero.fly;
+    if (now - last < (idle ? IDLE_FRAME : MIN_FRAME)) return;
+    const dt = Math.min((now - last) / 1000, idle ? 0.07 : 0.05); last = now;
     if (!window.game?.frozen) update(dt);   // game.frozen — остановить время (для проверок)
   }
   function update(dt) {
     // отдых или записка — игра стоит; картинка не меняется, поэтому рисуем её один раз (под окном видно игру)
-    if (locked || noteOpen()) { if (!pausedDrawn) { renderer.render(scene, camera); pausedDrawn = true; } return; }
+    if (locked || noteOpen()) { if (!pausedDrawn) { if (ECO) renderer.shadowMap.needsUpdate = true; renderer.render(scene, camera); pausedDrawn = true; } return; }
     pausedDrawn = false;
     if (SPY) {                                     // наблюдатель: камера за выбранным игроком, больше ничего
       pollInput();
       updateCam(cam, dt, hero, { look: takeLook(), zoom: takeZoom(), lastLook: input.lastLook });
       updateSpyGame(dt); duoAfterAnimate(dt);
       updateWorld(dt); updateFx(dt); followSun(hero.pos); followSky(); updateWater(dt); cullChunks(camera.position);
-      renderer.render(scene, camera);
+      draw();
       return;
     }
     restCheck();
@@ -116,7 +121,7 @@ function start(who) {
     updateCam(cam, dt, hero, { look: takeLook(), zoom: takeZoom(), lastLook: input.lastLook });
     updateGame(dt);
     animateHero(hero.model, dt, { speed: hero.animSpeed ?? hero.speed, maxSpeed: WALK, air: !hero.grounded, vy: hero.vel.y, carry: !!hero.carrying || !!hero.climb, stun: hero.stun > 0,
-      tool: hero.gardenTool || hero.toolOut, swing: hero.swing ? hero.swing.t : -1, glide: hero.gliding, sit: !!hero.sit || !!hero.slide || !!hero.eat, swim: !!hero.swim, ride: hero.fly ? 1 : hero.passenger ? 2 : 0 });
+      tool: hero.gardenTool || hero.toolOut, swing: hero.swing ? hero.swing.t : -1, glide: hero.gliding, sit: !!hero.sit || !!hero.slide || !!hero.eat || !!hero.relax, swim: !!hero.swim, spa: hero.spa, spaK: hero.spaK, ride: hero.fly ? 1 : hero.passenger ? 2 : 0 });
     duoAfterAnimate(dt);                // вдвоём: рядом — сердечки
     updateWorld(dt);
     updateFx(dt);
@@ -129,7 +134,7 @@ function start(who) {
     wasGrounded = hero.grounded;
     if (hero.grounded && hero.speed > 2) { stepT -= dt * hero.speed / WALK; if (stepT <= 0) { stepT = 0.28; SFX.step(); } }
 
-    renderer.render(scene, camera);
+    draw();
 
     if (Q.has('fps')) { fpsN++; fpsT += dt; if (fpsT >= 1) { fpsEl.textContent = fpsN + ' fps'; fpsN = 0; fpsT = 0; } }
   }

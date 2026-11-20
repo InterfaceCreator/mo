@@ -3,11 +3,11 @@ export const T = window.THREE;
 
 export const canvas = document.getElementById('c');
 // экономный режим на телефонах и планшетах (сенсорный экран): простые тени, не самый мощный режим видеочипа,
-// не больше 40 кадров в секунду (main.js); чёткость и сглаживание — как раньше, иначе картинка заметно хуже — чтобы телефон не грелся и дольше держал заряд. ?hq — полное качество, ?eco — экономно и на компьютере
+// не больше 30 кадров в секунду, тени — через кадр, без касаний 30 с — 15 кадров (main.js); чёткость на телефоне 1.5× — чтобы телефон не грелся и дольше держал заряд. ?hq — полное качество, ?eco — экономно и на компьютере
 const Q = new URLSearchParams(location.search);
 export const PHONE = Math.min(screen.width, screen.height) < 500;
 export const ECO = !Q.has('hq') && (Q.has('eco') || matchMedia('(pointer: coarse)').matches);
-const DPR = Math.min(window.devicePixelRatio || 1, PHONE ? 1.75 : 2);
+const DPR = Math.min(window.devicePixelRatio || 1, PHONE ? 1.5 : 2);
 // слабый планшет может не дать 3D с полными настройками — пробуем попроще
 function makeRenderer() {
   let err;
@@ -20,6 +20,7 @@ function makeRenderer() {
 export const renderer = makeRenderer();
 renderer.setPixelRatio(DPR);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = ECO ? T.PCFShadowMap : T.PCFSoftShadowMap;
+if (ECO) renderer.shadowMap.autoUpdate = false;     // тени пересчитываем через кадр (main.js draw)
 
 export const SKY = 0x8fd3ff;
 export const scene = new T.Scene();

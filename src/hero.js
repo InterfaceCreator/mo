@@ -151,6 +151,12 @@ export function buildHero(parent, lookId = 'boy') {
   box(tools.pick, 0.1, 0.1, 1.2, 0x8a5a2b, 0, 0, 0.42);
   box(tools.pick, 0.12, 0.9, 0.16, 0x9aa4ad, 0, 0, 0.98);
   for (const sy of [-1, 1]) { const t = box(tools.pick, 0.1, 0.22, 0.14, 0xd8dee4, 0, sy * 0.5, 0.94, { shadow: false }); t.rotation.x = sy * 0.4; }
+  tools.venik = group(grip);                                               // банный веник: ручка и пучок листьев
+  box(tools.venik, 0.09, 0.09, 0.55, 0x8a5a2b, 0, 0, 0.2, { studs: false });
+  box(tools.venik, 0.36, 0.22, 0.7, 0x4a9a3a, 0, 0, 0.78, { studs: false }); box(tools.venik, 0.26, 0.3, 0.5, 0x5fbf4a, 0, 0.02, 0.92, { studs: false, shadow: false });
+  tools.kovsh = group(grip);                                               // ковшик: длинная ручка и черпак с водой
+  box(tools.kovsh, 0.08, 0.08, 0.75, 0x9c6a3c, 0, 0, 0.3, { studs: false });
+  box(tools.kovsh, 0.36, 0.3, 0.36, 0xa8743f, 0, -0.08, 0.8, { studs: false }); box(tools.kovsh, 0.28, 0.04, 0.28, 0x3fa7ff, 0, 0.08, 0.8, { studs: false, shadow: false });
   for (const k in tools) tools[k].visible = false;
   // зонтик над головой (виден, когда герой планирует)
   const umbrella = group(body, 0, 3.0, 0);
@@ -188,7 +194,7 @@ function swingArm(p) {
 }
 
 // анимация: speed — скорость по земле, air — в воздухе
-export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 0, carry = false, stun = false, tool = null, swing = -1, glide = false, sit = false, ride = false, swim = false } = {}) {
+export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 0, carry = false, stun = false, tool = null, swing = -1, glide = false, sit = false, ride = false, swim = false, spa = null, spaK = 0 } = {}) {
   animMove(m, dt, speed, maxSpeed, air, vy);
   if (ride) {                                                              // верхом на драконе: сидит в седле, ноги по бокам, руки вперёд; ride 2 — сзади, на втором седле
     m.body.position.y = 1.45; m.body.position.z = ride === 2 ? -0.95 : 0; m.legL.rotation.x = m.legR.rotation.x = -1.1; m.legL.rotation.z = -0.45; m.legR.rotation.z = 0.45;
@@ -221,6 +227,30 @@ export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 
   if (carry) {
     m.armL.rotation.x = m.armR.rotation.x = -2.95;
     m.armL.rotation.z = -0.12; m.armR.rotation.z = 0.12;
+  }
+  // баня и джакузи (spa.js): парится веником, плещет ковшиком на камни, отдыхает в пузырьках, брызгается
+  if (spa) {
+    const t = m.spaT = (m.spaT || 0) + dt;
+    if (spa === 'venik') {                                                 // сидит на полке и хлещет себя веником по плечу и спине
+      m.tools.venik.visible = true;
+      m.armR.rotation.x = -2.5 + Math.sin(t * 8) * 0.7; m.armR.rotation.z = -0.35 + Math.sin(t * 8) * 0.25;
+      m.armL.rotation.x = -0.5; m.armL.rotation.z = -0.15;
+      m.body.rotation.x = 0.08 + Math.sin(t * 8) * 0.05;
+    } else if (spa === 'kovsh') {                                          // зачерпнул — замах — плеснул вперёд на камни
+      m.tools.kovsh.visible = true;
+      const k = Math.min(1, spaK), a = k < 0.45 ? -0.3 - 0.5 * ease(k / 0.45) : k < 0.65 ? -0.8 - 1.2 * ease((k - 0.45) / 0.2) : -2.0 + 1.5 * ease((k - 0.65) / 0.35);
+      m.armR.rotation.x = a; m.armR.rotation.z = 0.05; m.armL.rotation.x = -0.3;
+      m.body.rotation.x = k > 0.45 && k < 0.8 ? 0.15 : 0.03;
+    } else if (spa === 'jac' || spa === 'splash') {                        // откинулся на бортик, руки раскинуты, покачивается на воде
+      m.body.rotation.x = -0.28; m.body.position.y += Math.sin(t * 1.6) * 0.05;
+      if (spa === 'splash') {                                              // шлёпает ладошками по воде
+        m.armL.rotation.x = -0.9 + Math.sin(t * 14) * 0.6; m.armR.rotation.x = -0.9 - Math.sin(t * 14) * 0.6;
+        m.armL.rotation.z = -0.5; m.armR.rotation.z = 0.5;
+      } else {
+        m.armL.rotation.x = m.armR.rotation.x = -0.15 + Math.sin(t * 1.6) * 0.04; m.armL.rotation.z = -1.35; m.armR.rotation.z = 1.35;
+        m.legL.rotation.x = -1.45 + Math.sin(t * 1.3) * 0.12; m.legR.rotation.x = -1.45 - Math.sin(t * 1.3) * 0.12;   // болтает ногами в воде
+      }
+    }
   }
   // плывёт: лёг на воду животом, гребёт руками по очереди (кроль), болтает ногами; чуть покачивается на волне
   if (swim) {

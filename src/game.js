@@ -20,6 +20,7 @@ import { buildKids, updateKidSpots, startMini, updateMini, miniGame, miniOn } fr
 import { buildPlayground, updatePlayground } from './playground.js';
 import { buildPark, updatePark } from './park.js';
 import { buildDacha, updateDacha } from './dacha.js';
+import { buildSpa, updateSpa, spaNear, spaUse, spaSaid } from './spa.js';
 import { buildVillage, updateVillage, nearVillager, takeRider } from './village.js';
 import { buildGarden, updateGarden, gardenNear, plant, startFill, startWater, harvest, CROPS, garden, isRipe, isThirsty, timeLeft, busy as gardenBusy } from './garden.js';
 import { openOv as openOverlay, closeOv as closeOverlay } from './ui.js';
@@ -135,7 +136,7 @@ function enter(id, spawn, owner = null) {
   if (id === 'base') { buildBase(); buildIncubators(); setIncSlots(save.incSlots); buildPen(save.pets, save.penCap); buildPlots(save); buildMailbox(); spawnVasya(); }
   spawnFriends(id, save);                          // друзья: Ряба на базе, Ёжик, Совёнок, Лисичка, Медвежонок в лесу
   buildKids(id, w);                                // места для игр детей: футбол, боулинг, цветные плиты, челнок
-  if (id === 'base') { buildPlayground(w || scene); buildPark(w || scene, save, profile); buildDacha(w || scene); buildGarden(save, hero); buildVillage(w || scene, save); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
+  if (id === 'base') { buildPlayground(w || scene); buildPark(w || scene, save, profile); buildDacha(w || scene); buildSpa(w || scene); buildGarden(save, hero); buildVillage(w || scene, save); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
   if (id === 'winter') buildWinterFun(save);       // головоломки, сосульки, рыбалка, сова, пингвинята, снежная битва, звёзды
   buildPickups(id, save);                                // продукты для кухни: яйца, яблоки, ягоды, грибы, мёд, снег, какао
   buildRareBox(id, save);                          // сундучок с редкой одеждой (база, лес, осень)   // качели, карусель, пузыри, мяч; свой домик и ларёк одежды
@@ -143,7 +144,7 @@ function enter(id, spawn, owner = null) {
   hero.pos.set(spawn.x, groundY(spawn.x, spawn.z), spawn.z); hero.vel.set(0, 0, 0);
   hero.face = spawn.face; hero.model.root.rotation.y = spawn.face; hero.safe = hero.pos.clone();
   hero.swing = hero.climb = null; hero.stun = 0;
-  hero.sled = false; hero.ice = false; hero.swim = false;                // санки и каток — только в Зимней долине
+  hero.sled = false; hero.ice = false; hero.swim = false; hero.relax = false;                // санки и каток — только в Зимней долине
   cam.yaw = spawn.face + Math.PI; cam.init = false;
   portalCool = 1;
 }
@@ -441,6 +442,7 @@ function schoolDay() {
 // кнопки у грядки: 🌱 посадить, 💧 полить, 🧺 собрать, ⏳ сколько ждать; у колодца 🪣; у крыльца 💰 продать
 function gardenItems() {
   if (level.id !== 'base' || hero.climb || riding() || gardenBusy()) return [];
+  const sn = spaNear(hero.pos); if (sn) return [{ id: sn === 'steam' ? 'g_steam' : 'g_bubbles', icon: sn === 'steam' ? '♨️' : '🫧' }];
   const g = gardenNear(hero.pos); if (!g) return [];
   if (g.well) return [{ id: 'g_fill', icon: '🪣' }];
   if (g.porch) return Object.values(garden(save).crop).some(n => n > 0) ? [{ id: 'g_sell', icon: '💰' }] : [];
@@ -458,6 +460,7 @@ function pickMenu(title, line, opts) {
 }
 const MOTYA = () => profile === 'mama' ? 'а' : '';
 function gardenUse(id) {
+  if (id === 'g_steam' || id === 'g_bubbles') { const r = spaUse(id.slice(2), hero); if (r.sfx) SFX[r.sfx]?.(); if (r.say) { toast(r.say); spaSaid(r.key); } return; }
   const g = gardenNear(hero.pos), G = garden(save);
   if (id === 'g_fill') { startFill(hero); SFX.splash?.(); return; }
   if (id === 'g_sell') {
@@ -847,6 +850,10 @@ export function updateGame(dt) {
     if (pg.say) toast(pg.say);
     if (pg.coins) save.coins += pg.coins;
     updateDacha(dt, hero);
+    const sp = updateSpa(dt, hero, save);                       // баня и джакузи
+    for (const k of new Set(sp.sfx)) SFX[k]?.();
+    if (sp.say) toast(sp.say);
+    if (sp.coins) { save.coins += sp.coins; persist(); confetti(hero.pos.clone().setY(hero.pos.y + 1.5), 30); }
     const vg = updateVillage(dt, hero);
     if (vg.splash) SFX.splash?.();
     if (vg.riderOff) {                                         // слез с дракона — пассажир спрыгнул: спасибо и ❤️ (раз в день)
