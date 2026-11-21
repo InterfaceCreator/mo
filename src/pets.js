@@ -42,6 +42,7 @@ export const SPECIES = {
   golddragon: { name: 'Золотой дракончик', r: 6, home: TR, build: p => buildDino(p, { body: 0xffb81a, belly: 0xfff3a0, spikes: 0xff7a1a, wings: 0xffe14d }) },  // из солнечного яйца (3-й круг и дальше)
   // подарки из тайных комнат — больше нигде не бывают
   spacedragon: { name: 'Космический дракончик', r: 6, home: [], own: true, build: p => buildDino(p, { body: 0x2a2f8a, belly: 0x9b6bff, spikes: 0x7fe8ff, wings: 0xff7ac8 }) },
+  cupdragon: { name: 'Золотой дракончик-участник', r: 4, home: [], own: true, keep: true, build: p => cupDragon(p) },   // за соревнования (21.11.2026): гуляет всегда, места не занимает
   starfox:  { name: 'Звёздная лисичка', r: 6, home: [], own: true, build: p => buildBeast(p, { body: 0xff8ad0, ear: 'point', earC: 0x9b6bff, tail: 'big', tailC: 0xffffff, snout: 0xffe6f4, belly: 0xffe6f4, spots: 0xffd23f, nose: 0x9b6bff, legC: 0x9b6bff }) },
   owl:      { name: 'Совёнок', r: 3, home: F, build: p => buildBird(p, { body: 0x9c7a54, head: 0xb08a60, belly: 0xe8d4b0, eye: 1.5, tufts: true, beak: 0xffc21a, legC: 0xffc21a }) },
   fawn:     { name: 'Оленёнок', r: 3, home: F, build: p => buildBeast(p, { body: 0xc98a4a, spots: 0xffffff, antlers: 0x8a5a2b, ear: 'point', tail: 'stub', snout: 0xe0b080, leg: 0.5, w: 0.7, d: 1.0 }) },
@@ -66,6 +67,14 @@ export const SPECIES = {
   aurora:   { name: 'Олень северного сияния', r: 6, home: I, build: p => buildBeast(p, { body: 0xdff6ff, antlers: 0x7fffd4, spots: 0x9b6bff, ear: 'point', snout: 0xffffff, tail: 'stub', leg: 0.65, w: 0.75, d: 1.2 }) },
   icedragon:{ name: 'Ледяной дракон', r: 5, home: I, build: p => buildDino(p, { body: 0x7fd4ff, belly: 0xe8f8ff, wings: 0x3fa7ff, spikes: 0xffffff }) },
 };
+// золотой дракончик с медалью участника на шее
+function cupDragon(p) {
+  const m = buildDino(p, { body: 0xffc21a, belly: 0xfff3a0, spikes: 0xff7a1a, wings: 0xffe680 });
+  const b = m.body;
+  box(b, 0.5, 0.05, 0.06, 0x3fa7ff, 0, 1.36, 0.56, { shadow: false });            // ленточка
+  box(b, 0.24, 0.24, 0.05, 0xffd23f, 0, 1.18, 0.6, { shadow: false });            // медаль
+  return m;
+}
 export const SPECIES_IDS = Object.keys(SPECIES).sort((a, b) => SPECIES[a].r - SPECIES[b].r);
 
 // случайный питомец из яйца редкости r, найденного в месте loc; v — особое яйцо (влияет на мутации).
@@ -107,8 +116,13 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 export function penPetsCount() { return pen.pets.length; }
 
 // в загоне гуляют самые доходные питомцы — столько, сколько мест; остальные ждут в коллекции
+// особые питомцы (keep) гуляют всегда и места не занимают
+export function penBest(all, cap) {
+  const keep = all.filter(p => SPECIES[p.s]?.keep), rest = all.filter(p => !SPECIES[p.s]?.keep);
+  return [...rest.sort((a, b) => petIncome(b) - petIncome(a)).slice(0, cap), ...keep];
+}
 export function rebuildPen(all, cap, born) {
-  const best = pen.best = [...all].sort((a, b) => petIncome(b) - petIncome(a)).slice(0, cap);
+  const best = pen.best = penBest(all, cap);
   if (!pen.built) return;
   for (const p of [...pen.pets]) if (!best.includes(p.data)) { scene.remove(p.g); pen.pets.splice(pen.pets.indexOf(p), 1); }
   for (const d of best) if (!pen.pets.some(p => p.data === d)) addPenPet(d, d === born?.data ? born.from : null);

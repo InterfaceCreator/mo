@@ -12,7 +12,7 @@ import { level, PEN, setPenSide, otherRoam, onLevelReset } from './world.js';
 import { WALK } from './player.js';
 import { buildHero, animateHero, LOOK_OF } from './hero.js';
 import { dressHero } from './clothes.js';
-import { buildPet, petIncome, rebuildPen } from './pets.js';
+import { buildPet, petIncome, rebuildPen, penBest } from './pets.js';
 import { animateAnimal } from './animals.js';
 import { makeLabel, puff } from './fx.js';
 import { HOUSE, HOUSE2, buildHouse } from './home.js';
@@ -112,7 +112,7 @@ function buildPenPets() {
   for (const p of penPets) scene.remove(p.g);
   const c = R[other]?.card; penPets = []; penSig = petsSig(c);
   if (!c) return;
-  const Rm = otherRoam(), best = [...(c.pets || [])].sort((a, b) => petIncome(b) - petIncome(a)).slice(0, c.penCap || 6);
+  const Rm = otherRoam(), best = penBest(c.pets || [], c.penCap || 6);
   for (const d of best) {
     const g = group(scene); g.userData.dynamic = true;
     let m; try { m = buildPet(g, d); } catch (e) { scene.remove(g); continue; }

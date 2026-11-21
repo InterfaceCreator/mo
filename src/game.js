@@ -20,6 +20,7 @@ import { buildKids, updateKidSpots, startMini, updateMini, miniGame, miniOn } fr
 import { buildPlayground, updatePlayground } from './playground.js';
 import { buildPark, updatePark } from './park.js';
 import { buildDacha, updateDacha } from './dacha.js';
+import { buildCup, updateCup, CUP_NOTE } from './cup.js';
 import { buildSpa, updateSpa, spaNear, spaUse, spaSaid } from './spa.js';
 import { buildVillage, updateVillage, nearVillager, takeRider } from './village.js';
 import { buildGarden, updateGarden, gardenNear, plant, startFill, startWater, harvest, CROPS, garden, isRipe, isThirsty, timeLeft, busy as gardenBusy } from './garden.js';
@@ -136,7 +137,7 @@ function enter(id, spawn, owner = null) {
   if (id === 'base') { buildBase(); buildIncubators(); setIncSlots(save.incSlots); buildPen(save.pets, save.penCap); buildPlots(save); buildMailbox(); spawnVasya(); }
   spawnFriends(id, save);                          // друзья: Ряба на базе, Ёжик, Совёнок, Лисичка, Медвежонок в лесу
   buildKids(id, w);                                // места для игр детей: футбол, боулинг, цветные плиты, челнок
-  if (id === 'base') { buildPlayground(w || scene); buildPark(w || scene, save, profile); buildDacha(w || scene); buildSpa(w || scene); buildGarden(save, hero); buildVillage(w || scene, save); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
+  if (id === 'base') { buildPlayground(w || scene); buildPark(w || scene, save, profile); buildDacha(w || scene); buildSpa(w || scene); buildCup(w || scene, save, profile, houseFor(duoMe())); buildGarden(save, hero); buildVillage(w || scene, save); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
   if (id === 'winter') buildWinterFun(save);       // головоломки, сосульки, рыбалка, сова, пингвинята, снежная битва, звёзды
   buildPickups(id, save);                                // продукты для кухни: яйца, яблоки, ягоды, грибы, мёд, снег, какао
   buildRareBox(id, save);                          // сундучок с редкой одеждой (база, лес, осень)   // качели, карусель, пузыри, мяч; свой домик и ларёк одежды
@@ -298,7 +299,7 @@ function speedGoal() {
 }
 const eggsRow = (n, add) => '🥚'.repeat(n) + (add ? ' + 🥚' : '');
 function penNow() {
-  const n = save.pets.length, wait = n - save.penCap;
+  const n = save.pets.length, wait = save.pets.filter(p => !SPECIES[p.s]?.keep).length - save.penCap;
   return wait > 0 ? `у тебя ${n} питомцев — ${wait} ждут места и не приносят монет!` : `у тебя ${n} питомцев — места пока хватает`;
 }
 const shopItems = () => [
@@ -631,6 +632,16 @@ export function updateGame(dt) {
     mount(hero);
     showNote({ t: 'Ты большой молодец, что поспал, чемпион! 💪\nВот обещанный подарок —\nтвой собственный дракон!\nСадись и лети 🐉🔥', from: '<b>🎁 Подарок</b>', paw: '🐉', kid: true }, SFX);
     setTimeout(() => toast('🐉 Твой дракон!<small>прыжок — взмах крыльями · 🔥 — огонь · 🐉 — слезть</small>'), 400);
+  }
+  // подарок за соревнования: коробка у кубка → кубок, медаль, золотой дракончик
+  if (atBase && updateCup(dt, hero, save)) {
+    const data = { s: 'cupdragon', big: false, gold: false, rainbow: false };
+    save.found[data.s] = true; save.pets.push(data); rebuildPen(save.pets, save.penCap, { data, from: hero.pos.clone() });
+    const W = ward(save); W.wear.neck = 'medal_cup'; dressHero(hero.model, W.wear);
+    persist(); SFX.fanfare(); fireworks(hero.pos.clone().setY(4), 10);
+    notify({ icon: '🏆', title: profile === 'mama' ? 'Записка: ты молодец ❤️' : 'Записка чемпиону 🏆', text: CUP_NOTE[profile === 'mama' ? 'mama' : 'motya'], love: profile === 'mama', keep: true, read: true });
+    showNote({ t: CUP_NOTE[profile === 'mama' ? 'mama' : 'motya'], from: profile === 'mama' ? '<b>💌 Тебе</b>' : '<b>🏆 Чемпиону Моте</b>', paw: profile === 'mama' ? '❤️' : '🏅', kid: profile !== 'mama', love: profile === 'mama' }, SFX);
+    const afterNote = setInterval(() => { if (document.getElementById('note').classList.contains('on')) return; clearInterval(afterNote); petNote(data, 0, true); setTimeout(() => toast(`🐉 ${SPECIES.cupdragon.name} — уже в загоне!<small>гуляет всегда, место не занимает · медаль уже на тебе 🏅</small>`), 3000); }, 400);   // после записки
   }
   if (riding() && !DRAGON_OK.includes(level.id)) { dismount(hero); toast('🐉 Тут тесно для дракона<small>он подождёт снаружи — позови кнопкой 🐉</small>'); }
   updateDragon(dt, hero);

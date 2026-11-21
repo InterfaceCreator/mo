@@ -7,7 +7,8 @@ import { modelThumb } from './pets.js';
 import { openOv } from './ui.js';
 
 const GOLD = 0xffc21a, BLACK = 0x1d1d23, WHITE = 0xffffff;
-export const SLOTS = [['suit', '🦸 Герои'], ['hat', '🎩 Шапки'], ['shirt', '👕 Одежда'], ['legs', '👖 Штаны'], ['shoes', '👟 Обувь'], ['cape', '🧣 Плащи'], ['glasses', '🕶️ Очки'], ['back', '🪽 На спину'], ['bag', '🎒 Рюкзаки']];
+export const SLOTS = [['suit', '🦸 Герои'], ['hat', '🎩 Шапки'], ['shirt', '👕 Одежда'], ['legs', '👖 Штаны'], ['shoes', '👟 Обувь'], ['cape', '🧣 Плащи'], ['glasses', '🕶️ Очки'], ['back', '🪽 На спину'], ['bag', '🎒 Рюкзаки'], ['neck', '🏅 Медали']];
+const cupGot = save => !!save.cup;
 const dragonWon = save => (save.track?.round || 1) > 1;
 const schoolDays = n => save => (save.school?.days?.length || 0) >= n;
 // price — монеты; unlock — особая вещь: даётся бесплатно за подвиг
@@ -125,6 +126,7 @@ export const CLOTHES = [
   { id: 'bp_space', slot: 'bag', icon: '🌌', name: 'Космический рюкзак', price: 1200, color: 0x2a2f8a, flap: 0x1a1f6a, deco: 'stars' },
   { id: 'bp_unicorn', slot: 'bag', icon: '🦄', name: 'Рюкзак-единорог', price: 1200, color: 0xffb3e0, flap: 0xff8ad0, deco: 'unicorn' },
   { id: 'bp_bear', slot: 'bag', icon: '🧸', name: 'Рюкзак-мишка', price: 1000, color: 0xb07a4a, flap: 0x8a5a32, deco: 'bear' },
+  { id: 'medal_cup', slot: 'neck', icon: '🏅', name: 'Медаль участника соревнований', price: 0, unlock: cupGot, lock: 'открой подарок у кубка в зоне «Спорт»' },
   { id: 'rocket', slot: 'back', icon: '🚀', name: 'Рюкзак-ракета', price: 2500 },
   { id: 'wings', slot: 'back', icon: '🪽', name: 'Крылья ангела', price: 3000 },
   { id: 'dwings', slot: 'back', icon: '🐉', name: 'Крылья дракона', price: 0, unlock: dragonWon, lock: 'победи дракона на Дорожке' },
@@ -181,6 +183,12 @@ export function dressHero(m, wear) {
       o.cape = cp;
     }
     if (c.slot === 'bag') backpack(Bd, m, c);
+    if (c.slot === 'neck') {                                                          // медаль на ленточке
+      const top = TY + TH / 2, z = 0.36;
+      for (const sx of [-1, 1]) { const r = box(Bd, 0.1, 0.5, 0.03, 0x3fa7ff, sx * 0.13, top - 0.2, z, { shadow: false }); r.rotation.z = sx * 0.35; }
+      box(Bd, 0.32, 0.32, 0.05, GOLD, 0, top - 0.55, z + 0.01, { shadow: false });
+      const s = box(Bd, 0.14, 0.14, 0.03, 0xffffff, 0, top - 0.55, z + 0.045, { shadow: false }); s.rotation.z = 0.78;
+    }
     if (c.slot === 'back') {
       if (c.id === 'rocket') {
         for (const sx of [-1, 1]) {

@@ -72,7 +72,7 @@ function buildBase(save) {
   if (save.tools.house) petHouse();
 
   // деревья и площадка с лесенкой
-  for (const [x, z, s, k] of [[-43.5, 20, 1, 'apple'], [-12, 47.5, 1.2, 'pine'], [38, 58, 1, 'birch'], [22, 50, 1.1, 'oak'], [-22, 58, 0.9, 'pine'], [24, 60, 1, 'apple'], [-40, 50, 0.9, 'birch']]) tree(w, x, z, s, 0, k);
+  for (const [x, z, s, k] of [[-43.5, 20, 1, 'apple'], [-12, 47.5, 1.2, 'pine'], [38, 58, 1, 'birch'], [22, 50, 1.1, 'oak'], [-22, 58, 0.9, 'pine'], [24, 60, 1, 'apple']]) tree(w, x, z, s, 0, k);
 
 
   // башня с сундуком (верёвка)
