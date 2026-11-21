@@ -9,6 +9,7 @@ import { makeLabel, puff } from './fx.js';
 import { buildHero, compactHero, PEOPLE } from './hero.js';
 import { scene } from './engine.js';
 import { BANYA } from './spa.js';
+import { PIT } from './bunker.js';
 
 export const DACHA_GATE = { x: -38, z: 107, w: 6 };
 export const DACHA = { x0: -48, x1: -12, z0: 182, z1: 208, house: { x: -36, z: 198 }, well: { x: -22, z: 188 }, beds: [194, 197.5, 201].map(z => ({ x: -21, z })) };
@@ -25,7 +26,10 @@ export function buildDacha(w) {
   const R = seeded(4242), G = GROUND, mid = (a, b) => (a + b) / 2;
   st = { smokeT: 0 };
   // земля, живая изгородь по краям (дальше — лес)
-  solid(w, G.x1 - G.x0, 1, G.z1 - G.z0, 0x6fd04a, mid(G.x0, G.x1), -1, mid(G.z0, G.z1));
+  // земля — с дыркой под площадку бункера (bunker.js): там вместо неё столбики земли, которые можно копать
+  const H = { x0: PIT.x0, x1: PIT.x0 + PIT.n, z0: PIT.z0, z1: PIT.z0 + PIT.n };
+  for (const [x0, x1, z0, z1] of [[G.x0, G.x1, G.z0, H.z0], [G.x0, G.x1, H.z1, G.z1], [G.x0, H.x0, H.z0, H.z1], [H.x1, G.x1, H.z0, H.z1]])
+    solid(w, x1 - x0, 1, z1 - z0, 0x6fd04a, mid(x0, x1), -1, mid(z0, z1));
   for (const [x0, x1, z0, z1] of [[G.x0, G.x0 + 1.4, G.z0, G.z1], [G.x1 - 1.4, G.x1, G.z0 + 3, G.z1], [G.x0, G.x1, G.z1 - 1.4, G.z1], [G.x0, -47, G.z0, G.z0 + 3]])
     solid(w, x1 - x0, 2.4, z1 - z0, 0x3f9e3a, mid(x0, x1), 0, mid(z0, z1), { cam: true });
   for (let i = 0; i < 26; i++) {                                         // лес за изгородью

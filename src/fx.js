@@ -114,7 +114,7 @@ export function arc(obj, a, b, dur, height, done) {
 }
 
 // щепки и осколки от удара: короткие, разлетаются и падают
-export function chips(pos, color, n = 8) {
+export function chips(pos, color, n = 8, floor = 0.05) {   // floor — где падают (в яме бункера — ниже нуля)
   for (let i = 0; i < n; i++) {
     const m = new T.Mesh(BOX, mat(color)); m.scale.setScalar(0.1 + Math.random() * 0.12);
     m.position.copy(pos); scene.add(m);
@@ -122,7 +122,7 @@ export function chips(pos, color, n = 8) {
     let t = 0;
     addFx(dt => {
       t += dt; v.y -= 18 * dt; m.position.addScaledVector(v, dt); m.rotation.x += 10 * dt; m.rotation.z += 8 * dt;
-      if (m.position.y < 0.05) { m.position.y = 0.05; v.set(0, 0, 0); }
+      if (m.position.y < floor) { m.position.y = floor; v.set(0, 0, 0); }
       if (t > 0.9) { scene.remove(m); return false; }
       return true;
     });

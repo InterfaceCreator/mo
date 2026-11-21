@@ -53,6 +53,8 @@ export const SFX = {
   collect() { tone('triangle', 880, 1320, 0.08, 0.18); },
   chop() { noise(0.06, 0.45, 'bandpass', 900, 0, 1.5); tone('square', 180, 120, 0.06, 0.08); },
   mine() { noise(0.05, 0.4, 'highpass', 2600); tone('square', 900, 700, 0.05, 0.06); },
+  dig() { noise(0.09, 0.45, 'lowpass', 520, 0, 1.2); noise(0.05, 0.15, 'bandpass', 1800, 0.02, 1.5); },
+  siren() { for (let i = 0; i < 4; i++) { tone('sawtooth', 600, 1100, 0.45, 0.07, i * 0.9); tone('sawtooth', 1100, 600, 0.45, 0.07, i * 0.9 + 0.45); } },
   climb() { tone('sine', 300, 900, 0.7, 0.15, 0, 0.05); },
   chest() { [659, 784, 988, 1319].forEach((f, i) => tone('triangle', f, f, 0.2, 0.22, i * 0.08)); },
   craft() { for (let i = 0; i < 3; i++) noise(0.05, 0.4, 'bandpass', 1400, i * 0.12, 2); [784, 1047, 1319].forEach((f, i) => tone('triangle', f, f, 0.25, 0.22, 0.4 + i * 0.1)); },

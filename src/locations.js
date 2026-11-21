@@ -11,6 +11,7 @@ import { HOUSE, CLOTHES_SHOP, buildHome, buildLoft } from './home.js';
 import { buildWinter, WINTER } from './winter.js';
 import { buildSecret, SECRET } from './secret.js';
 import { buildSchool, SCHOOL } from './school.js';
+import { buildBunkerLoc, BUNKER_SPAWN } from './bunkerloc.js';
 import { makeLabel } from './fx.js';
 import { addStar, addScroll, addPad, addBunny, addCritter, addDuck, addButterfly, addRotor, addWaterfall, addMushroom, addPlates } from './fun.js';
 import { buildTerrain, water } from './terrain.js';
@@ -522,6 +523,7 @@ export const STARS_IN = { forest: 19, autumn: 6, winter: 10 };
 // ================= СПИСОК =================
 export const LOCS = {
   school: { name: 'Школа', icon: '🏫', build: (save, profile) => buildSchool(save, profile), spawn: SCHOOL.spawn, sky: 0xa8dcff },
+  bunker: { name: 'Бункер', icon: '🛡️', build: (save, profile) => buildBunkerLoc(save, profile), spawn: BUNKER_SPAWN, sky: 0x1e1812 },
   secret: { name: 'Тайная комната', icon: '🏮', build: (save, profile) => buildSecret(save, profile), spawn: SECRET.spawn, sky: 0x2a2850 },
   winter: { name: 'Зима', icon: '⛄', build: buildWinter, spawn: { x: WINTER.spawn.x, z: WINTER.spawn.z, face: Math.PI }, sky: 0xcfe6f7 },
   autumn: { name: 'Осень', icon: '🍂', build: buildAutumn, spawn: { x: AUTUMN.spawn.x, z: AUTUMN.spawn.z, face: Math.PI }, sky: 0xffcf9a },

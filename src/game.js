@@ -21,6 +21,8 @@ import { buildPlayground, updatePlayground } from './playground.js';
 import { buildPark, updatePark } from './park.js';
 import { buildDacha, updateDacha } from './dacha.js';
 import { buildCup, updateCup, CUP_NOTE } from './cup.js';
+import { buildBunker, updateBunker, bunkerItems, climbOut, inPit } from './bunker.js';
+import { updateBunkerLoc, bunkerLocItems, BUNKER_SPAWN, BONES, ROOM_COINS, KLAD, ALL_COINS } from './bunkerloc.js';
 import { buildSpa, updateSpa, spaNear, spaUse, spaSaid } from './spa.js';
 import { buildVillage, updateVillage, nearVillager, takeRider } from './village.js';
 import { buildGarden, updateGarden, gardenNear, plant, startFill, startWater, harvest, CROPS, garden, isRipe, isThirsty, timeLeft, busy as gardenBusy } from './garden.js';
@@ -137,14 +139,14 @@ function enter(id, spawn, owner = null) {
   if (id === 'base') { buildBase(); buildIncubators(); setIncSlots(save.incSlots); buildPen(save.pets, save.penCap); buildPlots(save); buildMailbox(); spawnVasya(); }
   spawnFriends(id, save);                          // друзья: Ряба на базе, Ёжик, Совёнок, Лисичка, Медвежонок в лесу
   buildKids(id, w);                                // места для игр детей: футбол, боулинг, цветные плиты, челнок
-  if (id === 'base') { buildPlayground(w || scene); buildPark(w || scene, save, profile); buildDacha(w || scene); buildSpa(w || scene); buildCup(w || scene, save, profile, houseFor(duoMe())); buildGarden(save, hero); buildVillage(w || scene, save); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
+  if (id === 'base') { buildPlayground(w || scene); buildPark(w || scene, save, profile); buildDacha(w || scene); buildBunker(w || scene, save, profile); buildSpa(w || scene); buildCup(w || scene, save, profile, houseFor(duoMe())); buildGarden(save, hero); buildVillage(w || scene, save); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
   if (id === 'winter') buildWinterFun(save);       // головоломки, сосульки, рыбалка, сова, пингвинята, снежная битва, звёзды
   buildPickups(id, save);                                // продукты для кухни: яйца, яблоки, ягоды, грибы, мёд, снег, какао
   buildRareBox(id, save);                          // сундучок с редкой одеждой (база, лес, осень)   // качели, карусель, пузыри, мяч; свой домик и ларёк одежды
   if (w) bake(w);                                  // неподвижное склеиваем — меньше работы видеокарте
   hero.pos.set(spawn.x, groundY(spawn.x, spawn.z), spawn.z); hero.vel.set(0, 0, 0);
   hero.face = spawn.face; hero.model.root.rotation.y = spawn.face; hero.safe = hero.pos.clone();
-  hero.swing = hero.climb = null; hero.stun = 0;
+  hero.swing = hero.climb = hero.dig = hero.digTool = null; hero.camFloor = undefined; hero.camPitchMin = id === 'bunker' ? 0.75 : 0; hero.stun = 0;
   hero.sled = false; hero.ice = false; hero.swim = false; hero.relax = false;                // санки и каток — только в Зимней долине
   cam.yaw = spawn.face + Math.PI; cam.init = false;
   portalCool = 1;
@@ -461,6 +463,8 @@ function pickMenu(title, line, opts) {
 }
 const MOTYA = () => profile === 'mama' ? 'а' : '';
 function gardenUse(id) {
+  if (id === 'g_up') { if (climbOut(hero)) SFX.climb(); return; }          // бункер: вылезти из ямы
+  if (id === 'g_dig') return;                                              // лопата — по удержанию (bunker.js)
   if (id === 'g_steam' || id === 'g_bubbles') { const r = spaUse(id.slice(2), hero); if (r.sfx) SFX[r.sfx]?.(); if (r.say) { toast(r.say); spaSaid(r.key); } return; }
   const g = gardenNear(hero.pos), G = garden(save);
   if (id === 'g_fill') { startFill(hero); SFX.splash?.(); return; }
@@ -692,9 +696,9 @@ export function updateGame(dt) {
   hero.canGlide = !!save.tools.umbrella;
   applyBonuses();
 
-  // глубокая вода (озеро): плюх — и герой снова на берегу, где стоял последний раз
+  // глубокая вода (озеро): плюх (в яме бункера глубоко — это не вода) — и герой снова на берегу, где стоял последний раз
   if (hero.grounded && p.y > -0.6) { if (!hero.dry) hero.dry = new T.Vector3(); if ((hero.dryT = (hero.dryT || 0) - dt) <= 0) { hero.dry.copy(p); hero.dryT = 0.4; } }
-  if (p.y < -2 && hero.dry) { puff('💦', p.clone().setY(0.5), { size: 1.8, rise: 1 }); SFX.caught(); p.copy(hero.dry); hero.vel.set(0, 0, 0); toast('💦 Глубоко! Прыгай по кочкам'); }
+  if (p.y < -2 && hero.dry && !inPit(p)) { puff('💦', p.clone().setY(0.5), { size: 1.8, rise: 1 }); SFX.caught(); p.copy(hero.dry); hero.vel.set(0, 0, 0); toast('💦 Глубоко! Прыгай по кочкам'); }
 
   // сторож догнал — яйцо летит обратно в гнездо
   const caught = updateGuards(dt, hero);
@@ -839,6 +843,20 @@ export function updateGame(dt) {
     setTimeout(kidMoment, 2500);
   }
   if (rb.coins) { save.coins += rb.coins; SFX.coins(); persist(); toast(`🎁 Сундучок! +${rb.coins} монет<small>все редкие вещи этого места уже твои</small>`); }
+  if (level.id === 'bunker') {                          // бункер: раскапываем комнаты
+    const be = updateBunkerLoc(dt, hero, save);
+    for (const k of new Set(be.sfx)) SFX[k]?.();
+    if (be.coins) save.coins += be.coins;
+    if (be.dug) persist();
+    if (be.say) toast(be.say);
+    if (be.alarm) { SFX.siren?.(); toast('🚨 ТРЕВОГА! Всем в укрытие!<small>…шучу, это учебная 😄</small>'); }
+    if (be.bone) { SFX.chest(); kidMoment(); toast(`🦴 Кость динозавра! ${be.bone} из ${BONES}<small>${be.bone >= BONES ? 'все кости! в музее 🦕 будет скелет' : 'ищи, где из земли сыплются искорки ✨'}</small>`); }
+    if (be.room) {
+      const R = be.room; SFX.fanfare(); kidMoment(); persist();
+      toast(R.id === 'gold' ? `💰 Сокровищница! Клад: +${KLAD.coins + ROOM_COINS} монет и ${KLAD.crystal} 💎` : `${R.icon} ${R.name} откопан${R.id === 'food' || R.id === 'sleep' || R.id === 'play' ? 'а' : ''}!<small>+${ROOM_COINS} монет · ${R.id === 'store' ? 'в сундуке монетки раз в 10 минут' : R.id === 'hq' ? 'нажми красную кнопку 🚨' : R.id === 'play' ? 'прыгай на батуте!' : R.id === 'museum' ? 'найди 3 кости динозавра 🦴' : 'копай дальше!'}</small>`);
+    }
+    if (be.all) { fireworks(hero.pos.clone().setY(6), 12); notify({ icon: '🛡️', title: 'Бункер откопан целиком!', text: `Все комнаты бункера откопаны — ${profile === 'mama' ? 'ты настоящая копательница' : 'ты настоящий копатель'}! +${ALL_COINS} монет 🎉`, keep: true }); }
+  }
   if (atBase) updateHouse(dt);
   if (atBase && profile === 'mama') updatePlane(dt);   // пасхалка для мамы: самолётик с растяжкой «Бубнилка ❤️»
   if (level.id === 'home' || level.id === 'loft') {   // мебель: встал на кнопку места — выбираешь, что поставить; на лежанке — питомцы
@@ -861,6 +879,14 @@ export function updateGame(dt) {
     if (pg.say) toast(pg.say);
     if (pg.coins) save.coins += pg.coins;
     updateDacha(dt, hero);
+    const bk = updateBunker(dt, hero, save);                    // бункер на даче: копаем лопатой
+    for (const k of new Set(bk.sfx)) SFX[k]?.();
+    if (bk.coins) save.coins += bk.coins;
+    if (bk.dug) persist();
+    if (bk.say) toast(bk.say);
+    if (bk.shovel) { persist(); SFX.fanfare(); toast('⛏️ Лопата твоя! Копай вход в бункер<small>держи кнопку ⛏️ — копает кубик перед тобой · копай в жёлтой рамке</small>'); }
+    if (bk.open) { persist(); SFX.fanfare(); kidMoment(); toast('🛡️ Люк! Вход в бункер найден!<small>встань на люк — и вниз</small>'); }
+    if (bk.enter && !moving) goThrough({ to: 'bunker', spawn: BUNKER_SPAWN });
     const sp = updateSpa(dt, hero, save);                       // баня и джакузи
     for (const k of new Set(sp.sfx)) SFX[k]?.();
     if (sp.say) toast(sp.say);
@@ -1009,7 +1035,7 @@ export function updateGame(dt) {
 
   fedCheck();
   setEffects([['🧪', hero.boostT], ['🦘', hero.jumpT], ['🫧', hero.bubT], ['🍩', hero.bigT], ['🐾', fedLeft()], ['🧭', hero.compassT], ['⏱', xe.raceT]]);
-  setCoins(save.coins); setSpeed(save.speed); setItems([...((level.id === 'school' && !hero.eat && nearNpc(hero.pos)) || (level.id === 'base' && !hero.climb && !riding() && nearVillager(hero.pos)) ? [{ id: 'talk', icon: '💬' }] : []), ...gardenItems(), ...(hero.passenger || canHop() ? [{ id: 'hop', icon: hero.passenger ? '🛬' : '🫶' }] : []), ...(!hero.passenger && save.dragon?.got && DRAGON_OK.includes(level.id) ? [{ id: 'dragon', icon: riding() ? '🛬' : '🐉' }] : []), ...(riding() ? [{ id: 'fire', icon: '🔥' }] : []), ...(kitchen(save).dishes.length && friendNear(hero) ? [{ id: 'treat', icon: '🍽️' }] : []), ...(level.id === 'winter' && atHole(hero) ? [{ id: 'fish', icon: '🎣' }] : []), ...(level.id === 'winter' && !inPond() ? [{ id: 'snowball', icon: '❄️' }] : []), ...ITEMS].map(i => ({ ...i, n: itemCount(i.id) })), useItem);
+  setCoins(save.coins); setSpeed(save.speed); setItems([...((level.id === 'school' && !hero.eat && nearNpc(hero.pos)) || (level.id === 'base' && !hero.climb && !riding() && nearVillager(hero.pos)) ? [{ id: 'talk', icon: '💬' }] : []), ...gardenItems(), ...(level.id === 'base' && !riding() ? bunkerItems(hero) : []), ...(level.id === 'bunker' ? bunkerLocItems(hero) : []), ...(hero.passenger || canHop() ? [{ id: 'hop', icon: hero.passenger ? '🛬' : '🫶' }] : []), ...(!hero.passenger && save.dragon?.got && DRAGON_OK.includes(level.id) ? [{ id: 'dragon', icon: riding() ? '🛬' : '🐉' }] : []), ...(riding() ? [{ id: 'fire', icon: '🔥' }] : []), ...(kitchen(save).dishes.length && friendNear(hero) ? [{ id: 'treat', icon: '🍽️' }] : []), ...(level.id === 'winter' && atHole(hero) ? [{ id: 'fish', icon: '🎣' }] : []), ...(level.id === 'winter' && !inPond() ? [{ id: 'snowball', icon: '❄️' }] : []), ...ITEMS].map(i => ({ ...i, n: itemCount(i.id) })), useItem);
   setRes(save.res, level.id === 'autumn');
 }
 

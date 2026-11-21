@@ -115,7 +115,9 @@ export function setItems(list, onUse) {
   for (const it of list) {
     if (!it.n) continue;
     const b = document.createElement('button'); b.innerHTML = it.n === true ? it.icon : `${it.icon}<b>${it.n}</b>`;   // n === true — кнопка без счётчика (дракон)
-    b.onclick = () => onUse(it.id); box.appendChild(b);
+    if (it.hold) b.onpointerdown = e => { e.preventDefault(); it.hold(true); };   // держишь — действует (лопата копает); отпускание ловит сам модуль
+    else b.onclick = () => onUse(it.id);
+    box.appendChild(b);
   }
 }
 // всплывающее сообщение на пару секунд

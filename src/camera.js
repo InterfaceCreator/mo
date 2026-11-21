@@ -17,7 +17,7 @@ export function makeCam(face) {
 export function updateCam(c, dt, hero, { look, zoom, lastLook }) {
   // поворот пальцем: вправо — смотрим вправо, вниз — камера поднимается
   c.yaw -= look.dx;
-  c.pitch = clamp(c.pitch + look.dy, PITCH_MIN, PITCH_MAX);
+  c.pitch = clamp(c.pitch + look.dy, Math.max(PITCH_MIN, hero.camPitchMin || 0), PITCH_MAX);   // camPitchMin — в бункере смотрим сверху, иначе стены закрывают героя
   if (zoom) c.dist = clamp(c.dist + zoom * 1.5, DIST_MIN, DIST_MAX);
 
   // сама за спину — только когда герой бежит, иначе камера крутилась бы на месте
@@ -29,6 +29,7 @@ export function updateCam(c, dt, hero, { look, zoom, lastLook }) {
     c.pitch = damp(c.pitch, PITCH_DEF, 1.2 * k, dt);
   }
 
+  if (hero.camPitchMin && c.pitch < hero.camPitchMin) c.pitch = hero.camPitchMin;
   // точка, на которую смотрим: по высоте сглажена, чтобы прыжки не дёргали картинку
   const p = hero.pos;
   if (!c.init) { c.ty = p.y + HEAD; c.cur = c.dist; c.init = true; }
@@ -46,7 +47,8 @@ export function updateCam(c, dt, hero, { look, zoom, lastLook }) {
   c.cur = allowed < c.cur ? allowed : damp(c.cur, allowed, 3, dt);
 
   camera.position.copy(target).addScaledVector(dir, c.cur);
-  if (camera.position.y < 0.4) camera.position.y = 0.4;
+  const floor = hero.camFloor ?? 0.4;                                       // в яме бункера камера может опуститься под землю
+  if (camera.position.y < floor) camera.position.y = floor;
   camera.lookAt(target);
 
   // камера почти в голове — прячем героя, чтобы не смотреть изнутри

@@ -193,7 +193,7 @@ export function updateDuo(dt) {
       const p = hero.pos, c = hero.carrying;
       const m = { t: 'p', k: locKey(), x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2), f: +hero.face.toFixed(2),
         s: +(hero.animSpeed ?? hero.speed).toFixed(1), a: hero.grounded ? 0 : 1, vy: +hero.vel.y.toFixed(1), c: c ? { r: c.r, v: c.v || null } : null,
-        tl: hero.toolOut || null, g: hero.gliding ? 1 : 0, d: layout ? 1 : 0, st: hero.stun > 0 ? 1 : 0, sb: rollR(), sl: hero.sled ? 1 : 0, dr: hero.fly ? 1 : hero.passenger ? 2 : 0 };
+        tl: hero.digTool || hero.toolOut || null, g: hero.gliding ? 1 : 0, d: layout ? 1 : 0, st: hero.stun > 0 ? 1 : 0, sb: rollR(), sl: hero.sled ? 1 : 0, dr: hero.fly ? 1 : hero.passenger ? 2 : 0 };
       const j = JSON.stringify(m);
       sendT = 0.1; idleT -= 0.1;
       if (j !== lastSent || idleT <= 0) { net.send(m); lastSent = j; idleT = 1; }

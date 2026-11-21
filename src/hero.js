@@ -151,6 +151,9 @@ export function buildHero(parent, lookId = 'boy') {
   box(tools.pick, 0.1, 0.1, 1.2, 0x8a5a2b, 0, 0, 0.42);
   box(tools.pick, 0.12, 0.9, 0.16, 0x9aa4ad, 0, 0, 0.98);
   for (const sy of [-1, 1]) { const t = box(tools.pick, 0.1, 0.22, 0.14, 0xd8dee4, 0, sy * 0.5, 0.94, { shadow: false }); t.rotation.x = sy * 0.4; }
+  tools.shovel = group(grip);                                              // лопата: черенок, ручка-перекладина и штык
+  box(tools.shovel, 0.1, 0.1, 1.3, 0x8a5a2b, 0, 0, 0.45, { studs: false }); box(tools.shovel, 0.36, 0.1, 0.1, 0x6a3f1e, 0, 0, -0.2, { studs: false });
+  box(tools.shovel, 0.46, 0.07, 0.55, 0x9aa4ad, 0, 0, 1.33, { studs: false }); box(tools.shovel, 0.3, 0.08, 0.12, 0xd8dee4, 0, 0, 1.6, { studs: false, shadow: false });
   tools.venik = group(grip);                                               // банный веник: ручка и пучок листьев
   box(tools.venik, 0.09, 0.09, 0.55, 0x8a5a2b, 0, 0, 0.2, { studs: false });
   box(tools.venik, 0.36, 0.22, 0.7, 0x4a9a3a, 0, 0, 0.78, { studs: false }); box(tools.venik, 0.26, 0.3, 0.5, 0x5fbf4a, 0, 0.02, 0.92, { studs: false, shadow: false });
