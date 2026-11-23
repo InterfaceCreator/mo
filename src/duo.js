@@ -330,6 +330,7 @@ export const onDuoExtra = f => { extra = f; };                // сообщен�
 export const duoSend = m => { if (layout && net.state === 'on') net.send(m); };
 // где сейчас второй игрок, если он рядом в той же локации (в него можно попасть снежком)
 export const partnerPos = () => { const r = R[other]; return layout && r?.m?.root.visible ? r.m.root.position : null; };
+export const partnerModel = () => { const r = R[other]; return layout && r?.m?.root ? r.m.root : null; };
 // второй игрок верхом на своём драконе? (мама может сесть сзади) — его позиция и куда смотрит
 export const partnerRide = () => { const r = R[other], l = lastOf(other); return layout && r?.m?.root.visible && r.dragon && l?.dr === 1 ? { pos: r.m.root.position, face: r.face, air: !!l.a } : null; };
 export const partnerFire = () => { const r = R[other]; if (r?.dragon) breathe(r.dragon); };

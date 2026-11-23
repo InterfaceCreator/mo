@@ -2,6 +2,7 @@
 import { T, scene, group, box, damp, dampAngle, compactModel } from './engine.js';
 import { onLevelReset } from './world.js';
 import { makeLabel, puff } from './fx.js';
+import { toast } from './ui.js';
 
 const C = { fur: 0x7c6d5a, dark: 0x3e3128, white: 0xf3eee6, eye: 0x9fd08a, nose: 0xe8968a, ear: 0xf2b8b0 };
 
@@ -72,11 +73,30 @@ export function updateVasya(dt, hero) {
   const ev = {}, m = cat.m, p = m.root.position, h = hero.pos, now = performance.now() / 1000;
   const dx = h.x - p.x, dz = h.z - p.z, dist = Math.hypot(dx, dz);
   if (dist > 80) return ev;                                          // далеко — кот дремлет на месте
-  const petting = dist < 2.4 && hero.speed < 1.2 && Math.abs(h.y - p.y) < 1.5;
-  if (dist < 3.5 && !cat.near) ev.meow = true;                    // подошёл — «мяу»
+  const invis = !!(hero.invisT > 0);
+  const petting = !invis && dist < 2.4 && hero.speed < 1.2 && Math.abs(h.y - p.y) < 1.5;
+  if (!invis && dist < 3.5 && !cat.near) ev.meow = true;                    // подошёл — «мяу»
   cat.near = dist < 3.5;
 
   let speed = 0;
+  if (invis && dist < 8) {
+    // кот видит сквозь невидимость: поворачивается, шевелит головой и играет лапкой с искорками!
+    cat.face = dampAngle(cat.face, Math.atan2(dx, dz), 8, dt);
+    cat.m.head.rotation.z = Math.sin(now * 3) * 0.22;
+    cat.m.legs[0].rotation.x = -1.1 + Math.sin(now * 7) * 0.35;
+    if (dist < 4.0 && (cat.purrT -= dt) <= 0) {
+      cat.purrT = 1.2;
+      ev.meow = true;
+      puff('✨', new T.Vector3(p.x, p.y + 1.2, p.z), { size: 0.7, rise: 0.8 });
+    }
+    if (dist < 2.8 && !cat.invisSaid) {
+      cat.invisSaid = true;
+      puff('🐾', new T.Vector3(p.x, p.y + 1.5, p.z), { size: 0.8, rise: 1.0 });
+      toast('🐱 Василий видит тебя даже под плащом!<small>кот играет с волшебными искорками ✨</small>');
+    }
+  } else if (!invis) {
+    cat.invisSaid = false;
+  }
   if (petting) {
     // гладят: повернулся к герою, сел, зажмурился, мурчит; сердечки
     cat.face = dampAngle(cat.face, Math.atan2(dx, dz), 6, dt);

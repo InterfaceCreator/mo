@@ -31,7 +31,8 @@ import { dressHero, ward, openWardrobe, wardOpen } from './clothes.js';
 import { buildHouse, updateHouse, onClothesPad, updateHome, onWardPad, onUpgradePad, openUpgrades, onKitchenPad } from './home.js';
 import { openSpot, openBasket } from './furniture.js';
 import { buildRareBox, updateRareBox } from './rarebox.js';
-import { initDuo, duoToggle, duoState, together, houseFor, homeSave, visiting, applySide, buildDuoBase, updateDuo, duoAt, duoWhere, duoResume, duoMe, initSpy, spyTarget, spyInfo, duoLink, duoPartner, onDuoExtra, duoSend, partnerPos, partnerRide, partnerFire } from './duo.js';
+import { initDuo, duoToggle, duoState, together, houseFor, homeSave, visiting, applySide, buildDuoBase, updateDuo, duoAt, duoWhere, duoResume, duoMe, initSpy, spyTarget, spyInfo, duoLink, duoPartner, onDuoExtra, duoSend, partnerPos, partnerRide, partnerFire, partnerModel } from './duo.js';
+import { updateCloak, toggleCloak, setMeshInvis, findSpookTarget, doSpook, initWisps } from './cloak.js';
 import { panel } from './furniture.js';
 import { net, qrHost, qrAccept, duoOff } from './net.js';
 import { makeQR, scanQR } from './qr.js';
@@ -143,6 +144,7 @@ function enter(id, spawn, owner = null) {
   if (id === 'winter') buildWinterFun(save);       // головоломки, сосульки, рыбалка, сова, пингвинята, снежная битва, звёзды
   buildPickups(id, save);                                // продукты для кухни: яйца, яблоки, ягоды, грибы, мёд, снег, какао
   buildRareBox(id, save);                          // сундучок с редкой одеждой (база, лес, осень)   // качели, карусель, пузыри, мяч; свой домик и ларёк одежды
+  initWisps(id, save);                             // призрачные огоньки 🔮
   if (w) bake(w);                                  // неподвижное склеиваем — меньше работы видеокарте
   hero.pos.set(spawn.x, groundY(spawn.x, spawn.z), spawn.z); hero.vel.set(0, 0, 0);
   hero.face = spawn.face; hero.model.root.rotation.y = spawn.face; hero.safe = hero.pos.clone();
@@ -249,13 +251,15 @@ function talkBeaver(qs) {
 function saveInc() { save.inc = incubators.map(i => i.full ? { r: i.r, end: i.end, loc: i.loc, v: i.v } : null); persist(); }
 
 // предметы с кнопками над прыжком: банан и ловушка падают позади героя, батут встаёт перед ним
-const ITEMS = [{ id: 'banana', icon: '🍌' }, { id: 'trap', icon: '🪤' }, { id: 'pad', icon: '🟥' }, { id: 'potion', icon: '🧪' }, { id: 'compass', icon: '🧭' }];
+const ITEMS = [{ id: 'cloak', icon: '👻' }, { id: 'banana', icon: '🍌' }, { id: 'trap', icon: '🪤' }, { id: 'pad', icon: '🟥' }, { id: 'potion', icon: '🧪' }, { id: 'compass', icon: '🧭' }];
 // рядом второй игрок на своём драконе — можно сесть к нему сзади
 const canHop = () => { if (riding() || carry) return false; const pr = partnerRide(); return !!pr && Math.hypot(pr.pos.x - hero.pos.x, pr.pos.z - hero.pos.z) < 4.5 && Math.abs(pr.pos.y - hero.pos.y) < 3; };
 const DRAGON_OK = ['base', 'forest', 'autumn', 'winter', 'desert', 'ice'];          // где можно летать на драконе
-const itemCount = id => id === 'dragon' || id === 'fire' || id === 'hop' || id === 'talk' || id.startsWith('g_') ? true : id === 'fish' ? 1 : id === 'treat' ? kitchen(save).dishes.length : id === 'snowball' ? winterAmmo() : id === 'banana' ? save.bananas : (save.items?.[id] || 0);
+const itemCount = id => id === 'spook' ? (hero.invisT > 0 && !!findSpookTarget(hero, level.id)) : id === 'cloak' ? (hero.invisT > 0 ? true : hero.invisCool > 0 ? Math.ceil(hero.invisCool) : true) : id === 'dragon' || id === 'fire' || id === 'hop' || id === 'talk' || id.startsWith('g_') ? true : id === 'fish' ? 1 : id === 'treat' ? kitchen(save).dishes.length : id === 'snowball' ? winterAmmo() : id === 'banana' ? save.bananas : (save.items?.[id] || 0);
 function useItem(id) {
   if (itemCount(id) <= 0 || hero.climb) return;
+  if (id === 'cloak') { toggleCloak(hero); return; }
+  if (id === 'spook') { doSpook(hero, save, level.id); return; }
   if (id === 'talk') { const n = level.id === 'school' ? nearNpc(hero.pos) : nearVillager(hero.pos); if (n && !document.querySelector('.ov.on')) startTalk(n); return; }
   if (id.startsWith('g_')) return gardenUse(id);
   // на Дорожке батут перебросил бы через ворота — там каждого зверя надо пройти честно
@@ -682,11 +686,12 @@ export function updateGame(dt) {
     if (n) {
       carry = hero.carrying = takeEgg(n);
       hero.model.root.add(carry.mesh); carry.mesh.position.set(0, 2.95 + carry.mesh.scale.y * 0.5, 0.1);
-      wake(n); SFX.pick(); seeEgg(carry.r, carry.v);
+      wake(n, hero.invisT > 0); SFX.pick(); seeEgg(carry.r, carry.v);
     }
   }
   hero.jumpT = Math.max(0, (hero.jumpT || 0) - dt); hero.jumpMul = hero.jumpT > 0 ? 1.3 : 1;   // грибной суп и мороженое — прыжок выше
   hero.boostT = Math.max(0, (hero.boostT || 0) - dt); hero.compassT = Math.max(0, (hero.compassT || 0) - dt); hero.dashT = Math.max(0, (hero.dashT || 0) - dt);
+  updateCloak(dt, hero, save);
   hero.speedMul = speedMul(save.speed) * (carry ? B.CARRY[carry.r] * (carry.v === 'giant' ? 0.9 : 1) : 1) * (hero.boostT > 0 ? B.POTION_MUL : 1) * (hero.dashT > 0 ? 1.8 : 1);   // редкое и огромное яйцо тяжелее; стрелки разгоняют
   hero.jumpMul = (save.tools.boots ? 1.15 : 1) * (hero.jumpT > 0 ? 1.3 : 1);      // сапоги и еда (суп, пирожок) — прыжок выше
   // компот — пузыри вокруг, булочка — подрос
@@ -1034,8 +1039,8 @@ export function updateGame(dt) {
   setStars(Object.keys(save.stars || {}).filter(k => k.startsWith(level.id + '-')).length, total);
 
   fedCheck();
-  setEffects([['🧪', hero.boostT], ['🦘', hero.jumpT], ['🫧', hero.bubT], ['🍩', hero.bigT], ['🐾', fedLeft()], ['🧭', hero.compassT], ['⏱', xe.raceT]]);
-  setCoins(save.coins); setSpeed(save.speed); setItems([...((level.id === 'school' && !hero.eat && nearNpc(hero.pos)) || (level.id === 'base' && !hero.climb && !riding() && nearVillager(hero.pos)) ? [{ id: 'talk', icon: '💬' }] : []), ...gardenItems(), ...(level.id === 'base' && !riding() ? bunkerItems(hero) : []), ...(level.id === 'bunker' ? bunkerLocItems(hero) : []), ...(hero.passenger || canHop() ? [{ id: 'hop', icon: hero.passenger ? '🛬' : '🫶' }] : []), ...(!hero.passenger && save.dragon?.got && DRAGON_OK.includes(level.id) ? [{ id: 'dragon', icon: riding() ? '🛬' : '🐉' }] : []), ...(riding() ? [{ id: 'fire', icon: '🔥' }] : []), ...(kitchen(save).dishes.length && friendNear(hero) ? [{ id: 'treat', icon: '🍽️' }] : []), ...(level.id === 'winter' && atHole(hero) ? [{ id: 'fish', icon: '🎣' }] : []), ...(level.id === 'winter' && !inPond() ? [{ id: 'snowball', icon: '❄️' }] : []), ...ITEMS].map(i => ({ ...i, n: itemCount(i.id) })), useItem);
+  setEffects([['🧪', hero.boostT], ['🦘', hero.jumpT], ['🫧', hero.bubT], ['🍩', hero.bigT], ['🐾', fedLeft()], ['🧭', hero.compassT], ['⏱', xe.raceT], ['👻', hero.invisT || 0]]);
+  setCoins(save.coins); setSpeed(save.speed); setItems([...(hero.invisT > 0 && findSpookTarget(hero, level.id) ? [{ id: 'spook', icon: '😱' }] : []), ...((level.id === 'school' && !hero.eat && nearNpc(hero.pos)) || (level.id === 'base' && !hero.climb && !riding() && nearVillager(hero.pos)) ? [{ id: 'talk', icon: '💬' }] : []), ...gardenItems(), ...(level.id === 'base' && !riding() ? bunkerItems(hero) : []), ...(level.id === 'bunker' ? bunkerLocItems(hero) : []), ...(hero.passenger || canHop() ? [{ id: 'hop', icon: hero.passenger ? '🛬' : '🫶' }] : []), ...(!hero.passenger && save.dragon?.got && DRAGON_OK.includes(level.id) ? [{ id: 'dragon', icon: riding() ? '🛬' : '🐉' }] : []), ...(riding() ? [{ id: 'fire', icon: '🔥' }] : []), ...(kitchen(save).dishes.length && friendNear(hero) ? [{ id: 'treat', icon: '🍽️' }] : []), ...(level.id === 'winter' && atHole(hero) ? [{ id: 'fish', icon: '🎣' }] : []), ...(level.id === 'winter' && !inPond() ? [{ id: 'snowball', icon: '❄️' }] : []), ...ITEMS.map(i => i.id === 'cloak' ? { ...i, icon: hero.invisT > 0 ? '✨' : (hero.invisCool > 0 ? '⏳' : '👻') } : i)].map(i => ({ ...i, n: itemCount(i.id) })), useItem);
   setRes(save.res, level.id === 'autumn');
 }
 
@@ -1146,6 +1151,20 @@ export function updateSpyGame(dt) {
 const snowScore = { me: 0, them: 0 };
 function winterMsg(m) {
   const O = OTHER();
+  if (m.t === 'invis') {
+    const pm = partnerModel();
+    if (pm) setMeshInvis(pm, m.on);
+    const pos = partnerPos();
+    if (m.on) {
+      SFX.whoosh();
+      if (pos) puff('✨', pos.clone().setY(pos.y + 1.8), { size: 1.8, rise: 0.8 });
+      toast(`👻 ${O.im} ${profile === 'mama' ? 'надел' : 'надела'} плащ-невидимку!<small>попробуй найти по следам ✨</small>`);
+    } else {
+      SFX.pop();
+      if (pos) puff('💨', pos.clone().setY(pos.y + 1.8), { size: 1.6, rise: 0.6 });
+      toast(`✨ ${O.im} снова вид${profile === 'mama' ? 'ен' : 'на'}!`);
+    }
+  }
   if (m.t === 'fire') partnerFire();                                           // второй игрок дыхнул огнём со своего дракона
   if (m.t === 'wb' && level.id === 'winter') remoteBall(m.b);                     // летит снежок второго игрока
   if (m.t === 'wh') {                                                            // в меня попали!

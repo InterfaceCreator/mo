@@ -105,11 +105,11 @@ export function vanishGuard(nest) {
   gd.m.body.rotation.z = 0; sleepPose(gd, false); gd.state = 'charge'; gd.t = 3;
 }
 
-export function wake(nest) {
+export function wake(nest, invis = false) {
   const gd = guards.find(g => g.nest === nest); if (!gd) return;
   gd.state = 'alert'; gd.t = 0.55; sleepPose(gd, false);
-  puff(nest.guard === 'gorilla' ? '💪' : '❗', gd.g.position.clone().setY(gd.g.position.y + gd.s * 1.9), { size: 1.4, rise: 0.8, life: 0.9 });
-  if (nest.guard === 'gorilla') puff('🦍', gd.g.position.clone().setY(gd.g.position.y + gd.s * 2.6), { size: 1.8, rise: 1, life: 1.2 });
+  puff(invis ? '😱' : (nest.guard === 'gorilla' ? '💪' : '❗'), gd.g.position.clone().setY(gd.g.position.y + gd.s * 1.9), { size: 1.4, rise: 0.8, life: 0.9 });
+  if (nest.guard === 'gorilla' && !invis) puff('🦍', gd.g.position.clone().setY(gd.g.position.y + gd.s * 2.6), { size: 1.8, rise: 1, life: 1.2 });
 }
 
 // наблюдатель (duo.js): сторожа — как у игрока. [x, z, поворот, состояние]
@@ -168,13 +168,17 @@ export function updateGuards(dt, hero) {
       if ((gd.t -= dt) <= 0) gd.state = 'chase';
     } else if (gd.state === 'chase') {
       // герой отдал яйцо или убежал со своей территории — погоня окончена
-      if (!hero.carrying || hero.carrying.nest !== gd.nest || safe(zn, hero.pos)) { gd.state = 'stomp'; gd.t = 1.1; puff('😤', above(gd.s * 1.9), { size: 1.2 }); gd.search = 2.5; }
+      const invis = hero.invisT > 0;
+      if (!hero.carrying || hero.carrying.nest !== gd.nest || safe(zn, hero.pos) || (invis && !hero.carrying)) {
+        gd.state = 'stomp'; gd.t = 1.1; puff(invis ? '❓❓' : '😤', above(gd.s * 1.9), { size: 1.3, rise: 0.4, life: 2 }); gd.search = 2.5;
+      }
       else {
         const dx = hero.pos.x - p.x, dz = hero.pos.z - p.z, d = Math.hypot(dx, dz);
-        spd = gd.speed * (d < B.LUNGE_R ? B.LUNGE : 1);          // вблизи — рывок
+        spd = gd.speed * (invis ? 0.78 : 1) * (d < B.LUNGE_R ? B.LUNGE : 1);          // вблизи — рывок; в невидимости яйцо летит само — сторож в шоке
+        if (invis && Math.random() < dt * 1.5) puff('😱', above(gd.s * 1.9), { size: 1.2, rise: 0.6 });
         if (d > 0.01) { p.x += dx / d * spd * dt; p.z += dz / d * spd * dt; }
         gd.face = dampAngle(gd.face, Math.atan2(dx, dz), 10, dt);
-        if (d < 1.0 + gd.s * 0.35 && hero.pos.y - p.y < gd.s * 1.5) { caught = gd; gd.state = 'return'; gd.search = 0; puff('😊', above(gd.s * 1.9), { size: 1.2 }); }
+        if (d < 1.0 + gd.s * 0.35 && hero.pos.y - p.y < gd.s * 1.5) { caught = gd; gd.state = 'return'; gd.search = 0; puff(invis ? '😱' : '😊', above(gd.s * 1.9), { size: 1.2 }); }
         else {
           const hit = bananaUnder(p, 0.8 + gd.s * 0.3);
           if (hit === 'banana') { gd.state = 'slip'; gd.t = 1.8; puff('💫', above(gd.s * 1.6), { size: 1.4, rise: 0.4, life: 1.6 }); }

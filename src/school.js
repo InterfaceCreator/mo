@@ -6,7 +6,8 @@
 // Мотя садится за свободную парту в любом кабинете — открывается урок этого предмета (lessons.js → openRoom).
 import { T, scene, group, box, dampAngle } from './engine.js';
 import { solid, portal, clouds, onLevelReset } from './world.js';
-import { makeLabel, puff } from './fx.js';
+import { makeLabel, puff, confetti } from './fx.js';
+import { toast } from './ui.js';
 import { buildHero, compactHero, animateHero, PEOPLE } from './hero.js';
 import { dressHero } from './clothes.js';
 import { todayList } from './lessons.js';
@@ -363,6 +364,49 @@ export function updateSchool(dt, hero) {
   if (st.phase === 'break' && Math.floor(st.left) !== st.shownLeft) { st.shownLeft = Math.floor(st.left); st.status.userData.set(`🔔 Перемена · ещё ${st.shownLeft} с`, { color: '#ffffff' }); }
   st.heroPos = p;
   for (const n of st.npcs) stepNpc(n, dt, t);
+
+  // реакция школы на плащ-невидимку
+  const invis = !!(hero.invisT > 0);
+  if (invis) {
+    for (const s of Object.keys(st.teachers)) {
+      const tn = st.teachers[s];
+      if (Math.hypot(p.x - tn.pos.x, p.z - tn.pos.z) < 6.5) {
+        tn.m.head.rotation.z = Math.sin(t * 4) * 0.2;
+        if (!tn.invisReact) {
+          tn.invisReact = true;
+          puff('❓', new T.Vector3(tn.pos.x, 4.0, tn.pos.z), { size: 1.4, rise: 0.6, life: 2.2 });
+          toast(`👩‍🏫 ${tn.name}: «А где Мотя? Только что тут был! 👀»`);
+        }
+      }
+    }
+    if (st.cook && Math.hypot(p.x - st.cook.pos.x, p.z - st.cook.pos.z) < 6.5) {
+      st.cook.m.head.rotation.y = Math.sin(t * 3) * 0.4;
+      if (!st.cook.invisReact) {
+        st.cook.invisReact = true;
+        puff('👻', new T.Vector3(st.cook.pos.x, 4.0, st.cook.pos.z), { size: 1.5, rise: 0.8, life: 2.5 });
+        toast('🍳 Тётя Валя: «Батюшки! Пирожки сами летают! 🥐👻»');
+      }
+    }
+    const nearKids = st.kids.filter(k => Math.hypot(p.x - k.pos.x, p.z - k.pos.z) < 6);
+    if (nearKids.length && !st.kidsInvis) {
+      st.kidsInvis = true;
+      for (const k of nearKids) puff('🔍', new T.Vector3(k.pos.x, 3.2, k.pos.z), { size: 1.1, rise: 0.4, life: 1.8 });
+      toast('🎒 Ребята: «Мотя исчез! Прятки! Кто найдёт Мотю?» 🔍');
+    }
+  } else {
+    for (const s of Object.keys(st.teachers)) st.teachers[s].invisReact = false;
+    if (st.cook) st.cook.invisReact = false;
+    if (st.kidsInvis) {
+      st.kidsInvis = false;
+      const nearKids = st.kids.filter(k => Math.hypot(p.x - k.pos.x, p.z - k.pos.z) < 6);
+      if (nearKids.length) {
+        confetti(new T.Vector3(p.x, 2, p.z), 50);
+        puff('🎉', new T.Vector3(p.x, 3.2, p.z), { size: 1.4, rise: 0.8 });
+        toast('🎒 Ребята: «Нашёлся! Вот он!» 😃🎉');
+      }
+    }
+  }
+
   // свободные парты: подошёл к стульчику — садишься (занятые ребятами — нет)
   for (const S of st.seats) {
     const k = S.room + S.i, near = Math.hypot(p.x - S.x, p.z - S.z);

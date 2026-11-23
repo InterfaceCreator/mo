@@ -16,6 +16,7 @@ const V = (x, z, y = 0) => ({ x, z, y });
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const rnd = (a, b) => a + Math.random() * (b - a);
 let st = null;
+export const villageNpcs = () => st?.npcs || [];
 onLevelReset(() => { st = null; });
 
 // облики

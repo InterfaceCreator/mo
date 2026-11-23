@@ -99,6 +99,7 @@ const waitMin = (save, id) => Math.ceil((GAP - (Date.now() - ((fs(save)[id] || {
 
 // ---------- жители на карте ----------
 const here = [];
+export const friendsHere = () => here;
 onLevelReset(() => { here.length = 0; });
 
 export function spawnFriends(loc, save) {

@@ -121,6 +121,9 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 #splat{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:4;background:radial-gradient(ellipse at center,transparent 45%,rgba(255,255,255,.95) 100%)}
 #splat.on{animation:splat 1.2s ease-out}
 @keyframes splat{0%{opacity:1}100%{opacity:0}}
+/* призрачное зрение плаща-невидимки 🔮 */
+#ghostVision{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .4s ease;z-index:2;background:radial-gradient(ellipse at center,transparent 48%,rgba(140,80,255,.25) 100%),linear-gradient(rgba(100,160,255,.05),rgba(150,90,255,.07))}
+#ghostVision.on{opacity:1}
 /* кухня 🍳 (food.js) */
 #cook .panel{width:min(94vw,560px)}
 #lesson .panel,#diary .panel{width:min(94vw,560px)}
@@ -528,6 +531,7 @@ body.spy #spyBar{top:auto;bottom:max(10px,env(safe-area-inset-bottom))}
 <div id="craft" class="ov"><div class="panel"><button class="close" data-close>✕</button><h2>🔨 Верстак</h2><div id="craftList" style="display:flex;flex-direction:column;gap:10px;overflow-y:auto"></div></div></div>
 <div id="fade"></div>
 <div id="splat"></div>
+<div id="ghostVision"></div>
 <div id="zoneHint"></div>
 <div id="hint"></div>
 <div id="fps"></div>

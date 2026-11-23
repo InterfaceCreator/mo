@@ -68,9 +68,9 @@ export function clearLevel() {
 
 // ---------- строительные кусочки ----------
 // твёрдый блок: x, z — центр, y — низ блока
-export function solid(p, w, h, d, color, x, y, z, { studs = true, cam = false, shadow = true } = {}) {
+export function solid(p, w, h, d, color, x, y, z, { studs = true, cam = false, shadow = true, fence = false } = {}) {
   const m = box(p, w, h, d, color, x, y + h / 2, z, { studs, shadow });
-  addCollider({ x0: x - w / 2, x1: x + w / 2, y0: y, y1: y + h, z0: z - d / 2, z1: z + d / 2, cam });
+  addCollider({ x0: x - w / 2, x1: x + w / 2, y0: y, y1: y + h, z0: z - d / 2, z1: z + d / 2, cam, fence });
   return m;
 }
 
@@ -102,14 +102,14 @@ export function fence(p, x0, z0, x1, z1, gaps = []) {
   const inGap = t => gaps.some(([a, b]) => t > a && t < b);
   for (let i = 0; i <= n; i++) {
     const t = i * len / n; if (inGap(t)) continue;
-    solid(p, 0.5, 1.5, 0.5, C.fence, x0 + dx * t, 0, z0 + dz * t, { studs: false });
+    solid(p, 0.5, 1.5, 0.5, C.fence, x0 + dx * t, 0, z0 + dz * t, { studs: false, fence: true });
   }
   for (let i = 0; i < n; i++) {
     const t = (i + 0.5) * len / n; if (inGap(t)) continue;
     const seg = len / n, horiz = Math.abs(dx) > Math.abs(dz);
     const w = horiz ? seg : 0.25, d = horiz ? 0.25 : seg;
     box(p, w, 0.22, d, C.fenceDark, x0 + dx * t, 0.55, z0 + dz * t, { studs: false });
-    solid(p, w, 0.22, d, C.fenceDark, x0 + dx * t, 1.05, z0 + dz * t, { studs: false });
+    solid(p, w, 0.22, d, C.fenceDark, x0 + dx * t, 1.05, z0 + dz * t, { studs: false, fence: true });
   }
 }
 

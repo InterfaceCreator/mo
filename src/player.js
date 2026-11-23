@@ -13,10 +13,10 @@ export function makePlayer(model, spawn) {
 }
 
 // высота опоры под точкой (x, z) — самая высокая крыша блока не выше y + STEP
-function groundAt(x, z, y) {
+function groundAt(x, z, y, invis = false) {
   let g = -Infinity;
   const r = RADIUS * 0.7;
-  for (const c of nearColliders(x - r, x + r, z - r, z + r)) { if (c.off || c.ghost) continue;
+  for (const c of nearColliders(x - r, x + r, z - r, z + r)) { if (c.off || c.ghost || (invis && c.fence)) continue;
     if (x + r <= c.x0 || x - r >= c.x1 || z + r <= c.z0 || z - r >= c.z1) continue;
     if (c.y1 <= y + STEP && c.y1 > g) g = c.y1;
   }
@@ -24,8 +24,8 @@ function groundAt(x, z, y) {
 }
 
 // выталкивание из стен по горизонтали (круг против прямоугольника)
-function pushOut(p) {
-  for (const c of nearColliders(p.x - RADIUS, p.x + RADIUS, p.z - RADIUS, p.z + RADIUS)) { if (c.off || c.ghost) continue;
+function pushOut(p, invis = false) {
+  for (const c of nearColliders(p.x - RADIUS, p.x + RADIUS, p.z - RADIUS, p.z + RADIUS)) { if (c.off || c.ghost || (invis && c.fence)) continue;
     if (c.y1 <= p.y + STEP || c.y0 >= p.y + HERO_H) continue;     // низкий блок — на него можно шагнуть
     const nx = Math.max(c.x0, Math.min(p.x, c.x1)), nz = Math.max(c.z0, Math.min(p.z, c.z1));
     let dx = p.x - nx, dz = p.z - nz; const d2 = dx * dx + dz * dz;
@@ -78,9 +78,10 @@ export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
   const fx = -Math.sin(camYaw), fz = -Math.cos(camYaw), rx = Math.cos(camYaw), rz = -Math.sin(camYaw);
   let wx = rx * mv.x - fx * mv.y, wz = rz * mv.x - fz * mv.y;
   const mag = Math.min(Math.hypot(wx, wz), 1);
-  // зонтик: держишь прыжок в воздухе — падаешь медленно и летишь вперёд быстрее
-  pl.gliding = !!(pl.canGlide && pl.holdJump && !pl.grounded && pl.vel.y < 0);
-  const target = (mag < 0.12 ? 0 : WALK * pl.speedMul * (0.35 + 0.65 * mag)) * (pl.gliding ? 1.5 : 1) * (pl.fly ? 1.7 : 1);   // на драконе — быстрее     // слабое отклонение — шаг, сильное — бег
+  // зонтик: держишь прыжок в воздухе — падаешь медленно и летишь вперёд быстрее; в невидимости — призрачное парение
+  const invis = !!(pl.invisT > 0);
+  pl.gliding = !!((pl.canGlide || invis) && pl.holdJump && !pl.grounded && pl.vel.y < 0);
+  const target = (mag < 0.12 ? 0 : WALK * pl.speedMul * (0.35 + 0.65 * mag)) * (pl.gliding ? 1.5 : 1) * (pl.fly ? 1.7 : 1) * (invis ? 1.15 : 1);   // на драконе и призраком — быстрее     // слабое отклонение — шаг, сильное — бег
   const len = Math.hypot(wx, wz); if (len > 0.01) { wx /= len; wz /= len; }
 
   // разгон и торможение быстрые — управление «как в Roblox», без скольжения
@@ -90,29 +91,29 @@ export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
   pl.vel.z = damp(pl.vel.z, wz * target, accel, dt);
   if (target > 0) pl.face = dampAngle(pl.face, Math.atan2(wx, wz), 16, dt);
 
-  // прыжок
+  // прыжок: призраком — выше и мягче, лунная гравитация
   pl.airT = pl.grounded ? 0 : pl.airT + dt;
   if (wantJump && pl.fly) { pl.vel.y = Math.max(pl.vel.y, 0) + 8; pl.vel.y = Math.min(pl.vel.y, 14); pl.grounded = false; pl.airT = COYOTE; pl.jumped = true; }   // дракон: взмах крыльями — в любой момент
-  else if (wantJump && pl.airT < COYOTE) { pl.vel.y = JUMP_V * (pl.jumpMul || 1); pl.grounded = false; pl.airT = COYOTE; pl.jumped = true; }
+  else if (wantJump && pl.airT < COYOTE) { pl.vel.y = JUMP_V * (pl.jumpMul || 1) * (invis ? 1.25 : 1); pl.grounded = false; pl.airT = COYOTE; pl.jumped = true; }
   else pl.jumped = false;
-  pl.vel.y = Math.max(pl.vel.y - (pl.fly ? 9 : GRAVITY) * dt, pl.gliding ? -2.5 : pl.fly ? -5 : -40);   // на драконе — парит и плавно снижается
+  pl.vel.y = Math.max(pl.vel.y - (pl.fly ? 9 : (invis ? GRAVITY * 0.55 : GRAVITY)) * dt, pl.gliding ? -2.5 : pl.fly ? -5 : -40);   // на драконе и призраком — плавно снижается
 
   const p = pl.pos;
   // по горизонтали — мелкими шагами, чтобы не проскочить сквозь тонкий забор
   const steps = Math.ceil(Math.hypot(pl.vel.x, pl.vel.z) * dt / (RADIUS * 0.8)) || 1;
-  for (let i = 0; i < steps; i++) { p.x += pl.vel.x * dt / steps; p.z += pl.vel.z * dt / steps; pushOut(p); }
+  for (let i = 0; i < steps; i++) { p.x += pl.vel.x * dt / steps; p.z += pl.vel.z * dt / steps; pushOut(p, invis); }
 
   // по вертикали
   const before = p.y;
   p.y += pl.vel.y * dt;
-  const g = groundAt(p.x, p.z, Math.max(before, p.y));
+  const g = groundAt(p.x, p.z, Math.max(before, p.y), invis);
   if (pl.vel.y <= 0 && p.y <= g) {                // приземлились или шагнули на невысокий блок
     p.y = g; pl.vel.y = 0; pl.grounded = true;
   } else if (pl.grounded && pl.vel.y <= 0 && p.y - g < STEP) {
     p.y = g; pl.vel.y = 0;                       // спуск со ступеньки — прилипаем к полу
   } else pl.grounded = false;
   // потолок: не влезаем головой в блок
-  for (const c of nearColliders(p.x - RADIUS, p.x + RADIUS, p.z - RADIUS, p.z + RADIUS)) { if (c.off || c.ghost) continue;
+  for (const c of nearColliders(p.x - RADIUS, p.x + RADIUS, p.z - RADIUS, p.z + RADIUS)) { if (c.off || c.ghost || (invis && c.fence)) continue;
     if (pl.vel.y > 0 && p.y + HERO_H > c.y0 && before + HERO_H <= c.y0 + 0.01 &&
         p.x + RADIUS * 0.7 > c.x0 && p.x - RADIUS * 0.7 < c.x1 && p.z + RADIUS * 0.7 > c.z0 && p.z - RADIUS * 0.7 < c.z1) {
       p.y = c.y0 - HERO_H; pl.vel.y = 0;
