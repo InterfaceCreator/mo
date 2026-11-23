@@ -11,6 +11,7 @@ import { makeLabel, puff } from './fx.js';
 import { buildHero, compactHero, animateHero } from './hero.js';
 import { SLIDES, POOL, TOWER_P } from './park.js';
 import { riding } from './dragon.js';
+import { getNightK } from './daynight.js';
 
 const V = (x, z, y = 0) => ({ x, z, y });
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -114,11 +115,15 @@ export function buildVillage(w, save) {
   return st;
 }
 
-// кто рядом (для 💬): не тот, кто катится с горки или висит в воздухе
+// кто рядом (для 💬): не тот, кто катится с горки или висит в воздухе, и не спящий ребёнок
 export function nearVillager(p) {
   if (!st) return null;
   let best = null, bd = 1e9;
-  for (const n of st.npcs) { if (n.busy) continue; const d = Math.hypot(n.pos.x - p.x, n.pos.z - p.z) + Math.abs(n.pos.y - p.y) * 0.5; if (d < 2.8 && d < bd) { bd = d; best = n; } }
+  for (const n of st.npcs) {
+    if (n.busy || !n.g.visible) continue;
+    const d = Math.hypot(n.pos.x - p.x, n.pos.z - p.z) + Math.abs(n.pos.y - p.y) * 0.5;
+    if (d < 2.8 && d < bd) { bd = d; best = n; }
+  }
   return best;
 }
 
@@ -194,7 +199,30 @@ export function updateVillage(dt, hero) {
   if (!st) return {};
   st.splash = false; st.riderOff = null;
   const talkOpen = document.getElementById('talk')?.classList.contains('on');
+  const isNight = getNightK() > 0.35;
   for (const n of st.npcs) {
+    if (n.kind === 'kid') {
+      if (isNight) {
+        if (n.g.visible) {
+          n.g.visible = false;
+          puff('💤', n.pos.clone().setY(n.pos.y + 1.2), { size: 1.1, rise: 1.2, life: 1.5 });
+          puff('💨', n.pos.clone().setY(0.4), { size: 0.9, rise: 0.8, life: 0.8 });
+          if (n.rider) {
+            n.rider = false;
+            st.riderOff = n;
+          }
+        }
+        if (n.talking) {
+          n.talking = false;
+        }
+        continue; // ребёнок спит — не ходит, не плавает
+      } else {
+        if (!n.g.visible) {
+          n.g.visible = true;
+          puff('☀️', n.pos.clone().setY(n.pos.y + 1.2), { size: 0.9, rise: 1.0, life: 1.2 });
+        }
+      }
+    }
     if (n.talking && !talkOpen) n.talking = false;
     if (!n.rider && Math.hypot(n.pos.x - hero.pos.x, n.pos.z - hero.pos.z) > 75) continue;      // далеко — «спит»
     stepNpc(n, dt, hero);

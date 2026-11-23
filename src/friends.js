@@ -9,6 +9,7 @@ import { RES } from './craft.js';
 import { buildCat } from './vasya.js';
 import { buildHero, animateHero, compactHero, PEOPLE } from './hero.js';
 import { B } from './balance.js';
+import { getNightK } from './daynight.js';
 
 export const MAX_HEARTS = 5;
 const GAP = 15 * 60 * 1000;                                        // подарок одному другу — не чаще раза в 15 минут
@@ -119,7 +120,27 @@ function setLabel(n, save) {
 // раз в кадр. События для game.js: { say: текст, up: { f, h } } — сказал что-то или подружились сильнее
 export function updateFriends(dt, hero, save) {
   const ev = {}, p = hero.pos;
+  const isNight = getNightK() > 0.35;
   for (const n of here) {
+    const isBaseKid = n.f.loc === 'base' && n.f.scale === 0.8;
+    if (isBaseKid) {
+      if (isNight) {
+        if (n.g.visible) {
+          n.g.visible = false;
+          n.label.visible = false;
+          puff('💤', n.g.position.clone().setY(1.4), { size: 1.1, rise: 1.2, life: 1.5 });
+          puff('💨', n.g.position.clone().setY(0.4), { size: 0.9, rise: 0.8, life: 0.8 });
+        }
+        n.near = false;
+        continue; // ребёнок спит дома
+      } else {
+        if (!n.g.visible) {
+          n.g.visible = true;
+          n.label.visible = true;
+          puff('☀️', n.g.position.clone().setY(1.4), { size: 0.9, rise: 1.0, life: 1.2 });
+        }
+      }
+    }
     const g = n.g, q = g.position, dx = p.x - q.x, dz = p.z - q.z, d = Math.hypot(dx, dz);
     let spd = 0;
     if (n.busy) { n.label.visible = !!n.ambient; continue; }           // играет — им управляет игра (сам с собой — подпись видна)
@@ -163,10 +184,14 @@ export function updateFriends(dt, hero, save) {
 }
 
 // ---------- угощение блюдом с кухни 🍽️ (food.js) ----------
-// житель рядом (для кнопки «угостить»): ближайший, кто не занят игрой
+// житель рядом (для кнопки «угостить»): ближайший, кто не занят игрой и не спит
 export function friendNear(hero) {
   let best = null, bd = 1e9;
-  for (const n of here) { if (n.busy) continue; const q = n.g.position, d = Math.hypot(hero.pos.x - q.x, hero.pos.z - q.z); if (d < (n.f.r || 2.6) + 0.6 && Math.abs(hero.pos.y - q.y) < 2 && d < bd) { best = n; bd = d; } }
+  for (const n of here) {
+    if (n.busy || !n.g.visible) continue;
+    const q = n.g.position, d = Math.hypot(hero.pos.x - q.x, hero.pos.z - q.z);
+    if (d < (n.f.r || 2.6) + 0.6 && Math.abs(hero.pos.y - q.y) < 2 && d < bd) { best = n; bd = d; }
+  }
   return best;
 }
 // любимые блюда: за них житель радуется особенно

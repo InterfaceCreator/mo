@@ -261,13 +261,18 @@ export function portal(p, { x, z, w = 18, to, color, label, rot = 0, locked = fa
     : { x0: x + sx * half - 1, x1: x + sx * half + 1, y0: 0, y1: H, z0: z - 1, z1: z + 1, cam: true });
   const pt = { x, z, w, to, g, swirl, oval, gem, sparks, glow, label, req, locked, bars: null, col: null, side };
   if (label) { pt.sign = makeLabel(7, 1.75); pt.sign.userData.set(label, { color: '#ffffff' }); pt.sign.position.set(0, H + ARCH + 3.8, 0); g.add(pt.sign); }
-  if (locked) {
+  if (locked || to === 'school') {
     pt.bars = group(g); pt.bars.userData.dynamic = true;
     for (let i = 0; i < 9; i++) box(pt.bars, 0.4, H - 0.6, 0.4, 0x666a7a, -w / 2 + 0.6 + i * (w - 1.2) / 8, (H - 0.6) / 2, 0.9, { studs: false });
     box(pt.bars, w, 0.5, 0.5, 0x555a6a, 0, H - 1, 0.9, { studs: false }); box(pt.bars, w, 0.6, 0.6, 0x555a6a, 0, 2, 0.9, { studs: false });
     pt.col = addCollider({ x0: x - w / 2, x1: x + w / 2, y0: 0, y1: H - 0.6, z0: z - 0.5, z1: z + 1.5 });
-    // табличка на решётке: сколько скорости нужно (текст обновляет game.js)
-    pt.lockSign = makeLabel(5, 1.25); pt.lockSign.position.set(0, H - 1.2, 1.3); g.add(pt.lockSign);
+    // табличка на решётке: сколько скорости нужно / статус ночи
+    pt.lockSign = makeLabel(6.2, 1.35); pt.lockSign.position.set(0, H - 1.2, 1.3); g.add(pt.lockSign);
+    if (!locked) {
+      pt.bars.position.y = -7.5;
+      pt.col.off = true;
+      pt.lockSign.visible = false;
+    }
   }
   portals.push(pt);
   return pt;
@@ -294,6 +299,7 @@ export function updateWorld(dt) {
     }
     pt.sparks.visible = !pt.locked;
     if (!pt.locked && pt.bars && pt.bars.position.y > -7.5) pt.bars.position.y = Math.max(-7.5, pt.bars.position.y - dt * 6);
+    if (pt.locked && pt.bars && pt.bars.position.y < 0) pt.bars.position.y = Math.min(0, pt.bars.position.y + dt * 6);
   }
 }
 

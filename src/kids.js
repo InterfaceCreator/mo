@@ -451,7 +451,7 @@ export const miniOn = () => !!game;
 export function startMini(kind, hero, save) {
   const G = GAMES[kind]; if (game || !G) return false;
   const kids = G.kids.map(id => nodeOf(id)).filter(Boolean);
-  if (kids.length < G.kids.length) return false;
+  if (kids.length < G.kids.length || kids.some(k => !k.g.visible)) return false;
   for (const k of kids) k.busy = true;
   game = { kind, G, kids, count: 3, t: G.time, save, status: '' };
   G.start(game, hero, save);
@@ -460,6 +460,10 @@ export function startMini(kind, hero, save) {
 // раз в кадр. События: { hud, sfx: [], say, win/lose: kind, kids: [f] }
 export function updateMini(dt, hero) {
   if (!game) return {};
+  if (game.kids && game.kids.some(k => !k.g.visible)) {
+    stopMini();
+    return { say: 'Пора спать! Завтра доиграем 😴' };
+  }
   const g = game, ev = { sfx: [] };
   if (g.count > 0) {
     const before = Math.ceil(g.count); g.count -= dt; const now = Math.ceil(g.count);

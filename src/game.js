@@ -20,6 +20,7 @@ import { buildKids, updateKidSpots, startMini, updateMini, miniGame, miniOn } fr
 import { buildPlayground, updatePlayground } from './playground.js';
 import { buildPark, updatePark } from './park.js';
 import { buildDacha, updateDacha, dachaNear, dachaUse } from './dacha.js';
+import { getNightK } from './daynight.js';
 import { buildCup, updateCup, CUP_NOTE } from './cup.js';
 import { buildBunker, updateBunker, bunkerItems, climbOut, inPit } from './bunker.js';
 import { updateBunkerLoc, bunkerLocItems, BUNKER_SPAWN, BONES, ROOM_COINS, KLAD, ALL_COINS } from './bunkerloc.js';
@@ -692,18 +693,54 @@ export function updateGame(dt) {
 
   // порталы: закрытый открывается, когда хватает скорости; вошёл в открытый — переход
   portalCool -= dt;
+  const isNight = level.id === 'base' && getNightK() > 0.35;
   for (const pt of portals) {
-    if (pt.locked && save.speed >= pt.req) { unlockPortal(pt); confetti(new T.Vector3(pt.x, 0, pt.z + 2), 60); SFX.fanfare(); toast(`${pt.label}: портал открыт! 🎉`); notify({ icon: '🚪', title: `${pt.label}: портал открыт`, text: 'там новые гнёзда и новые питомцы' }); }
-    if (pt.locked) {
-      pt.lockSign.userData.set(`🔒 👟 ${save.speed} из ${pt.req}`, { color: '#ffe14d' });
-      // подошёл к закрытому порталу — объясняем, что делать
-      const near = Math.abs(p.x - pt.x) < pt.w / 2 + 2 && Math.abs(p.z - pt.z) < 7;
-      if (near && !pt.told) {
-        const left = pt.req - save.speed;
-        toast(`${pt.label}: портал откроется на скорости 👟 ${pt.req} — ещё ${left} ${left === 1 ? 'уровень' : left < 5 ? 'уровня' : 'уровней'}<small>прокачай скорость в магазине 🛒 или бесплатно на беговой дорожке 👟</small>`);
-        SFX.nope();
+    if (pt.to === 'school') {
+      if (isNight) {
+        if (!pt.nightLocked) {
+          pt.nightLocked = true;
+          pt.locked = true;
+          if (pt.col) pt.col.off = false;
+          if (pt.lockSign) {
+            pt.lockSign.visible = true;
+            pt.lockSign.userData.set('🌙 Закрыто на ночь · 😴 Спят', { color: '#ffea7a' });
+          }
+          if (pt.sign) pt.sign.userData.set('🏫 Школа (Ночь · Закрыта 🌙)', { color: '#ffb080' });
+        }
+      } else if (pt.nightLocked) {
+        pt.nightLocked = false;
+        pt.toldNight = false;
+        if (!pt.req || save.speed >= pt.req) {
+          pt.locked = false;
+          if (pt.col) pt.col.off = true;
+          if (pt.lockSign) pt.lockSign.visible = false;
+        }
+        if (pt.sign) pt.sign.userData.set('🏫 Школа', { color: '#ffffff' });
       }
-      pt.told = near;
+    }
+
+    if (pt.locked) {
+      if (pt.nightLocked) {
+        const near = Math.abs(p.x - pt.x) < pt.w / 2 + 2 && Math.abs(p.z - pt.z) < 7;
+        if (near && !pt.toldNight) {
+          toast('🌙 Школа закрыта на ночь!<small>Ночью уроков нет — все дети и учителя спят 😴 Дождись утра или отдохни на даче 🛌</small>');
+          SFX.nope();
+        }
+        pt.toldNight = near;
+      } else {
+        if (save.speed >= pt.req) { unlockPortal(pt); confetti(new T.Vector3(pt.x, 0, pt.z + 2), 60); SFX.fanfare(); toast(`${pt.label}: портал открыт! 🎉`); notify({ icon: '🚪', title: `${pt.label}: портал открыт`, text: 'там новые гнёзда и новые питомцы' }); }
+        else {
+          pt.lockSign.userData.set(`🔒 👟 ${save.speed} из ${pt.req}`, { color: '#ffe14d' });
+          // подошёл к закрытому порталу — объясняем, что делать
+          const near = Math.abs(p.x - pt.x) < pt.w / 2 + 2 && Math.abs(p.z - pt.z) < 7;
+          if (near && !pt.told) {
+            const left = pt.req - save.speed;
+            toast(`${pt.label}: портал откроется на скорости 👟 ${pt.req} — ещё ${left} ${left === 1 ? 'уровень' : left < 5 ? 'уровня' : 'уровней'}<small>прокачай скорость в магазине 🛒 или бесплатно на беговой дорожке 👟</small>`);
+            SFX.nope();
+          }
+          pt.told = near;
+        }
+      }
     }
     const along = pt.side ? p.z - pt.z : p.x - pt.x, across = pt.side ? p.x - pt.x : p.z - pt.z;   // портал в боковой стене повёрнут
     if (!pt.locked && portalCool <= 0 && !hero.climb && Math.abs(along) < pt.w / 2 && Math.abs(across) < 1.2 && p.y - groundY(pt.x, pt.z) < 4) goThrough(pt);
