@@ -20,9 +20,9 @@ export function buildBase() {
   // зелёная плита перед прилавком — встал на неё, и магазин открылся
   box(scene, 3, 0.12, 2.4, 0x5fd35f, SHOP.pad.x, 0.06, SHOP.pad.z, { shadow: false });
 
-  // Фонари на центральной площади базы (только ключевые зоны)
-  createLampPost(scene, -6, 0, 0);                       // центральная аллея
-  createLampPost(scene, 0, -14, 0);                      // у порталов
+  // Фонари на центральной площади базы (на газонах сбоку от дорожек)
+  createLampPost(scene, -5.2, 3.8, 0);                   // слева от центральной аллеи
+  createLampPost(scene, 5.2, 3.8, 0);                    // справа от центральной аллеи
   createLampPost(scene, 20, 14, -Math.PI / 2);           // у загона питомцев
   createLampPost(scene, -18, 12, 0);                     // у верстака и домика
   createLampPost(scene, SHOP.x + 4.8, SHOP.z, -Math.PI / 2); // у магазина
