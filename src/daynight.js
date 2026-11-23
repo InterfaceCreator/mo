@@ -68,30 +68,31 @@ function createMoon() {
   return s;
 }
 
-// Текстура сияющего ореола вокруг плафона фонаря
+// Текстура аккуратного сияющего ореола вокруг плафона фонаря
 const glowTexture = (() => {
   const cv = document.createElement('canvas'); cv.width = cv.height = 128;
   const c = cv.getContext('2d');
   const g = c.createRadialGradient(64, 64, 0, 64, 64, 64);
-  g.addColorStop(0, 'rgba(255, 255, 240, 1.0)');
-  g.addColorStop(0.2, 'rgba(255, 235, 120, 0.9)');
-  g.addColorStop(0.45, 'rgba(255, 190, 50, 0.45)');
-  g.addColorStop(0.75, 'rgba(255, 140, 20, 0.12)');
-  g.addColorStop(1, 'rgba(255, 120, 0, 0)');
+  g.addColorStop(0, 'rgba(255, 248, 200, 0.55)');
+  g.addColorStop(0.25, 'rgba(255, 215, 95, 0.28)');
+  g.addColorStop(0.55, 'rgba(255, 170, 40, 0.08)');
+  g.addColorStop(0.85, 'rgba(240, 130, 20, 0.015)');
+  g.addColorStop(1, 'rgba(220, 110, 0, 0)');
   c.fillStyle = g; c.fillRect(0, 0, 128, 128);
   return new T.CanvasTexture(cv);
 })();
 
-// Текстура яркого светового пятна под фонарём
+// Текстура мягкого, широко рассеянного светового пятна под фонарём
 const poolTexture = (() => {
   const cv = document.createElement('canvas'); cv.width = cv.height = 256;
   const c = cv.getContext('2d');
   const g = c.createRadialGradient(128, 128, 0, 128, 128, 128);
-  g.addColorStop(0, 'rgba(255, 245, 160, 1.0)');
-  g.addColorStop(0.25, 'rgba(255, 220, 100, 0.85)');
-  g.addColorStop(0.55, 'rgba(255, 180, 50, 0.45)');
-  g.addColorStop(0.8, 'rgba(240, 140, 20, 0.15)');
-  g.addColorStop(1, 'rgba(220, 120, 10, 0)');
+  g.addColorStop(0, 'rgba(255, 230, 130, 0.35)');
+  g.addColorStop(0.22, 'rgba(255, 205, 95, 0.25)');
+  g.addColorStop(0.48, 'rgba(245, 175, 55, 0.12)');
+  g.addColorStop(0.72, 'rgba(230, 140, 30, 0.045)');
+  g.addColorStop(0.90, 'rgba(210, 115, 15, 0.01)');
+  g.addColorStop(1.0, 'rgba(190, 95, 10, 0)');
   c.fillStyle = g; c.fillRect(0, 0, 256, 256);
   return new T.CanvasTexture(cv);
 })();
@@ -100,14 +101,15 @@ const poolTexture = (() => {
 export function initDayNight(save) {
   if (st) return st;
 
-  // Пул динамических источников света для ближайших к герою фонарей (без нагрузки на FPS)
-  const l1 = new T.PointLight(0xffdf66, 0, 22);
-  const l2 = new T.PointLight(0xffdf66, 0, 22);
-  const l3 = new T.PointLight(0xffdf66, 0, 22);
-  const l4 = new T.PointLight(0xffdf66, 0, 22);
-  const l5 = new T.PointLight(0xffdf66, 0, 22);
-  l1.userData.keep = l2.userData.keep = l3.userData.keep = l4.userData.keep = l5.userData.keep = true;
-  scene.add(l1, l2, l3, l4, l5);
+  // Пул динамических источников света для ближайших к герою фонарей (широкий мягкий радиус 38м)
+  const l1 = new T.PointLight(0xffdf77, 0, 38);
+  const l2 = new T.PointLight(0xffdf77, 0, 38);
+  const l3 = new T.PointLight(0xffdf77, 0, 38);
+  const l4 = new T.PointLight(0xffdf77, 0, 38);
+  const l5 = new T.PointLight(0xffdf77, 0, 38);
+  const l6 = new T.PointLight(0xffdf77, 0, 38);
+  l1.userData.keep = l2.userData.keep = l3.userData.keep = l4.userData.keep = l5.userData.keep = l6.userData.keep = true;
+  scene.add(l1, l2, l3, l4, l5, l6);
 
   st = {
     time: save?.dayTime ?? 100, // начинаем в середине солнечного дня
@@ -119,7 +121,7 @@ export function initDayNight(save) {
     moon: createMoon(),
     lamps: [],
     windows: [],
-    lampLights: [l1, l2, l3, l4, l5]
+    lampLights: [l1, l2, l3, l4, l5, l6]
   };
   return st;
 }
@@ -181,11 +183,11 @@ export function createLampPost(parent, x, z, rotY = 0) {
   });
   const halo = new T.Sprite(haloMat);
   halo.position.set(0.55, 3.1, 0);
-  halo.scale.set(3.8, 3.8, 1);
+  halo.scale.set(1.65, 1.65, 1);
   halo.userData.dynamic = true;
   lp.add(halo);
 
-  // Яркое световое пятно на земле под фонарём (аддитивное смешивание)
+  // Мягкое широкое световое пятно на земле под фонарём (аддитивное смешивание)
   // Координаты пятна в мировом пространстве: смещены в сторону свисания плафона
   const lx = x + Math.cos(rotY) * 0.55;
   const lz = z - Math.sin(rotY) * 0.55;
@@ -197,7 +199,7 @@ export function createLampPost(parent, x, z, rotY = 0) {
     depthWrite: false,
     side: T.DoubleSide
   });
-  const poolGeo = new T.PlaneGeometry(10.5, 10.5); // широкий радиус освещения
+  const poolGeo = new T.PlaneGeometry(21.0, 21.0); // широкий радиус освещения (21 метр!)
   const pool = new T.Mesh(poolGeo, poolMat);
   pool.position.set(lx, 0.038, lz);
   pool.rotation.x = -Math.PI / 2;
@@ -388,9 +390,9 @@ export function updateDayNight(dt, hero, levelId, save) {
   if (st.lamps.length) {
     // Очищаем отвязанные фонари (если сектор пересоздавался)
     st.lamps = st.lamps.filter(l => l.bulb?.parent);
-    const bulbColor = new T.Color(0x8a7f66).lerp(new T.Color(0xfffbaa), nightK);
-    const poolOpacity = nightK * 0.95;
-    const haloOpacity = nightK * 0.98;
+    const bulbColor = new T.Color(0x8a7f66).lerp(new T.Color(0xffe288), nightK);
+    const poolOpacity = nightK * 0.72;
+    const haloOpacity = nightK * 0.45;
 
     for (const lamp of st.lamps) {
       if (lamp.bulb?.material) lamp.bulb.material.color.copy(bulbColor);
@@ -403,14 +405,14 @@ export function updateDayNight(dt, hero, levelId, save) {
       if (nightK > 0.05) {
         const near = st.lamps
           .map(l => ({ l, d: Math.hypot(l.x - hero.pos.x, l.z - hero.pos.z) }))
-          .filter(o => o.d < 35)
+          .filter(o => o.d < 50)
           .sort((a, b) => a.d - b.d);
 
         for (let i = 0; i < st.lampLights.length; i++) {
           const pl = st.lampLights[i];
           if (near[i]) {
-            pl.position.set(near[i].l.x, 3.1, near[i].l.z);
-            pl.intensity = nightK * 3.6;
+            pl.position.set(near[i].l.x, 3.2, near[i].l.z);
+            pl.intensity = nightK * 1.05;
           } else {
             pl.intensity = 0;
           }
