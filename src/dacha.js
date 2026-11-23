@@ -279,11 +279,9 @@ export function buildDacha(w) {
   const gs = makeLabel(4.4, 1.1, { face: Math.PI }); gs.position.set(gx, 4.5, D.z0 - 0.2); scene.add(gs); gs.userData.set('🏡 Дача', { color: '#ffe14d' });
   box(w, 0.15, 1.2, 0.15, 0x6a3f1e, gx + 3.4, 0.6, D.z0 - 0.6); box(w, 0.7, 0.5, 0.5, 0x3a6ad8, gx + 3.4, 1.4, D.z0 - 0.6);
 
-  // Уютные фонари вдоль дороги и на участке (только ключевые ориентиры)
-  createLampPost(w, -37, 116, -Math.PI / 2);           // среди сосен в начале дороги
-  createLampPost(w, br.x - 2.8, br.z, Math.PI / 2);    // у мостика через ручей
-  createLampPost(w, -27, 166, -Math.PI / 2);           // на пригорке перед дачей
-  createLampPost(w, gx + 2.8, D.z0 - 0.5, Math.PI);    // у калитки дачи
+  // Уютные фонари у ключевых ориентиров (на обочинах вне дороги)
+  createLampPost(w, br.x - 3.2, br.z, Math.PI / 2);    // у мостика через ручей (на берегу)
+  createLampPost(w, gx + 2.8, D.z0 - 0.5, Math.PI);    // у калитки дачи (сбоку от ворот)
   createLampPost(w, -18, 188, 0);                      // у колодца и грядок
   createLampPost(w, 0, 196, 0);                        // у входа в теплицу
   createLampPost(w, 13, 184, 0);                       // у садовых качелей
