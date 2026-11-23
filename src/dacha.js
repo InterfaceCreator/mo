@@ -317,7 +317,11 @@ export function buildDacha(w) {
   // Фонарь над крыльцом
   const porchBulb = box(w, 0.28, 0.35, 0.28, 0x8a7f66, H0.x, 3.8, HZ0 - 1.2, { shadow: false });
   porchBulb.userData.dynamic = true;
-  registerLamp(porchBulb, null);
+  st.porchLight = new T.PointLight(0xffdf66, 0, 14);
+  st.porchLight.position.set(H0.x, 3.7, HZ0 - 1.2);
+  st.porchLight.userData.dynamic = true;
+  w.add(st.porchLight);
+  registerLamp(porchBulb, null, null, H0.x, HZ0 - 1.2);
 
   // Двускатная крыша дома
   for (const sx of [-1, 1]) { const r = box(w, hw * 2 + 1.2, 0.3, hd + 1.4, 0xc0392b, H0.x, WH + 1.35, H0.z + sx * (hd + 1.4) / 2 * 0.82); r.rotation.x = sx * 0.62; }
@@ -446,11 +450,11 @@ export function buildDacha(w) {
   box(w, 0.06, 0.5, 0.06, 0x222222, GZ.x, 3.8, GZ.z, { shadow: false });
   const gzBulb = box(w, 0.35, 0.42, 0.35, 0x8a7f66, GZ.x, 3.35, GZ.z, { shadow: false });
   gzBulb.userData.dynamic = true;
-  registerLamp(gzBulb, null);
-  st.gazeboLight = new T.PointLight(0xffbe4d, 0, 11);
+  st.gazeboLight = new T.PointLight(0xffbe4d, 0, 14);
   st.gazeboLight.position.set(GZ.x, 3.2, GZ.z);
   st.gazeboLight.userData.dynamic = true;
   w.add(st.gazeboLight);
+  registerLamp(gzBulb, null, null, GZ.x, GZ.z);
 
   const gzl = makeLabel(3.5, 0.8);
   gzl.position.set(GZ.x - 2.8, 3.8, GZ.z);
@@ -470,28 +474,29 @@ export function buildDacha(w) {
   st.campfire = new T.Vector3(CF.x, 0.5, CF.z);
 
   // Живой свет и пятно на земле от костра
-  st.campLight = new T.PointLight(0xff6818, 0, 16);
+  st.campLight = new T.PointLight(0xff6818, 0, 22);
   st.campLight.position.set(CF.x, 1.2, CF.z);
   st.campLight.userData.dynamic = true;
   w.add(st.campLight);
 
-  // Ореол огня на земле
+  // Ореол огня на земле (яркое аддитивное свечение)
   const ccv = document.createElement('canvas'); ccv.width = ccv.height = 128;
   const cctx = ccv.getContext('2d');
   const ccg = cctx.createRadialGradient(64, 64, 8, 64, 64, 64);
-  ccg.addColorStop(0, 'rgba(255, 120, 30, 0.85)');
-  ccg.addColorStop(0.35, 'rgba(255, 90, 20, 0.55)');
-  ccg.addColorStop(0.75, 'rgba(200, 60, 10, 0.18)');
+  ccg.addColorStop(0, 'rgba(255, 140, 40, 1.0)');
+  ccg.addColorStop(0.35, 'rgba(255, 100, 20, 0.7)');
+  ccg.addColorStop(0.7, 'rgba(220, 70, 10, 0.25)');
   ccg.addColorStop(1, 'rgba(180, 50, 0, 0)');
   cctx.fillStyle = ccg; cctx.fillRect(0, 0, 128, 128);
   const campGlowMat = new T.MeshBasicMaterial({
     map: new T.CanvasTexture(ccv),
+    blending: T.AdditiveBlending,
     transparent: true,
-    opacity: 0.35,
+    opacity: 0.45,
     depthWrite: false,
     side: T.DoubleSide
   });
-  st.campGlow = new T.Mesh(new T.PlaneGeometry(8, 8), campGlowMat);
+  st.campGlow = new T.Mesh(new T.PlaneGeometry(11, 11), campGlowMat);
   st.campGlow.position.set(CF.x, 0.04, CF.z);
   st.campGlow.rotation.x = -Math.PI / 2;
   st.campGlow.userData.dynamic = true;
@@ -992,14 +997,18 @@ export function updateDacha(dt, hero, save) {
     const nightK = getNightK();
     const t = performance.now() / 1000;
     const flk = 0.84 + Math.sin(t * 11) * 0.10 + Math.sin(t * 22.7) * 0.06;
-    st.campLight.intensity = (0.9 + 1.8 * nightK) * flk;
+    st.campLight.intensity = (2.2 + 4.5 * nightK) * flk;
     if (st.campGlow?.material) {
-      st.campGlow.material.opacity = (0.28 + 0.55 * nightK) * flk;
+      st.campGlow.material.opacity = (0.45 + 0.55 * nightK) * flk;
     }
   }
   if (st.gazeboLight) {
     const nightK = getNightK();
-    st.gazeboLight.intensity = nightK * 1.5;
+    st.gazeboLight.intensity = nightK * 3.6;
+  }
+  if (st.porchLight) {
+    const nightK = getNightK();
+    st.porchLight.intensity = nightK * 2.8;
   }
   if (st.campfire && (st.campT = (st.campT ?? 0) - dt) <= 0) {
     if (Math.hypot(hero.pos.x - st.campfire.x, hero.pos.z - st.campfire.z) < 50) {

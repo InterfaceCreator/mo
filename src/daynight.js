@@ -11,6 +11,9 @@ onLevelReset(() => {
   if (st) {
     if (st.stars) scene.remove(st.stars);
     if (st.moon) scene.remove(st.moon);
+    if (st.lampLights) {
+      for (const pl of st.lampLights) scene.remove(pl);
+    }
   }
   st = null;
 });
@@ -65,22 +68,45 @@ function createMoon() {
   return s;
 }
 
-// Текстура светового пятна под фонарём
-const poolTexture = (() => {
+// Текстура сияющего ореола вокруг плафона фонаря
+const glowTexture = (() => {
   const cv = document.createElement('canvas'); cv.width = cv.height = 128;
   const c = cv.getContext('2d');
   const g = c.createRadialGradient(64, 64, 0, 64, 64, 64);
-  g.addColorStop(0, 'rgba(255, 235, 140, 0.9)');
-  g.addColorStop(0.3, 'rgba(255, 215, 110, 0.6)');
-  g.addColorStop(0.7, 'rgba(255, 180, 80, 0.2)');
-  g.addColorStop(1, 'rgba(255, 160, 60, 0)');
+  g.addColorStop(0, 'rgba(255, 255, 240, 1.0)');
+  g.addColorStop(0.2, 'rgba(255, 235, 120, 0.9)');
+  g.addColorStop(0.45, 'rgba(255, 190, 50, 0.45)');
+  g.addColorStop(0.75, 'rgba(255, 140, 20, 0.12)');
+  g.addColorStop(1, 'rgba(255, 120, 0, 0)');
   c.fillStyle = g; c.fillRect(0, 0, 128, 128);
+  return new T.CanvasTexture(cv);
+})();
+
+// Текстура яркого светового пятна под фонарём
+const poolTexture = (() => {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const c = cv.getContext('2d');
+  const g = c.createRadialGradient(128, 128, 0, 128, 128, 128);
+  g.addColorStop(0, 'rgba(255, 245, 160, 1.0)');
+  g.addColorStop(0.25, 'rgba(255, 220, 100, 0.85)');
+  g.addColorStop(0.55, 'rgba(255, 180, 50, 0.45)');
+  g.addColorStop(0.8, 'rgba(240, 140, 20, 0.15)');
+  g.addColorStop(1, 'rgba(220, 120, 10, 0)');
+  c.fillStyle = g; c.fillRect(0, 0, 256, 256);
   return new T.CanvasTexture(cv);
 })();
 
 // Инициализация системы времени суток
 export function initDayNight(save) {
   if (st) return st;
+
+  // Пул динамических источников света для ближайших к герою фонарей (без нагрузки на FPS)
+  const l1 = new T.PointLight(0xffdf66, 0, 18);
+  const l2 = new T.PointLight(0xffdf66, 0, 18);
+  const l3 = new T.PointLight(0xffdf66, 0, 18);
+  l1.userData.keep = l2.userData.keep = l3.userData.keep = true;
+  scene.add(l1, l2, l3);
+
   st = {
     time: save?.dayTime ?? 100, // начинаем в середине солнечного дня
     nightK: 0,
@@ -90,15 +116,26 @@ export function initDayNight(save) {
     stars: createStars(),
     moon: createMoon(),
     lamps: [],
-    windows: []
+    windows: [],
+    lampLights: [l1, l2, l3]
   };
   return st;
 }
 
 // Регистрация фонаря для включения/выключения света
-export function registerLamp(bulbMesh, poolMesh) {
+export function registerLamp(bulbMesh, poolMesh, haloMesh, lx, lz) {
   if (!st) initDayNight();
-  st.lamps.push({ bulb: bulbMesh, pool: poolMesh });
+  if (bulbMesh && typeof bulbMesh === 'object' && !bulbMesh.isObject3D && bulbMesh.bulb) {
+    st.lamps.push(bulbMesh);
+  } else {
+    st.lamps.push({
+      bulb: bulbMesh,
+      pool: poolMesh,
+      halo: haloMesh,
+      x: lx ?? bulbMesh?.position?.x ?? 0,
+      z: lz ?? bulbMesh?.position?.z ?? 0
+    });
+  }
 }
 
 // Регистрация окна дома (днём голубое, ночью уютный янтарный свет)
@@ -107,7 +144,7 @@ export function registerWindow(glassMesh) {
   st.windows.push(glassMesh);
 }
 
-// Создание красивого дачного фонарного столба
+// Создание красивого дачного фонарного столба с ярким сиянием
 export function createLampPost(parent, x, z, rotY = 0) {
   const lp = group(parent, x, 0, z);
   lp.rotation.y = rotY;
@@ -131,26 +168,42 @@ export function createLampPost(parent, x, z, rotY = 0) {
   bulb.userData.dynamic = true;
   lp.add(bulb);
 
-  // Световое пятно на земле под фонарём
+  // Яркий сияющий ореол вокруг плафона
+  const haloMat = new T.SpriteMaterial({
+    map: glowTexture,
+    blending: T.AdditiveBlending,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    fog: false
+  });
+  const halo = new T.Sprite(haloMat);
+  halo.position.set(0.55, 3.1, 0);
+  halo.scale.set(3.8, 3.8, 1);
+  halo.userData.dynamic = true;
+  lp.add(halo);
+
+  // Яркое световое пятно на земле под фонарём (аддитивное смешивание)
   // Координаты пятна в мировом пространстве: смещены в сторону свисания плафона
   const lx = x + Math.cos(rotY) * 0.55;
   const lz = z - Math.sin(rotY) * 0.55;
   const poolMat = new T.MeshBasicMaterial({
     map: poolTexture,
+    blending: T.AdditiveBlending, // свет ДОБАВЛЯЕТСЯ к текстуре земли
     transparent: true,
     opacity: 0,
     depthWrite: false,
     side: T.DoubleSide
   });
-  const poolGeo = new T.PlaneGeometry(6.5, 6.5);
+  const poolGeo = new T.PlaneGeometry(10.5, 10.5); // широкий радиус освещения
   const pool = new T.Mesh(poolGeo, poolMat);
-  pool.position.set(lx, 0.035, lz);
+  pool.position.set(lx, 0.038, lz);
   pool.rotation.x = -Math.PI / 2;
   pool.userData.dynamic = true;
   parent.add(pool);
 
-  registerLamp(bulb, pool);
-  return { group: lp, bulb, pool };
+  registerLamp(bulb, pool, halo, lx, lz);
+  return { group: lp, bulb, pool, halo };
 }
 
 // Текущий коэффициент ночи (0 — день, 1 — глубокая ночь)
@@ -329,14 +382,40 @@ export function updateDayNight(dt, hero, levelId, save) {
     st.moon.material.opacity = Math.max(0, (nightK - 0.18) / 0.82);
   }
 
-  // 4. Фонари и световые пятна под ними
+  // 4. Фонари, сияющие ореолы и яркие световые пятна под ними
   if (st.lamps.length) {
     // Очищаем отвязанные фонари (если сектор пересоздавался)
     st.lamps = st.lamps.filter(l => l.bulb?.parent);
-    const bulbColor = new T.Color(0x8a7f66).lerp(new T.Color(0xffea55), nightK);
+    const bulbColor = new T.Color(0x8a7f66).lerp(new T.Color(0xfffbaa), nightK);
+    const poolOpacity = nightK * 0.95;
+    const haloOpacity = nightK * 0.98;
+
     for (const lamp of st.lamps) {
       if (lamp.bulb?.material) lamp.bulb.material.color.copy(bulbColor);
-      if (lamp.pool?.material) lamp.pool.material.opacity = nightK * 0.65;
+      if (lamp.pool?.material) lamp.pool.material.opacity = poolOpacity;
+      if (lamp.halo?.material) lamp.halo.material.opacity = haloOpacity;
+    }
+
+    // Динамический свет ближайших фонарей к герою (освещает героя, землю и окружение)
+    if (st.lampLights && hero?.pos) {
+      if (nightK > 0.05) {
+        const near = st.lamps
+          .map(l => ({ l, d: Math.hypot(l.x - hero.pos.x, l.z - hero.pos.z) }))
+          .filter(o => o.d < 35)
+          .sort((a, b) => a.d - b.d);
+
+        for (let i = 0; i < st.lampLights.length; i++) {
+          const pl = st.lampLights[i];
+          if (near[i]) {
+            pl.position.set(near[i].l.x, 3.1, near[i].l.z);
+            pl.intensity = nightK * 3.6;
+          } else {
+            pl.intensity = 0;
+          }
+        }
+      } else {
+        for (const pl of st.lampLights) pl.intensity = 0;
+      }
     }
   }
 
