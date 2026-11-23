@@ -129,9 +129,10 @@ export function updateGarden(dt, hero) {
   if (!st) return {};
   const ev = {};
   st.t += dt;
-  // лейка в руке: на даче и в ней есть вода (или как раз набираем / поливаем)
+  // лейка в руке: на даче и в ней есть вода (или как раз набираем / поливаем), но только пока стоим/ходим (не сидим)
   const inPlot = hero.pos.z > DACHA.z0 - 2 && hero.pos.x > DACHA.x0 - 2 && hero.pos.x < DACHA.x1 + 2;
-  hero.gardenTool = (inPlot && garden(st.save).can > 0) || st.act ? 'can' : null;
+  const seated = !!hero.sit || !!hero.relax || !!hero.climb?.seat || !!hero.sleeping || !!hero.sleep || !!hero.climb?.sleep;
+  hero.gardenTool = (!seated && inPlot && garden(st.save).can > 0) || st.act ? 'can' : null;
   const can = hero.model.tools.can;
   if (st.act) {
     const A = st.act; A.t += dt; const k = A.t / A.dur;

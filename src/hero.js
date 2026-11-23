@@ -224,9 +224,9 @@ export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 
     m.armL.rotation.x = m.armR.rotation.x = -3.0; m.armL.rotation.z = -0.15; m.armR.rotation.z = 0.15;
     m.legL.rotation.x = Math.sin(performance.now() / 150) * 0.4; m.legR.rotation.x = -m.legL.rotation.x;
   }
-  // инструмент в руке: держит наготове или бьёт обеими руками
-  for (const k in m.tools) m.tools[k].visible = k === tool && !carry;
-  if (tool && !carry) {
+  // инструмент в руке: держит наготове или бьёт обеими руками (прячем, когда сидит или спит)
+  for (const k in m.tools) m.tools[k].visible = k === tool && !carry && !sit && !sleep;
+  if (tool && !carry && !sit && !sleep) {
     if (swing >= 0) {
       const a = swingArm(swing);
       m.armR.rotation.x = a; m.armL.rotation.x = a * 0.9;

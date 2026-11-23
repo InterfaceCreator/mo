@@ -134,9 +134,11 @@ function start(who) {
     updatePlayer(hero, dt, input.move, cam.yaw, takeJump());
     updateCam(cam, dt, hero, { look: takeLook(), zoom: takeZoom(), lastLook: input.lastLook });
     updateGame(dt);
+    const isSit = !!hero.sit || !!hero.slide || !!hero.eat || !!hero.relax || !!hero.climb?.seat;
+    const isSleep = !!hero.sleeping || !!hero.sleep || !!hero.climb?.sleep;
     animateHero(hero.model, dt, { speed: hero.animSpeed ?? hero.speed, maxSpeed: WALK, air: !hero.grounded, vy: hero.vel.y, carry: !!hero.carrying || (!!hero.climb && !hero.climb.seat), stun: hero.stun > 0,
-      tool: hero.gardenTool || hero.digTool || hero.toolOut, swing: hero.swing ? hero.swing.t : hero.dig ? hero.dig.t : -1, glide: hero.gliding, sit: !!hero.sit || !!hero.slide || !!hero.eat || !!hero.relax || !!hero.climb?.seat, swim: !!hero.swim, spa: hero.spa, spaK: hero.spaK, ride: hero.fly ? 1 : hero.passenger ? 2 : 0,
-      dacha: hero.dachaAnim, dachaK: hero.dachaK || 0, sleep: !!hero.sleeping || !!hero.sleep || !!hero.climb?.sleep });
+      tool: (isSit || isSleep) ? null : (hero.gardenTool || hero.digTool || hero.toolOut), swing: hero.swing ? hero.swing.t : hero.dig ? hero.dig.t : -1, glide: hero.gliding, sit: isSit, swim: !!hero.swim, spa: hero.spa, spaK: hero.spaK, ride: hero.fly ? 1 : hero.passenger ? 2 : 0,
+      dacha: hero.dachaAnim, dachaK: hero.dachaK || 0, sleep: isSleep });
     duoAfterAnimate(dt);                // вдвоём: рядом — сердечки
     updateWorld(dt);
     updateDayNight(dt, hero, level?.id, save);
