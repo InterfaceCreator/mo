@@ -59,8 +59,8 @@ function bench(w, x, z, rot) {
 // ---------- распорядки ----------
 const STAIR_X = TOWER_P.x, STAIR_Z0 = 69.1, STAIR_Z1 = 81, TOP = TOWER_P.h;
 const stairY = z => z < STAIR_Z0 ? 0 : z >= STAIR_Z1 ? TOP : Math.floor((z - STAIR_Z0) / 0.85) + 1;
-const LADDER_X = 33.5, LADDER_Z0 = 22.5;                   // лесенка из кубиков на детской площадке
-const ladderY = z => z < LADDER_Z0 ? 0 : z > 41.1 ? 0 : Math.min(5, Math.floor((z - LADDER_Z0) / 3) + 1);
+const LADDER_X = 56, LADDER_Z0 = 20.5;                   // лесенка из кубиков на детской площадке
+const ladderY = z => z < LADDER_Z0 ? 0 : z > 39 ? 0 : Math.min(5, Math.floor((z - LADDER_Z0) / 3) + 1);
 const inPool = (x, z) => x > POOL.x0 && x < POOL.x1 && z > POOL.z0 && z < POOL.z1;
 
 const PLANS = {
@@ -78,9 +78,9 @@ const PLANS = {
     return f !== undefined ? [go(x, z, { spd: 2.2 }), wait(rnd(2, 3.5), 'stand', f)] : [go(x, z, { spd: 2.2 })];
   },
   // Даша и Егор: догонялки (один убегает, другой ловит); Егор иногда лезет на лесенку и спрыгивает
-  dasha: n => [go(rnd(35.5, 44.5), rnd(9.8, 14.2), { spd: 3.6 }), wait(rnd(0.3, 1))],
+  dasha: n => [go(rnd(36, 60), rnd(8, 28), { spd: 3.6 }), wait(rnd(0.3, 1))],
   egor: n => {
-    if (Math.random() < 0.3) return [go(LADDER_X, LADDER_Z0 - 1, { spd: 3 }), go(LADDER_X, 40.6, { spd: 2.2, y: z => ladderY(z) }), wait(1.2, 'cheer', 0), { hop: V(LADDER_X, 43) }, go(36, 13, { spd: 3 })];
+    if (Math.random() < 0.3) return [go(LADDER_X, LADDER_Z0 - 1, { spd: 3 }), go(LADDER_X, 38, { spd: 2.2, y: z => ladderY(z) }), wait(1.2, 'cheer', 0), { hop: V(LADDER_X, 40.5) }, go(48, 18, { spd: 3 })];
     const D = st.byId.dasha; return [{ chase: D, spd: 4.2, t: rnd(3, 6) }, wait(0.6, 'cheer')];
   },
   // аквапарк: из воды — к лестнице, наверх, к коврику горки, вниз — плюх, поплавать
@@ -101,11 +101,15 @@ const PLANS = {
 export function buildVillage(w, save) {
   st = { npcs: [], byId: {}, save };
   // лавочки: бабушкина у поперечной дорожки (в деревеньке) и на детской площадке
-  bench(w, -26, 45.8, Math.PI); bench(w, 31.8, 12, Math.PI / 2);
+  // лавочки: бабушкина у поперечной дорожки (в деревеньке) и в детском парке развлечений
+  bench(w, -26, 45.8, Math.PI);
+  bench(w, 42, 16, Math.PI / 4);
+  bench(w, 54, 16, -Math.PI / 4);
+  bench(w, 42, 28, 3 * Math.PI / 4);
   const add = (id, x, z, plan) => { const n = npc(id, x, z); n.plan = plan || PLANS[id]; st.byId[id] = n; return n; };
   const nina = add('nina', -26, 45.9); nina.sit = true; nina.face = Math.PI; nina.pos.y = 0;
   add('ivan', -12, 57.2); add('petr', 1, 1);
-  add('dasha', 40, 12); add('egor', 37, 11);
+  add('dasha', 46, 16); add('egor', 43, 15);
   for (const [id, x, z] of [['lyosha', -20, 70], ['vika', 10, 85], ['nika', 20, 95]]) { const n = add(id, x, z, PLANS.swim); if (inPool(x, z)) n.pos.y = POOL.floor; }
   return st;
 }

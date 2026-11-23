@@ -197,13 +197,13 @@ function swingArm(p) {
 }
 
 // анимация: speed — скорость по земле, air — в воздухе
-export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 0, carry = false, stun = false, tool = null, swing = -1, glide = false, sit = false, ride = false, swim = false, spa = null, spaK = 0 } = {}) {
+export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 0, carry = false, stun = false, tool = null, swing = -1, glide = false, sit = false, ride = false, swim = false, spa = null, spaK = 0, dacha = null, dachaK = 0 } = {}) {
   animMove(m, dt, speed, maxSpeed, air, vy);
   if (ride) {                                                              // верхом на драконе: сидит в седле, ноги по бокам, руки вперёд; ride 2 — сзади, на втором седле
     m.body.position.y = 1.45; m.body.position.z = ride === 2 ? -0.95 : 0; m.legL.rotation.x = m.legR.rotation.x = -1.1; m.legL.rotation.z = -0.45; m.legR.rotation.z = 0.45;
     m.armL.rotation.x = m.armR.rotation.x = -1.0; m.armL.rotation.z = -0.15; m.armR.rotation.z = 0.15;
   } else { m.legL.rotation.z = m.legR.rotation.z = 0; m.body.position.z = 0; }
-  if (sit) {                                                               // сидит за партой: ноги вперёд, руки на столе
+  if (sit) {                                                               // сидит за партой / скамейкой / на качелях: ноги вперёд, руки на столе/коленях
     m.legL.rotation.x = m.legR.rotation.x = -1.45; m.body.position.y = -0.36;
     m.armL.rotation.x = m.armR.rotation.x = -1.1; m.armL.rotation.z = m.armR.rotation.z = 0;
   }
@@ -252,6 +252,28 @@ export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 
       } else {
         m.armL.rotation.x = m.armR.rotation.x = -0.15 + Math.sin(t * 1.6) * 0.04; m.armL.rotation.z = -1.35; m.armR.rotation.z = 1.35;
         m.legL.rotation.x = -1.45 + Math.sin(t * 1.3) * 0.12; m.legR.rotation.x = -1.45 - Math.sin(t * 1.3) * 0.12;   // болтает ногами в воде
+      }
+    }
+  }
+  // чаепитие и жарка маршмеллоу на даче (dacha.js)
+  if (dacha) {
+    if (dacha === 'tea') {
+      m.armL.rotation.x = -1.1; m.armL.rotation.z = -0.15;
+      const sip = Math.max(0, Math.sin(dachaK * Math.PI * 4));
+      m.armR.rotation.x = -1.1 - sip * 1.15;
+      m.armR.rotation.z = -0.15 - sip * 0.3;
+      m.head.rotation.x = sip * 0.18;
+    } else if (dacha === 'marsh') {
+      m.armL.rotation.x = -1.0; m.armL.rotation.z = -0.2;
+      if (dachaK < 0.72) {
+        m.armR.rotation.x = -1.45 + Math.sin(dachaK * Math.PI * 6) * 0.08;
+        m.armR.rotation.z = -0.12;
+        m.head.rotation.x = 0.15;
+      } else {
+        const eat = Math.sin((dachaK - 0.72) / 0.28 * Math.PI);
+        m.armR.rotation.x = -1.45 - eat * 0.85;
+        m.armR.rotation.z = -0.25 - eat * 0.2;
+        m.head.rotation.x = eat * 0.2;
       }
     }
   }

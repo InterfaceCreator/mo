@@ -19,7 +19,7 @@ import { startKidGame, updateKidGame, kidGameOn } from './kidgames.js';
 import { buildKids, updateKidSpots, startMini, updateMini, miniGame, miniOn } from './kids.js';
 import { buildPlayground, updatePlayground } from './playground.js';
 import { buildPark, updatePark } from './park.js';
-import { buildDacha, updateDacha } from './dacha.js';
+import { buildDacha, updateDacha, dachaNear, dachaUse } from './dacha.js';
 import { buildCup, updateCup, CUP_NOTE } from './cup.js';
 import { buildBunker, updateBunker, bunkerItems, climbOut, inPit } from './bunker.js';
 import { updateBunkerLoc, bunkerLocItems, BUNKER_SPAWN, BONES, ROOM_COINS, KLAD, ALL_COINS } from './bunkerloc.js';
@@ -33,6 +33,7 @@ import { openSpot, openBasket } from './furniture.js';
 import { buildRareBox, updateRareBox } from './rarebox.js';
 import { initDuo, duoToggle, duoState, together, houseFor, homeSave, visiting, applySide, buildDuoBase, updateDuo, duoAt, duoWhere, duoResume, duoMe, initSpy, spyTarget, spyInfo, duoLink, duoPartner, onDuoExtra, duoSend, partnerPos, partnerRide, partnerFire, partnerModel } from './duo.js';
 import { updateCloak, toggleCloak, setMeshInvis, findSpookTarget, doSpook, initWisps } from './cloak.js';
+import { setupBaseSectors, updateSectors, isSectorActive } from './sectors.js';
 import { panel } from './furniture.js';
 import { net, qrHost, qrAccept, duoOff } from './net.js';
 import { makeQR, scanQR } from './qr.js';
@@ -140,12 +141,27 @@ function enter(id, spawn, owner = null) {
   if (id === 'base') { buildBase(); buildIncubators(); setIncSlots(save.incSlots); buildPen(save.pets, save.penCap); buildPlots(save); buildMailbox(); spawnVasya(); }
   spawnFriends(id, save);                          // друзья: Ряба на базе, Ёжик, Совёнок, Лисичка, Медвежонок в лесу
   buildKids(id, w);                                // места для игр детей: футбол, боулинг, цветные плиты, челнок
-  if (id === 'base') { buildPlayground(w || scene); buildPark(w || scene, save, profile); buildDacha(w || scene); buildBunker(w || scene, save, profile); buildSpa(w || scene); buildCup(w || scene, save, profile, houseFor(duoMe())); buildGarden(save, hero); buildVillage(w || scene, save); buildHouse(w || scene, duoMe(), save, houseFor(duoMe())); buildDuoBase(w || scene); }
+  if (id === 'base') {
+    buildVillage(w || scene, save);
+    setupBaseSectors(w, save, profile, hero, {
+      playground: buildPlayground,
+      park: buildPark,
+      dacha: buildDacha,
+      bunker: buildBunker,
+      spa: buildSpa,
+      cup: buildCup,
+      garden: buildGarden,
+      house: buildHouse,
+      duoBase: buildDuoBase,
+      duoMe,
+      houseFor,
+    });
+  }
   if (id === 'winter') buildWinterFun(save);       // головоломки, сосульки, рыбалка, сова, пингвинята, снежная битва, звёзды
   buildPickups(id, save);                                // продукты для кухни: яйца, яблоки, ягоды, грибы, мёд, снег, какао
   buildRareBox(id, save);                          // сундучок с редкой одеждой (база, лес, осень)   // качели, карусель, пузыри, мяч; свой домик и ларёк одежды
   initWisps(id, save);                             // призрачные огоньки 🔮
-  if (w) bake(w);                                  // неподвижное склеиваем — меньше работы видеокарте
+  if (w && id !== 'base') bake(w);                 // неподвижное склеиваем — меньше работы видеокарте
   hero.pos.set(spawn.x, groundY(spawn.x, spawn.z), spawn.z); hero.vel.set(0, 0, 0);
   hero.face = spawn.face; hero.model.root.rotation.y = spawn.face; hero.safe = hero.pos.clone();
   hero.swing = hero.climb = hero.dig = hero.digTool = null; hero.camFloor = undefined; hero.camPitchMin = id === 'bunker' ? 0.75 : 0; hero.stun = 0;
@@ -448,8 +464,9 @@ function schoolDay() {
 // ---------- огород на даче ----------
 // кнопки у грядки: 🌱 посадить, 💧 полить, 🧺 собрать, ⏳ сколько ждать; у колодца 🪣; у крыльца 💰 продать
 function gardenItems() {
-  if (level.id !== 'base' || hero.climb || riding() || gardenBusy()) return [];
+  if (level.id !== 'base' || (hero.climb && !hero.climb.seat) || riding() || gardenBusy()) return [];
   const sn = spaNear(hero.pos); if (sn) return [{ id: sn === 'steam' ? 'g_steam' : 'g_bubbles', icon: sn === 'steam' ? '♨️' : '🫧' }];
+  const dn = dachaNear(hero.pos, save, hero); if (dn && dn.length) return dn;
   const g = gardenNear(hero.pos); if (!g) return [];
   if (g.well) return [{ id: 'g_fill', icon: '🪣' }];
   if (g.porch) return Object.values(garden(save).crop).some(n => n > 0) ? [{ id: 'g_sell', icon: '💰' }] : [];
@@ -470,6 +487,10 @@ function gardenUse(id) {
   if (id === 'g_up') { if (climbOut(hero)) SFX.climb(); return; }          // бункер: вылезти из ямы
   if (id === 'g_dig') return;                                              // лопата — по удержанию (bunker.js)
   if (id === 'g_steam' || id === 'g_bubbles') { const r = spaUse(id.slice(2), hero); if (r.sfx) SFX[r.sfx]?.(); if (r.say) { toast(r.say); spaSaid(r.key); } return; }
+  if (id.startsWith('g_dacha_')) {
+    dachaUse(id.slice(8), hero, save, { toast, confetti, SFX, persist, MOTYA });
+    return;
+  }
   const g = gardenNear(hero.pos), G = garden(save);
   if (id === 'g_fill') { startFill(hero); SFX.splash?.(); return; }
   if (id === 'g_sell') {
@@ -862,7 +883,8 @@ export function updateGame(dt) {
     }
     if (be.all) { fireworks(hero.pos.clone().setY(6), 12); notify({ icon: '🛡️', title: 'Бункер откопан целиком!', text: `Все комнаты бункера откопаны — ${profile === 'mama' ? 'ты настоящая копательница' : 'ты настоящий копатель'}! +${ALL_COINS} монет 🎉`, keep: true }); }
   }
-  if (atBase) updateHouse(dt);
+  if (atBase) updateSectors(dt, hero, save);
+  if (atBase && isSectorActive('base_north')) updateHouse(dt);
   if (atBase && profile === 'mama') updatePlane(dt);   // пасхалка для мамы: самолётик с растяжкой «Бубнилка ❤️»
   if (level.id === 'home' || level.id === 'loft') {   // мебель: встал на кнопку места — выбираешь, что поставить; на лежанке — питомцы
     const he = updateHome(dt, hero, profile, !visiting());
@@ -879,23 +901,38 @@ export function updateGame(dt) {
     if (!wardOpen() && he.basket) { SFX.tap(); openBasket({ save, sfx: SFX, persist }); }
   }
   if (atBase) {
-    const pg = updatePlayground(dt, hero);
-    for (const k of new Set(pg.sfx)) SFX[k]();
-    if (pg.say) toast(pg.say);
-    if (pg.coins) save.coins += pg.coins;
-    updateDacha(dt, hero);
-    const bk = updateBunker(dt, hero, save);                    // бункер на даче: копаем лопатой
-    for (const k of new Set(bk.sfx)) SFX[k]?.();
-    if (bk.coins) save.coins += bk.coins;
-    if (bk.dug) persist();
-    if (bk.say) toast(bk.say);
-    if (bk.shovel) { persist(); SFX.fanfare(); toast('⛏️ Лопата твоя! Копай вход в бункер<small>держи кнопку ⛏️ — копает кубик перед тобой · копай в жёлтой рамке</small>'); }
-    if (bk.open) { persist(); SFX.fanfare(); kidMoment(); toast('🛡️ Люк! Вход в бункер найден!<small>встань на люк — и вниз</small>'); }
-    if (bk.enter && !moving) goThrough({ to: 'bunker', spawn: BUNKER_SPAWN });
-    const sp = updateSpa(dt, hero, save);                       // баня и джакузи
-    for (const k of new Set(sp.sfx)) SFX[k]?.();
-    if (sp.say) toast(sp.say);
-    if (sp.coins) { save.coins += sp.coins; persist(); confetti(hero.pos.clone().setY(hero.pos.y + 1.5), 30); }
+    if (isSectorActive('base_north')) {
+      const pg = updatePlayground(dt, hero);
+      for (const k of new Set(pg.sfx)) SFX[k]();
+      if (pg.say) toast(pg.say);
+      if (pg.coins) save.coins += pg.coins;
+    }
+    if (isSectorActive('base_dacha')) {
+      updateDacha(dt, hero, save);
+      const bk = updateBunker(dt, hero, save);                    // бункер на даче: копаем лопатой
+      for (const k of new Set(bk.sfx)) SFX[k]?.();
+      if (bk.coins) save.coins += bk.coins;
+      if (bk.dug) persist();
+      if (bk.say) toast(bk.say);
+      if (bk.shovel) { persist(); SFX.fanfare(); toast('⛏️ Лопата твоя! Копай вход в бункер<small>держи кнопку ⛏️ — копает кубик перед тобой · копай в жёлтой рамке</small>'); }
+      if (bk.open) { persist(); SFX.fanfare(); kidMoment(); toast('🛡️ Люк! Вход в бункер найден!<small>встань на люк — и вниз</small>'); }
+      if (bk.enter && !moving) goThrough({ to: 'bunker', spawn: BUNKER_SPAWN });
+      const gd = updateGarden(dt, hero);
+      if (gd.done === 'fill') { persist(); SFX.refill?.(); toast('🪣 Лейка полная!<small>хватит на 6 поливов — иди к грядке и жми 💧</small>'); }
+      if (gd.done === 'water') { persist(); toast(`💧 Полил${MOTYA()}! Теперь растёт<small>воды хватит на 20 минут · в лейке ещё ${garden(save).can}</small>`); }
+    }
+    if (isSectorActive('base_park')) {
+      const sp = updateSpa(dt, hero, save);                       // баня и джакузи
+      for (const k of new Set(sp.sfx)) SFX[k]?.();
+      if (sp.say) toast(sp.say);
+      if (sp.coins) { save.coins += sp.coins; persist(); confetti(hero.pos.clone().setY(hero.pos.y + 1.5), 30); }
+      const pk = updatePark(dt, hero, save);                      // аквапарк: горки, бассейн, рекорд прыжка
+      for (const k of new Set(pk.sfx)) SFX[k]?.();
+      if (pk.say) toast(pk.say);
+      if (pk.coins) save.coins += pk.coins;
+      if (pk.record) { confetti(p, 60); persist(); }
+      if (hero.slide) cam.yaw = dampAngle(cam.yaw, hero.face + Math.PI, 2.5, dt);   // на горке камера сама заходит за спину
+    }
     const vg = updateVillage(dt, hero);
     if (vg.splash) SFX.splash?.();
     if (vg.riderOff) {                                         // слез с дракона — пассажир спрыгнул: спасибо и ❤️ (раз в день)
@@ -903,15 +940,6 @@ export function updateGame(dt) {
       if (fr.ride !== td && fr.h < MAX_FRIEND) { fr.ride = td; fr.h++; h = ' · ❤️ дружба'; if (fr.h >= MAX_FRIEND) bestFriend(n); persist(); }
       toast(`🐉 ${n.name}: «Ура! Это было круто! Спасибо!»<small>покатал${profile === 'mama' ? 'а' : ''} на драконе${h}</small>`);
     }
-    const gd = updateGarden(dt, hero);
-    if (gd.done === 'fill') { persist(); SFX.refill?.(); toast('🪣 Лейка полная!<small>хватит на 6 поливов — иди к грядке и жми 💧</small>'); }
-    if (gd.done === 'water') { persist(); toast(`💧 Полил${MOTYA()}! Теперь растёт<small>воды хватит на 20 минут · в лейке ещё ${garden(save).can}</small>`); }
-    const pk = updatePark(dt, hero, save);                      // аквапарк: горки, бассейн, рекорд прыжка
-    for (const k of new Set(pk.sfx)) SFX[k]?.();
-    if (pk.say) toast(pk.say);
-    if (pk.coins) save.coins += pk.coins;
-    if (pk.record) { confetti(p, 60); persist(); }
-    if (hero.slide) cam.yaw = dampAngle(cam.yaw, hero.face + Math.PI, 2.5, dt);   // на горке камера сама заходит за спину
   }
   if (kg.count) SFX.tap();
   if (kg.go) SFX.levelUp();

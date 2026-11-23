@@ -10,7 +10,7 @@ import { water } from './terrain.js';
 import { makeLabel, puff } from './fx.js';
 import { DACHA_GATE } from './dacha.js';
 
-export const PARK = { x0: -46, x1: 46, z0: 66, z1: 106, gate: { x: 0, w: 12 } };
+export const PARK = { x0: -66, x1: 66, z0: 66, z1: 106, gate: { x: 0, w: 12 } };
 export const POOL = { x0: -8, x1: 38, z0: 74, z1: 102, floor: -1, surf: -0.25 };
 export const TOWER_P = { x: -24, z: 86, h: 14, s: 10 };        // площадка 10×10 на высоте 14
 const TOP = TOWER_P.h, TX0 = TOWER_P.x - 5, TX1 = TOWER_P.x + 5, TZ0 = TOWER_P.z - 5, TZ1 = TOWER_P.z + 5;
@@ -128,14 +128,10 @@ export function buildPark(w, save, who) {
   // стены парка
   solid(w, 2, 12, P.z1 - P.z0 + 1, 0xb8672a, P.x0, 0, mid(P.z0, P.z1) + 0.5, { cam: true });
   solid(w, 2, 12, P.z1 - P.z0 + 1, 0xb8672a, P.x1, 0, mid(P.z0, P.z1) + 0.5, { cam: true });
-  // южная стена — с калиткой на дачу (dacha.js) в западном углу
-  const G = DACHA_GATE, gx0 = G.x - G.w / 2, gx1 = G.x + G.w / 2;
-  solid(w, gx0 - P.x0 + 1, 12, 2, 0xb8672a, (P.x0 - 1 + gx0) / 2, 0, P.z1 + 1, { cam: true });
-  solid(w, P.x1 + 1 - gx1, 12, 2, 0xb8672a, (gx1 + P.x1 + 1) / 2, 0, P.z1 + 1, { cam: true });
-  solid(w, G.w, 4.5, 2, 0xb8672a, G.x, 7.5, P.z1 + 1, { cam: true });
-  box(w, P.x1 - P.x0 + 2, 1, 2.4, 0xff7b22, 0, 12.5, P.z1 + 1, { studs: true });
-  const dl = makeLabel(5.6, 1.4, { face: Math.PI }); dl.position.set(G.x, 8.6, P.z1 - 0.08); scene.add(dl); dl.userData.set('🏡 На дачу', { color: '#ffe14d' });
-  const dl2 = makeLabel(5.6, 1.4, { face: 0 }); dl2.position.set(G.x, 8.6, P.z1 + 2.08); scene.add(dl2); dl2.userData.set('🎢 Аквапарк', { color: '#ffffff' });
+  // южная граница парка открыта на дачу (стена убрана, свободный проход по всей ширине)
+  const G = DACHA_GATE;
+  box(w, 0.22, 2.6, 0.22, 0x6a3f1e, G.x - 2.8, 1.3, P.z1 + 0.5);
+  const dl = makeLabel(4.2, 1.05, { face: Math.PI }); dl.position.set(G.x - 2.8, 3.1, P.z1 + 0.5); scene.add(dl); dl.userData.set('🏡 На дачу', { color: '#ffe14d' });
   // дорожка от арки к лестнице
   // дорожка: от аллеи базы (x 0) на запад — мимо лестницы на башню — и вдоль западной стены до калитки на дачу
   solid(w, 42.2, 0.08, 2.4, 0xe9d9a6, -18.1, 0, 68.2, { shadow: false });          // x −39.2…3, z 67…69.4

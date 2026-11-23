@@ -7,8 +7,8 @@ import { groundY, solid, addCollider, onLevelReset } from './world.js';
 import { makeLabel, puff } from './fx.js';
 import { makeBall, stepBall } from './kids.js';
 
-// всё — на «Детской площадке» в восточной части базы (между правым загоном и стеной)
-export const PG = { swing: { x: 38.5, z: 8 }, carousel: { x: 38.5, z: 18.5, r: 3.2 }, bubbles: { x: 43, z: 4.5 }, ball: { x: 34.5, z: 12.5 } };
+// всё — на просторной «Детской площадке» на зелёной территории восточной части базы
+export const PG = { swing: { x: 38, z: 10 }, carousel: { x: 48, z: 22, r: 3.2 }, bubbles: { x: 58, z: 10 }, ball: { x: 38, z: 17 } };
 const SW_H = 4.4, SW_L = 3.2;                                     // высота перекладины качелей и длина верёвок
 const BUB = new T.SphereGeometry(1, 12, 8); BUB.userData.cached = true;
 const BUB_MAT = [0xff9ad5, 0x9ad8ff, 0xc8a8ff, 0xa8ffc8, 0xfff08a].map(c => { const m = new T.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.45, depthWrite: false }); m.userData.cached = true; return m; });

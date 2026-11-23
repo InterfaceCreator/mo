@@ -19,7 +19,41 @@ export const colliders = [];
 const CELL = 8, grid = new Map();
 let stamp = 0;
 const key = (i, j) => i * 100003 + j;
+let colliderSink = null;
+
+// перехват всех создаваемых коллизий (для чанков и секторов)
+export function captureColliders(fn) {
+  const prev = colliderSink;
+  const list = [];
+  colliderSink = list;
+  try {
+    fn();
+  } finally {
+    colliderSink = prev;
+  }
+  return list;
+}
+
+export function removeColliders(arr) {
+  if (!arr || !arr.length) return;
+  const set = new Set(arr);
+  for (let idx = colliders.length - 1; idx >= 0; idx--) {
+    if (set.has(colliders[idx])) colliders.splice(idx, 1);
+  }
+  for (const c of arr) {
+    for (let i = Math.floor(c.x0 / CELL); i <= Math.floor(c.x1 / CELL); i++)
+      for (let j = Math.floor(c.z0 / CELL); j <= Math.floor(c.z1 / CELL); j++) {
+        const list = grid.get(key(i, j));
+        if (list) {
+          const li = list.indexOf(c);
+          if (li !== -1) list.splice(li, 1);
+        }
+      }
+  }
+}
+
 export function addCollider(c) {
+  if (colliderSink) colliderSink.push(c);
   colliders.push(c);
   for (let i = Math.floor(c.x0 / CELL); i <= Math.floor(c.x1 / CELL); i++)
     for (let j = Math.floor(c.z0 / CELL); j <= Math.floor(c.z1 / CELL); j++) {
@@ -290,7 +324,7 @@ export const otherRoam = () => { const R = PEN0.roam, k = penSide.right ? 1 : -1
 export const SHOP = { x: 8, z: 52, pad: { x: 8, z: 48.5 } };
 export const TREADMILL = { x: -38, z: 27, w: 3, d: 6 };                        // беговая дорожка — в зоне «Спорт» (запад)
 export const CAVE = { x0: -76, x1: -45, z0: 36, z1: 62, gap: [46, 52] };   // кристальная пещера за валуном (кирка)
-export const TOWER = { x: 41.5, z: 31, h: 10 };                                // башня с сундуком (верёвка)
+export const TOWER = { x: 61, z: 28, h: 10 };                                // башня с сундуком (верёвка)
 
 // ---------- «запекание» неподвижного ----------
 // все неподвижные кубики локации склеиваются в общие меши: рисуется в разы быстрее.
@@ -324,11 +358,22 @@ export function bake(root) {
       cells.get(k).push(m);
     }
   }
+  const created = [];
   for (const list of cells.values()) for (const merged of mergeMeshes(root, list)) {
     merged.updateMatrixWorld(true);
     const S = merged.geometry.boundingSphere;
     merged.userData.center = S.center.clone().applyMatrix4(merged.matrixWorld); merged.userData.radius = S.radius;
     chunks.push(merged);
+    created.push(merged);
+  }
+  return created;
+}
+
+export function removeChunks(list) {
+  if (!list || !list.length) return;
+  for (const m of list) {
+    const idx = chunks.indexOf(m);
+    if (idx !== -1) chunks.splice(idx, 1);
   }
 }
 // раз в кадр: куски дальше тумана не рисуем (их всё равно не видно); за спиной камеры их и так пропускает видеокарта

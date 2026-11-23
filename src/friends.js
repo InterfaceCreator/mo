@@ -49,7 +49,7 @@ export const FRIENDS = [
     where: 'тыквы растут на грядке рядом', hi: 'Я стерегу грядку! Принеси 2 тыквы — сделаю фонарики к празднику.', yes: 'Какие тыквы! Будут самые яркие фонарики!',
     build: p => buildHero(p, PEOPLE.scarecrow) },
   // дети — ровесники Моти: подойди — позовут играть (kids.js). Выиграл — дружба растёт
-  { id: 'sonya', place: 'база, на детской площадке', name: 'Соня', loc: 'base', x: 40, z: 10, box: { x0: 35.5, x1: 44.5, z0: 9.6, z1: 14 }, run: 2.8, human: true, scale: 0.8, r: 2.8, special: 'собирай с ней мячики наперегонки',
+  { id: 'sonya', place: 'база, на детской площадке', name: 'Соня', loc: 'base', x: 48, z: 18, box: { x0: 40, x1: 56, z0: 12, z1: 25 }, run: 2.8, human: true, scale: 0.8, r: 2.8, special: 'собирай с ней мячики наперегонки',
     talk: () => ({ game: 'balls' }), build: p => buildHero(p, PEOPLE.sonya) },
   { id: 'kolya', place: 'база, футбольное поле у портала в Пустыню (на воротах)', name: 'Коля', loc: 'base', x: -27.4, z: 9, human: true, scale: 0.8, r: 2.6, stay: true, special: 'забей ему 3 гола',
     talk: () => ({ game: 'football' }), build: p => buildHero(p, PEOPLE.kolya) },
