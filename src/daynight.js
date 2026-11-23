@@ -73,11 +73,10 @@ const glowTexture = (() => {
   const cv = document.createElement('canvas'); cv.width = cv.height = 128;
   const c = cv.getContext('2d');
   const g = c.createRadialGradient(64, 64, 0, 64, 64, 64);
-  g.addColorStop(0, 'rgba(255, 248, 200, 0.55)');
-  g.addColorStop(0.25, 'rgba(255, 215, 95, 0.28)');
-  g.addColorStop(0.55, 'rgba(255, 170, 40, 0.08)');
-  g.addColorStop(0.85, 'rgba(240, 130, 20, 0.015)');
-  g.addColorStop(1, 'rgba(220, 110, 0, 0)');
+  g.addColorStop(0, 'rgba(255, 230, 150, 0.32)');
+  g.addColorStop(0.3, 'rgba(255, 180, 70, 0.12)');
+  g.addColorStop(0.65, 'rgba(245, 135, 30, 0.025)');
+  g.addColorStop(1, 'rgba(220, 100, 0, 0)');
   c.fillStyle = g; c.fillRect(0, 0, 128, 128);
   return new T.CanvasTexture(cv);
 })();
@@ -87,12 +86,11 @@ const poolTexture = (() => {
   const cv = document.createElement('canvas'); cv.width = cv.height = 256;
   const c = cv.getContext('2d');
   const g = c.createRadialGradient(128, 128, 0, 128, 128, 128);
-  g.addColorStop(0, 'rgba(255, 230, 130, 0.35)');
-  g.addColorStop(0.22, 'rgba(255, 205, 95, 0.25)');
-  g.addColorStop(0.48, 'rgba(245, 175, 55, 0.12)');
-  g.addColorStop(0.72, 'rgba(230, 140, 30, 0.045)');
-  g.addColorStop(0.90, 'rgba(210, 115, 15, 0.01)');
-  g.addColorStop(1.0, 'rgba(190, 95, 10, 0)');
+  g.addColorStop(0, 'rgba(255, 195, 85, 0.16)');
+  g.addColorStop(0.25, 'rgba(255, 170, 60, 0.10)');
+  g.addColorStop(0.55, 'rgba(240, 140, 35, 0.04)');
+  g.addColorStop(0.80, 'rgba(220, 110, 15, 0.01)');
+  g.addColorStop(1.0, 'rgba(180, 80, 0, 0)');
   c.fillStyle = g; c.fillRect(0, 0, 256, 256);
   return new T.CanvasTexture(cv);
 })();
@@ -101,13 +99,13 @@ const poolTexture = (() => {
 export function initDayNight(save) {
   if (st) return st;
 
-  // Пул динамических источников света для ближайших к герою фонарей (широкий мягкий радиус 38м)
-  const l1 = new T.PointLight(0xffdf77, 0, 38);
-  const l2 = new T.PointLight(0xffdf77, 0, 38);
-  const l3 = new T.PointLight(0xffdf77, 0, 38);
-  const l4 = new T.PointLight(0xffdf77, 0, 38);
-  const l5 = new T.PointLight(0xffdf77, 0, 38);
-  const l6 = new T.PointLight(0xffdf77, 0, 38);
+  // Пул динамических источников света для ближайших к герою фонарей (мягкий тёплый свет, радиус 24м)
+  const l1 = new T.PointLight(0xffb855, 0, 24);
+  const l2 = new T.PointLight(0xffb855, 0, 24);
+  const l3 = new T.PointLight(0xffb855, 0, 24);
+  const l4 = new T.PointLight(0xffb855, 0, 24);
+  const l5 = new T.PointLight(0xffb855, 0, 24);
+  const l6 = new T.PointLight(0xffb855, 0, 24);
   l1.userData.keep = l2.userData.keep = l3.userData.keep = l4.userData.keep = l5.userData.keep = l6.userData.keep = true;
   scene.add(l1, l2, l3, l4, l5, l6);
 
@@ -183,7 +181,7 @@ export function createLampPost(parent, x, z, rotY = 0) {
   });
   const halo = new T.Sprite(haloMat);
   halo.position.set(0.55, 3.1, 0);
-  halo.scale.set(1.65, 1.65, 1);
+  halo.scale.set(0.95, 0.95, 1);
   halo.userData.dynamic = true;
   lp.add(halo);
 
@@ -199,7 +197,7 @@ export function createLampPost(parent, x, z, rotY = 0) {
     depthWrite: false,
     side: T.DoubleSide
   });
-  const poolGeo = new T.PlaneGeometry(21.0, 21.0); // широкий радиус освещения (21 метр!)
+  const poolGeo = new T.PlaneGeometry(16.0, 16.0); // мягкий естественный радиус освещения
   const pool = new T.Mesh(poolGeo, poolMat);
   pool.position.set(lx, 0.038, lz);
   pool.rotation.x = -Math.PI / 2;
@@ -341,25 +339,25 @@ export function updateDayNight(dt, hero, levelId, save) {
   // Освещение: солнце и окружающий свет (hemi)
   if (sunsetK > 0.1) {
     sun.color.lerpColors(new T.Color(0xfff1d8), new T.Color(0xff7c32), sunsetK);
-    sun.intensity = 0.85 * (1 - nightK * 0.5);
+    sun.intensity = 0.85 * (1 - nightK * 0.7);
     hemi.color.lerpColors(new T.Color(0xe2f2ff), new T.Color(0xff9977), sunsetK);
     hemi.groundColor.lerpColors(new T.Color(0x8fae6a), new T.Color(0x503320), sunsetK);
-    hemi.intensity = 0.7 * (1 - 0.3 * nightK);
+    hemi.intensity = 0.7 * (1 - 0.5 * nightK);
     sunDisc.material.opacity = Math.max(0, 1 - nightK * 2);
   } else if (sunriseK > 0.1) {
     sun.color.lerpColors(new T.Color(0xfff1d8), new T.Color(0xffa575), sunriseK);
-    sun.intensity = 0.85 * (1 - nightK * 0.5);
+    sun.intensity = 0.85 * (1 - nightK * 0.7);
     hemi.color.lerpColors(new T.Color(0xe2f2ff), new T.Color(0xd8b4a0), sunriseK);
     hemi.groundColor.lerpColors(new T.Color(0x8fae6a), new T.Color(0x403328), sunriseK);
-    hemi.intensity = 0.7 * (1 - 0.3 * nightK);
+    hemi.intensity = 0.7 * (1 - 0.5 * nightK);
     sunDisc.material.opacity = Math.max(0, 1 - nightK * 2);
   } else if (nightK > 0.05) {
-    // Ночное освещение: комфортный серебристый лунный свет и отличная видимость
+    // Ночное освещение: мягкий серебристо-лунный свет и глубокая ночная атмосфера
     sun.color.lerpColors(new T.Color(0xfff1d8), new T.Color(0x92b6ff), nightK);
-    sun.intensity = 0.85 * (1 - 0.65 * nightK); // = 0.30 — направленный свет луны
+    sun.intensity = 0.85 * (1 - 0.78 * nightK); // ~0.187 — деликатный направленный свет луны
     hemi.color.lerpColors(new T.Color(0xe2f2ff), new T.Color(0x35508a), nightK);
     hemi.groundColor.lerpColors(new T.Color(0x8fae6a), new T.Color(0x22384e), nightK);
-    hemi.intensity = 0.7 * (1 - 0.36 * nightK); // = 0.45 — мягкое ночное рассеяние
+    hemi.intensity = 0.7 * (1 - 0.65 * nightK); // ~0.245 — мягкое ночное рассеяние
     sunDisc.material.opacity = Math.max(0, 1 - nightK * 2.5);
   } else {
     // Яркий день
@@ -386,13 +384,13 @@ export function updateDayNight(dt, hero, levelId, save) {
     st.moon.material.opacity = Math.max(0, (nightK - 0.18) / 0.82);
   }
 
-  // 4. Фонари, сияющие ореолы и яркие световые пятна под ними
+  // 4. Фонари, сияющие ореолы и мягкие световые пятна под ними
   if (st.lamps.length) {
     // Очищаем отвязанные фонари (если сектор пересоздавался)
     st.lamps = st.lamps.filter(l => l.bulb?.parent);
-    const bulbColor = new T.Color(0x8a7f66).lerp(new T.Color(0xffe288), nightK);
-    const poolOpacity = nightK * 0.72;
-    const haloOpacity = nightK * 0.45;
+    const bulbColor = new T.Color(0x8a7f66).lerp(new T.Color(0xffbf55), nightK);
+    const poolOpacity = nightK * 0.45;
+    const haloOpacity = nightK * 0.25;
 
     for (const lamp of st.lamps) {
       if (lamp.bulb?.material) lamp.bulb.material.color.copy(bulbColor);
@@ -400,19 +398,19 @@ export function updateDayNight(dt, hero, levelId, save) {
       if (lamp.halo?.material) lamp.halo.material.opacity = haloOpacity;
     }
 
-    // Динамический свет ближайших фонарей к герою (освещает героя, землю и окружение)
+    // Динамический свет ближайших фонарей к герою (освещает героя, землю и окружение мягким золотистым светом)
     if (st.lampLights && hero?.pos) {
       if (nightK > 0.05) {
         const near = st.lamps
           .map(l => ({ l, d: Math.hypot(l.x - hero.pos.x, l.z - hero.pos.z) }))
-          .filter(o => o.d < 50)
+          .filter(o => o.d < 45)
           .sort((a, b) => a.d - b.d);
 
         for (let i = 0; i < st.lampLights.length; i++) {
           const pl = st.lampLights[i];
           if (near[i]) {
             pl.position.set(near[i].l.x, 3.2, near[i].l.z);
-            pl.intensity = nightK * 1.05;
+            pl.intensity = nightK * 0.35;
           } else {
             pl.intensity = 0;
           }

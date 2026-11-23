@@ -356,7 +356,7 @@ export function buildDacha(w) {
   box(w, 0.7, 1.4, 0.7, 0xf5f5ee, H0.x + 2.7, 2.9, H0.z + 2.0); // дымоход к крыше
   box(w, 0.26, 0.26, 0.26, 0x2b2b2b, H0.x + 2.3, 2.45, H0.z + 1.4); // чугунок
   box(w, 0.22, 0.22, 0.22, 0x2b2b2b, H0.x + 2.65, 2.43, H0.z + 1.4);
-  const stoveLight = new T.PointLight(0xff6611, 0.75, 7);
+  const stoveLight = new T.PointLight(0xff6611, 0.45, 6);
   stoveLight.position.set(H0.x + 2.7, 1.2, H0.z + 0.8);
   w.add(stoveLight);
 
@@ -377,7 +377,7 @@ export function buildDacha(w) {
   box(w, 0.04, 0.75, 0.04, 0x665544, H0.x, WH - 0.4, H0.z);
   const houseBulb = box(w, 0.38, 0.26, 0.38, 0xfff0aa, H0.x, WH - 0.85, H0.z, { shadow: false });
   houseBulb.userData.dynamic = true;
-  st.houseLight = new T.PointLight(0xffe28a, 0.95, 22);
+  st.houseLight = new T.PointLight(0xffdf88, 0.35, 18);
   st.houseLight.position.set(H0.x, WH - 0.85, H0.z);
   st.houseLight.userData.dynamic = true;
   w.add(st.houseLight);
@@ -431,7 +431,7 @@ export function buildDacha(w) {
   // Фонарь над крыльцом
   const porchBulb = box(w, 0.28, 0.35, 0.28, 0x8a7f66, H0.x, 3.8, HZ0 - 1.2, { shadow: false });
   porchBulb.userData.dynamic = true;
-  st.porchLight = new T.PointLight(0xffdf66, 0, 24);
+  st.porchLight = new T.PointLight(0xffcf66, 0, 18);
   st.porchLight.position.set(H0.x, 3.7, HZ0 - 1.2);
   st.porchLight.userData.dynamic = true;
   w.add(st.porchLight);
@@ -564,7 +564,7 @@ export function buildDacha(w) {
   box(w, 0.06, 0.5, 0.06, 0x222222, GZ.x, 3.8, GZ.z, { shadow: false });
   const gzBulb = box(w, 0.35, 0.42, 0.35, 0x8a7f66, GZ.x, 3.35, GZ.z, { shadow: false });
   gzBulb.userData.dynamic = true;
-  st.gazeboLight = new T.PointLight(0xffbe4d, 0, 24);
+  st.gazeboLight = new T.PointLight(0xffbe4d, 0, 18);
   st.gazeboLight.position.set(GZ.x, 3.2, GZ.z);
   st.gazeboLight.userData.dynamic = true;
   w.add(st.gazeboLight);
@@ -588,29 +588,29 @@ export function buildDacha(w) {
   st.campfire = new T.Vector3(CF.x, 0.5, CF.z);
 
   // Живой свет и пятно на земле от костра
-  st.campLight = new T.PointLight(0xff6818, 0, 32);
+  st.campLight = new T.PointLight(0xff6818, 0, 22);
   st.campLight.position.set(CF.x, 1.2, CF.z);
   st.campLight.userData.dynamic = true;
   w.add(st.campLight);
 
-  // Ореол огня на земле (мягкое широкое аддитивное свечение)
+  // Ореол огня на земле (мягкое аккуратное свечение)
   const ccv = document.createElement('canvas'); ccv.width = ccv.height = 128;
   const cctx = ccv.getContext('2d');
   const ccg = cctx.createRadialGradient(64, 64, 8, 64, 64, 64);
-  ccg.addColorStop(0, 'rgba(255, 140, 40, 0.40)');
-  ccg.addColorStop(0.35, 'rgba(255, 100, 20, 0.22)');
-  ccg.addColorStop(0.7, 'rgba(220, 70, 10, 0.07)');
+  ccg.addColorStop(0, 'rgba(255, 140, 40, 0.20)');
+  ccg.addColorStop(0.35, 'rgba(255, 100, 20, 0.10)');
+  ccg.addColorStop(0.7, 'rgba(220, 70, 10, 0.03)');
   ccg.addColorStop(1, 'rgba(180, 50, 0, 0)');
   cctx.fillStyle = ccg; cctx.fillRect(0, 0, 128, 128);
   const campGlowMat = new T.MeshBasicMaterial({
     map: new T.CanvasTexture(ccv),
     blending: T.AdditiveBlending,
     transparent: true,
-    opacity: 0.35,
+    opacity: 0.18,
     depthWrite: false,
     side: T.DoubleSide
   });
-  st.campGlow = new T.Mesh(new T.PlaneGeometry(18, 18), campGlowMat);
+  st.campGlow = new T.Mesh(new T.PlaneGeometry(14, 14), campGlowMat);
   st.campGlow.position.set(CF.x, 0.04, CF.z);
   st.campGlow.rotation.x = -Math.PI / 2;
   st.campGlow.userData.dynamic = true;
@@ -1133,22 +1133,22 @@ export function updateDacha(dt, hero, save) {
     const nightK = getNightK();
     const t = performance.now() / 1000;
     const flk = 0.84 + Math.sin(t * 11) * 0.10 + Math.sin(t * 22.7) * 0.06;
-    st.campLight.intensity = (0.9 + 1.35 * nightK) * flk;
+    st.campLight.intensity = (0.35 + 0.45 * nightK) * flk;
     if (st.campGlow?.material) {
-      st.campGlow.material.opacity = (0.24 + 0.28 * nightK) * flk;
+      st.campGlow.material.opacity = (0.12 + 0.15 * nightK) * flk;
     }
   }
   if (st.gazeboLight) {
     const nightK = getNightK();
-    st.gazeboLight.intensity = nightK * 1.25;
+    st.gazeboLight.intensity = nightK * 0.38;
   }
   if (st.porchLight) {
     const nightK = getNightK();
-    st.porchLight.intensity = nightK * 1.15;
+    st.porchLight.intensity = nightK * 0.35;
   }
   if (st.houseLight) {
     const nightK = getNightK();
-    st.houseLight.intensity = nightK * 1.10;
+    st.houseLight.intensity = nightK * 0.35;
   }
   if (st.campfire && (st.campT = (st.campT ?? 0) - dt) <= 0) {
     if (Math.hypot(hero.pos.x - st.campfire.x, hero.pos.z - st.campfire.z) < 50) {
