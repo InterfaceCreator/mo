@@ -1,8 +1,8 @@
 // Смена времени суток 🌅☀️🌇🌙
 // Плавный суточный цикл: солнечный день → тёплый закат → звёздная ночь с луной → нежный рассвет.
 // Фонари вдоль дорог, свет из окон домика, мерцающий свет от костра.
-import { T, scene, camera, sun, hemi, sunDisc, setSkyGrad, SUN_OFF, SUN_DIR, group, box, solid } from './engine.js';
-import { cloudNight, onLevelReset } from './world.js';
+import { T, scene, camera, sun, hemi, sunDisc, setSkyGrad, SUN_OFF, SUN_DIR, group, box } from './engine.js';
+import { cloudNight, onLevelReset, solid } from './world.js';
 
 export const DAY_CYCLE = 480; // Полный суточный цикл: 8 минут (480 секунд)
 
