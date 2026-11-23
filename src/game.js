@@ -29,7 +29,7 @@ import { buildGarden, updateGarden, gardenNear, plant, startFill, startWater, ha
 import { openOv as openOverlay, closeOv as closeOverlay } from './ui.js';
 import { dressHero, ward, openWardrobe, wardOpen } from './clothes.js';
 import { buildHouse, updateHouse, onClothesPad, updateHome, onWardPad, onUpgradePad, openUpgrades, onKitchenPad } from './home.js';
-import { openSpot, openBasket } from './furniture.js';
+import { openSpot, openBasket, homeBedNear, homeUse } from './furniture.js';
 import { buildRareBox, updateRareBox } from './rarebox.js';
 import { initDuo, duoToggle, duoState, together, houseFor, homeSave, visiting, applySide, buildDuoBase, updateDuo, duoAt, duoWhere, duoResume, duoMe, initSpy, spyTarget, spyInfo, duoLink, duoPartner, onDuoExtra, duoSend, partnerPos, partnerRide, partnerFire, partnerModel } from './duo.js';
 import { updateCloak, toggleCloak, setMeshInvis, findSpookTarget, doSpook, initWisps } from './cloak.js';
@@ -273,7 +273,7 @@ const canHop = () => { if (riding() || carry) return false; const pr = partnerRi
 const DRAGON_OK = ['base', 'forest', 'autumn', 'winter', 'desert', 'ice'];          // где можно летать на драконе
 const itemCount = id => id === 'spook' ? (hero.invisT > 0 && !!findSpookTarget(hero, level.id)) : id === 'cloak' ? (hero.invisT > 0 ? true : hero.invisCool > 0 ? Math.ceil(hero.invisCool) : true) : id === 'dragon' || id === 'fire' || id === 'hop' || id === 'talk' || id.startsWith('g_') ? true : id === 'fish' ? 1 : id === 'treat' ? kitchen(save).dishes.length : id === 'snowball' ? winterAmmo() : id === 'banana' ? save.bananas : (save.items?.[id] || 0);
 function useItem(id) {
-  if (itemCount(id) <= 0 || hero.climb) return;
+  if (itemCount(id) <= 0 || (hero.climb && !id.startsWith('g_'))) return;
   if (id === 'cloak') { toggleCloak(hero); return; }
   if (id === 'spook') { doSpook(hero, save, level.id); return; }
   if (id === 'talk') { const n = level.id === 'school' ? nearNpc(hero.pos) : nearVillager(hero.pos); if (n && !document.querySelector('.ov.on')) startTalk(n); return; }
@@ -461,6 +461,11 @@ function schoolDay() {
   if (profile === 'mama') return openDay(save, { mama: true, sfx: SFX, start: s => openMamaLesson(s, { sfx: SFX, back: schoolDay, done: g => lessonDone(s, g) }) });
   openDay(save, { sfx: SFX, start: (s, lv) => openLesson(s, { sfx: SFX, lv, back: schoolDay, done: g => lessonDone(s, g) }) });
 }
+function homeItems(hero) {
+  if (hero.sleeping || hero.climb?.sleep) return [{ id: 'g_home_wakeup', icon: '🚶' }];
+  if (homeBedNear(hero.pos)) return [{ id: 'g_home_sleep', icon: '🛌' }];
+  return [];
+}
 // ---------- огород на даче ----------
 // кнопки у грядки: 🌱 посадить, 💧 полить, 🧺 собрать, ⏳ сколько ждать; у колодца 🪣; у крыльца 💰 продать
 function gardenItems() {
@@ -489,6 +494,10 @@ function gardenUse(id) {
   if (id === 'g_steam' || id === 'g_bubbles') { const r = spaUse(id.slice(2), hero); if (r.sfx) SFX[r.sfx]?.(); if (r.say) { toast(r.say); spaSaid(r.key); } return; }
   if (id.startsWith('g_dacha_')) {
     dachaUse(id.slice(8), hero, save, { toast, confetti, SFX, persist, MOTYA });
+    return;
+  }
+  if (id.startsWith('g_home_')) {
+    homeUse(id.slice(7), hero, save, { toast, confetti, SFX, persist, MOTYA });
     return;
   }
   const g = gardenNear(hero.pos), G = garden(save);
@@ -1068,7 +1077,7 @@ export function updateGame(dt) {
 
   fedCheck();
   setEffects([['🧪', hero.boostT], ['🦘', hero.jumpT], ['🫧', hero.bubT], ['🍩', hero.bigT], ['🐾', fedLeft()], ['🧭', hero.compassT], ['⏱', xe.raceT], ['👻', hero.invisT || 0]]);
-  setCoins(save.coins); setSpeed(save.speed); setItems([...(hero.invisT > 0 && findSpookTarget(hero, level.id) ? [{ id: 'spook', icon: '😱' }] : []), ...((level.id === 'school' && !hero.eat && nearNpc(hero.pos)) || (level.id === 'base' && !hero.climb && !riding() && nearVillager(hero.pos)) ? [{ id: 'talk', icon: '💬' }] : []), ...gardenItems(), ...(level.id === 'base' && !riding() ? bunkerItems(hero) : []), ...(level.id === 'bunker' ? bunkerLocItems(hero) : []), ...(hero.passenger || canHop() ? [{ id: 'hop', icon: hero.passenger ? '🛬' : '🫶' }] : []), ...(!hero.passenger && save.dragon?.got && DRAGON_OK.includes(level.id) ? [{ id: 'dragon', icon: riding() ? '🛬' : '🐉' }] : []), ...(riding() ? [{ id: 'fire', icon: '🔥' }] : []), ...(kitchen(save).dishes.length && friendNear(hero) ? [{ id: 'treat', icon: '🍽️' }] : []), ...(level.id === 'winter' && atHole(hero) ? [{ id: 'fish', icon: '🎣' }] : []), ...(level.id === 'winter' && !inPond() ? [{ id: 'snowball', icon: '❄️' }] : []), ...ITEMS.map(i => i.id === 'cloak' ? { ...i, icon: hero.invisT > 0 ? '✨' : (hero.invisCool > 0 ? '⏳' : '👻') } : i)].map(i => ({ ...i, n: itemCount(i.id) })), useItem);
+  setCoins(save.coins); setSpeed(save.speed); setItems([...(hero.invisT > 0 && findSpookTarget(hero, level.id) ? [{ id: 'spook', icon: '😱' }] : []), ...((level.id === 'school' && !hero.eat && nearNpc(hero.pos)) || (level.id === 'base' && !hero.climb && !riding() && nearVillager(hero.pos)) ? [{ id: 'talk', icon: '💬' }] : []), ...gardenItems(), ...(level.id === 'home' ? homeItems(hero) : []), ...(level.id === 'base' && !riding() ? bunkerItems(hero) : []), ...(level.id === 'bunker' ? bunkerLocItems(hero) : []), ...(hero.passenger || canHop() ? [{ id: 'hop', icon: hero.passenger ? '🛬' : '🫶' }] : []), ...(!hero.passenger && save.dragon?.got && DRAGON_OK.includes(level.id) ? [{ id: 'dragon', icon: riding() ? '🛬' : '🐉' }] : []), ...(riding() ? [{ id: 'fire', icon: '🔥' }] : []), ...(kitchen(save).dishes.length && friendNear(hero) ? [{ id: 'treat', icon: '🍽️' }] : []), ...(level.id === 'winter' && atHole(hero) ? [{ id: 'fish', icon: '🎣' }] : []), ...(level.id === 'winter' && !inPond() ? [{ id: 'snowball', icon: '❄️' }] : []), ...ITEMS.map(i => i.id === 'cloak' ? { ...i, icon: hero.invisT > 0 ? '✨' : (hero.invisCool > 0 ? '⏳' : '👻') } : i)].map(i => ({ ...i, n: itemCount(i.id) })), useItem);
   setRes(save.res, level.id === 'autumn');
 }
 

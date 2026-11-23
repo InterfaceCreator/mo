@@ -11,7 +11,9 @@ import { makeLabel, puff, confetti } from './fx.js';
 import { buildHero, compactHero, PEOPLE } from './hero.js';
 import { BANYA } from './spa.js';
 import { PIT } from './bunker.js';
-import { createLampPost, registerLamp, registerWindow, getNightK } from './daynight.js';
+import { createLampPost, registerLamp, registerWindow, getNightK, runSleepScreen, dismissSleepScreen, setDayTime } from './daynight.js';
+
+export const DACHA_BED = { x: -38.6, z: 199.8, y: 0.52 };
 
 export const DACHA_GATE = { x: -38, z: 107, w: 6 };
 export const DACHA = { x0: -46, x1: 46, z0: 182, z1: 208, house: { x: -36, z: 198 }, well: { x: -22, z: 188 }, beds: [194, 197.5, 201].map(z => ({ x: -21, z })) };
@@ -42,7 +44,7 @@ const APPLE_TREES = [
 ];
 
 let st = null;
-onLevelReset(() => { st = null; });
+onLevelReset(() => { if (st?.bedLabel) scene.remove(st.bedLabel); st = null; });
 
 // случайные числа с «зерном»: деревья и цветы каждый раз на тех же местах
 function seeded(seed) { return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
@@ -310,12 +312,32 @@ export function buildDacha(w) {
 
   // бревенчатый домик
   const H0 = D.house, hw = 4.5, hd = 3.5, HX0 = H0.x - hw, HX1 = H0.x + hw, HZ0 = H0.z - hd, HZ1 = H0.z + hd, WH = 3.6;
-  solid(w, hw * 2, WH, hd * 2, 0x8a5a2b, H0.x, 0, H0.z).visible = false;
+
+  // Твёрдые стены по периметру дома с открытым дверным проёмом в центре (проём 1.8м: от H0.x - 0.9 до H0.x + 0.9)
+  const WALL_THICK = 0.45;
+  const frontWallW = (hw * 2 - 1.8) / 2; // 3.6м
+  solid(w, hw * 2, WH, WALL_THICK, 0x8a5a2b, H0.x, 0, HZ1); // задняя стена
+  solid(w, WALL_THICK, WH, hd * 2, 0x8a5a2b, HX0, 0, H0.z); // левая стена
+  solid(w, WALL_THICK, WH, hd * 2, 0x8a5a2b, HX1, 0, H0.z); // правая стена
+  solid(w, frontWallW, WH, WALL_THICK, 0x8a5a2b, H0.x - 0.9 - frontWallW / 2, 0, HZ0); // передняя левая стена
+  solid(w, frontWallW, WH, WALL_THICK, 0x8a5a2b, H0.x + 0.9 + frontWallW / 2, 0, HZ0); // передняя правая стена
+  box(w, 1.8, 1.2, WALL_THICK, 0x8a5a2b, H0.x, 3.0, HZ0); // перемычка над входом (дверной проём высотой 2.4м)
+
+  // Брёвна стен
   for (let i = 0; i < 9; i++) {
     const y = 0.2 + i * 0.4, c = i % 2 ? 0x9c6a3c : 0x8a5a2b;
-    box(w, hw * 2 + 0.5, 0.42, 0.42, c, H0.x, y, HZ0); box(w, hw * 2 + 0.5, 0.42, 0.42, c, H0.x, y, HZ1);
-    box(w, 0.42, 0.42, hd * 2 + 0.5, c, HX0, y, H0.z); box(w, 0.42, 0.42, hd * 2 + 0.5, c, HX1, y, H0.z);
+    box(w, hw * 2 + 0.5, 0.42, 0.42, c, H0.x, y, HZ1);
+    box(w, 0.42, 0.42, hd * 2 + 0.5, c, HX0, y, H0.z);
+    box(w, 0.42, 0.42, hd * 2 + 0.5, c, HX1, y, H0.z);
+    if (i < 6) {
+      box(w, frontWallW + 0.25, 0.42, 0.42, c, H0.x - 0.9 - frontWallW / 2, y, HZ0);
+      box(w, frontWallW + 0.25, 0.42, 0.42, c, H0.x + 0.9 + frontWallW / 2, y, HZ0);
+    } else {
+      box(w, hw * 2 + 0.5, 0.42, 0.42, c, H0.x, y, HZ0);
+    }
   }
+
+  // Окна с тёплыми ставнями
   const win = (x, z, rotY) => {
     const g = group(w, x, 1.9, z); g.rotation.y = rotY;
     box(g, 1.5, 1.4, 0.1, 0xffffff, 0, 0, 0.25);
@@ -328,11 +350,101 @@ export function buildDacha(w) {
   };
   win(H0.x - 2.5, HZ0, Math.PI); win(H0.x + 2.5, HZ0, Math.PI); win(HX0, H0.z, -Math.PI / 2); win(HX1, H0.z, Math.PI / 2); win(H0.x, HZ1, 0);
 
-  // Крыльцо и высокий козырёк (высота козырька 4.25м — персонаж на крыльце свободен от коллизий!)
-  box(w, 1.4, 3.6, 0.12, 0x6a3f1e, H0.x, 1.8, HZ0 - 0.25); box(w, 0.15, 0.15, 0.1, 0xffd23f, H0.x + 0.45, 1.8, HZ0 - 0.33);
-  box(w, 3, 0.3, 1.4, 0x9c6a3c, H0.x, 0.15, HZ0 - 0.9); box(w, 3, 0.3, 0.7, 0x8a5a2b, H0.x, 0.45, HZ0 - 0.55);
+  // Крыльцо и открытая деревянная дверь
+  const doorLeaf = box(w, 1.15, 2.2, 0.08, 0x6a3f1e, H0.x + 0.85, 1.55, HZ0 + 0.6);
+  doorLeaf.rotation.y = 1.35;
+  box(doorLeaf, 0.08, 0.14, 0.08, 0xffd23f, 0.45, 0, 0.04);
+  box(w, 1.5, 0.04, 0.8, 0x4a7c59, H0.x, 0.48, HZ0 + 0.5, { shadow: false }); // коврик у порога
+
+  box(w, 3, 0.3, 1.4, 0x9c6a3c, H0.x, 0.15, HZ0 - 0.9);
+  box(w, 3, 0.3, 0.7, 0x8a5a2b, H0.x, 0.45, HZ0 - 0.55);
   for (const sx of [-1, 1]) box(w, 0.2, 4.2, 0.2, 0x6a3f1e, H0.x + sx * 1.4, 2.1, HZ0 - 1.4);
   box(w, 3.4, 0.25, 1.8, 0xb8462a, H0.x, 4.25, HZ0 - 0.85);
+
+  // Пол и потолочные балки домика (пол на высоте 0.45м встык со ступенькой крыльца)
+  box(w, hw * 2 - 0.3, 0.12, hd * 2 - 0.3, 0xba8850, H0.x, 0.46, H0.z, { shadow: false });
+  box(w, hw * 2 - 0.3, 0.1, hd * 2 - 0.3, 0x6b4423, H0.x, WH, H0.z, { shadow: false });
+
+  // ---------------- УЮТНЫЙ ИНТЕРЬЕР ДОМИКА ----------------
+  // 1. Русская печь в правом дальнем углу
+  solid(w, 2.0, 2.3, 2.2, 0xf5f5ee, H0.x + 2.7, 0.5, H0.z + 2.0); // основание печи
+  box(w, 0.7, 0.9, 1.8, 0xeaeae0, H0.x + 1.35, 0.97, H0.z + 2.0); // печная лежанка
+  box(w, 0.85, 0.8, 0.35, 0x221814, H0.x + 2.7, 1.1, H0.z + 0.88); // устье печи (топка)
+  box(w, 0.6, 0.18, 0.25, 0xff5511, H0.x + 2.7, 0.79, H0.z + 0.88); // горящие угли
+  box(w, 0.7, 1.4, 0.7, 0xf5f5ee, H0.x + 2.7, 2.9, H0.z + 2.0); // дымоход к крыше
+  box(w, 0.26, 0.26, 0.26, 0x2b2b2b, H0.x + 2.3, 2.45, H0.z + 1.4); // чугунок
+  box(w, 0.22, 0.22, 0.22, 0x2b2b2b, H0.x + 2.65, 2.43, H0.z + 1.4);
+  const stoveLight = new T.PointLight(0xff6611, 0.75, 7);
+  stoveLight.position.set(H0.x + 2.7, 1.2, H0.z + 0.8);
+  w.add(stoveLight);
+
+  // 2. Деревенский обеденный стол и скамья у окна
+  solid(w, 1.8, 0.9, 1.1, 0x9c6a3c, H0.x + 2.2, 0.5, H0.z - 1.5); // стол
+  box(w, 1.8, 0.45, 0.35, 0x8a5a2b, H0.x + 2.2, 0.74, H0.z - 0.7); // скамья
+  box(w, 0.32, 0.46, 0.32, 0xd4af37, H0.x + 2.2, 1.45, H0.z - 1.5); // пузатый золотой самовар
+  box(w, 0.18, 0.2, 0.18, 0xcc3333, H0.x + 1.7, 1.35, H0.z - 1.5); // заварочный чайник
+  box(w, 0.12, 0.15, 0.12, 0xffffff, H0.x + 2.6, 1.32, H0.z - 1.5); // чашка
+
+  // 3. Тканый половичок (дорожка) через всю горницу
+  box(w, 1.2, 0.02, 3.4, 0xb83828, H0.x, 0.53, H0.z + 0.4, { shadow: false });
+  for (const sz of [-1.4, -0.7, 0, 0.7, 1.4]) {
+    box(w, 1.1, 0.025, 0.07, 0xe8c44a, H0.x, 0.535, H0.z + 0.4 + sz, { shadow: false });
+  }
+
+  // 4. Подвесная люстра-лампа под потолком
+  box(w, 0.04, 0.75, 0.04, 0x665544, H0.x, WH - 0.4, H0.z);
+  const houseBulb = box(w, 0.38, 0.26, 0.38, 0xfff0aa, H0.x, WH - 0.85, H0.z, { shadow: false });
+  houseBulb.userData.dynamic = true;
+  st.houseLight = new T.PointLight(0xffe28a, 0.95, 14);
+  st.houseLight.position.set(H0.x, WH - 0.85, H0.z);
+  st.houseLight.userData.dynamic = true;
+  w.add(st.houseLight);
+  registerLamp(houseBulb, null, null, H0.x, H0.z);
+
+  // 5. БОЛЬШАЯ УЮТНАЯ КРОВАТЬ (DACHA_BED: x: -38.6, z: 199.8)
+  solid(w, 1.6, 0.75, 2.4, 0x7c4f24, DACHA_BED.x, 0.5, DACHA_BED.z).visible = false; // коллайдер кровати
+  // 4 точёных столбика кровати
+  for (const [px, pz, ph] of [[-39.35, 198.65, 0.9], [-37.85, 198.65, 0.9], [-39.35, 200.95, 1.4], [-37.85, 200.95, 1.4]]) {
+    box(w, 0.16, ph, 0.16, 0x5a3416, px, 0.5 + ph / 2, pz);
+  }
+  // Резная деревянная спинка у изголовья
+  box(w, 1.5, 0.95, 0.1, 0x7c4f24, DACHA_BED.x, 1.25, 200.95);
+  box(w, 1.6, 0.12, 0.14, 0x9c6a3c, DACHA_BED.x, 1.75, 200.95);
+  // Изножье кровати
+  box(w, 1.5, 0.55, 0.1, 0x7c4f24, DACHA_BED.x, 0.82, 198.65);
+  box(w, 1.6, 0.1, 0.14, 0x9c6a3c, DACHA_BED.x, 1.12, 198.65);
+  // Деревянные боковины
+  for (const sx of [-1, 1]) box(w, 0.1, 0.3, 2.2, 0x6a3f1e, DACHA_BED.x + sx * 0.72, 0.72, DACHA_BED.z);
+  // Мягкий матрас
+  box(w, 1.38, 0.28, 2.15, 0xf7f4ec, DACHA_BED.x, 0.76, DACHA_BED.z);
+  // Лоскутное одеяло (patchwork quilt)
+  box(w, 1.4, 0.08, 1.5, 0xcc3333, DACHA_BED.x, 0.91, DACHA_BED.z - 0.3);
+  box(w, 1.4, 0.1, 0.2, 0xffffff, DACHA_BED.x, 0.93, DACHA_BED.z + 0.46);
+  const quiltCols = [0xe8b839, 0x2e8540, 0x2980b9, 0xd35400, 0x8e44ad, 0x16a085, 0xd98880, 0xf39c12, 0x34495e];
+  for (let qi = 0; qi < 3; qi++) {
+    for (let qj = 0; qj < 3; qj++) {
+      const qx = DACHA_BED.x - 0.42 + qi * 0.42;
+      const qz = DACHA_BED.z - 0.75 + qj * 0.45;
+      const qc = quiltCols[(qi * 3 + qj) % quiltCols.length];
+      box(w, 0.38, 0.02, 0.4, qc, qx, 0.96, qz, { shadow: false });
+    }
+  }
+  // Пышная белая подушка
+  box(w, 1.05, 0.18, 0.52, 0xffffff, DACHA_BED.x, 0.98, DACHA_BED.z + 0.8);
+  box(w, 0.8, 0.04, 0.32, 0xe0e4f0, DACHA_BED.x, 1.07, DACHA_BED.z + 0.8, { shadow: false });
+  // Прикроватный коврик
+  box(w, 0.8, 0.02, 2.2, 0x2c5c52, DACHA_BED.x + 1.15, 0.53, DACHA_BED.z, { shadow: false });
+  // Прикроватная тумбочка с ночником
+  box(w, 0.6, 0.55, 0.6, 0x7c4f24, DACHA_BED.x + 1.15, 0.79, DACHA_BED.z + 1.05);
+  box(w, 0.14, 0.22, 0.14, 0xfff0a0, DACHA_BED.x + 1.15, 1.15, DACHA_BED.z + 1.05);
+  box(w, 0.06, 0.08, 0.06, 0xff8800, DACHA_BED.x + 1.15, 1.28, DACHA_BED.z + 1.05, { shadow: false });
+
+  // 3D-надпись над кроватью
+  const bedLbl = makeLabel(3.8, 0.85, { face: 0 });
+  bedLbl.position.set(DACHA_BED.x, 2.2, DACHA_BED.z);
+  scene.add(bedLbl);
+  bedLbl.userData.set('🛏️ Кровать (Сон)', { color: '#ffea7a' });
+  st.bedLabel = bedLbl;
 
   // Фонарь над крыльцом
   const porchBulb = box(w, 0.28, 0.35, 0.28, 0x8a7f66, H0.x, 3.8, HZ0 - 1.2, { shadow: false });
@@ -589,6 +701,11 @@ export function dachaNear(p, save, hero) {
   const d = dachaSave(save);
   const now = Date.now();
 
+  // Если персонаж спит в кровати
+  if (hero?.sleeping || hero?.climb?.sleep) {
+    return [{ id: 'g_dacha_wakeup', icon: '🚶' }];
+  }
+
   // Если персонаж уже сидит в беседке, на пеньке или качелях
   if (hero?.climb?.seat) {
     if (Math.hypot(p.x - 22, p.z - 191) < 3.2) {
@@ -600,6 +717,11 @@ export function dachaNear(p, save, hero) {
     if (Math.hypot(p.x - 13, p.z - 186.5) < 2.5) {
       return [{ id: 'g_dacha_stand', icon: '🚶' }];
     }
+  }
+
+  // 0. Кровать в домике (Dacha Bed: x: -38.6, z: 199.8)
+  if (Math.hypot(p.x - DACHA_BED.x, p.z - DACHA_BED.z) < 2.6) {
+    return [{ id: 'g_dacha_sleep', icon: '🛌' }];
   }
 
   // 1. Теплица (Greenhouse: x: 3, z: 200)
@@ -658,9 +780,21 @@ export function dachaNear(p, save, hero) {
 }
 
 // Исполнение интерактивных действий на даче
-export function dachaUse(act, hero, save, { toast, SFX, persist, MOTYA }) {
+export function dachaUse(act, hero, save, { toast, confetti, SFX, persist, MOTYA }) {
   const d = dachaSave(save);
   const now = Date.now();
+
+  // 0. Лечь в кровать и пропустить ночь
+  if (act === 'sleep') {
+    dachaSleep(hero, save, { toast, confetti, SFX, persist, MOTYA });
+    return;
+  }
+
+  // 0. Проснуться / встать с кровати
+  if (act === 'wakeup') {
+    dachaWakeup(hero, { toast, SFX });
+    return;
+  }
 
   // Сесть в беседке за стол
   if (act === 'sit_gazebo') {
@@ -1030,6 +1164,10 @@ export function updateDacha(dt, hero, save) {
     const nightK = getNightK();
     st.porchLight.intensity = nightK * 2.8;
   }
+  if (st.houseLight) {
+    const nightK = getNightK();
+    st.houseLight.intensity = nightK * 3.2;
+  }
   if (st.campfire && (st.campT = (st.campT ?? 0) - dt) <= 0) {
     if (Math.hypot(hero.pos.x - st.campfire.x, hero.pos.z - st.campfire.z) < 50) {
       st.campT = 0.35;
@@ -1038,4 +1176,62 @@ export function updateDacha(dt, hero, save) {
       if (Math.random() < 0.3) puff('💨', st.campfire.clone().add(new T.Vector3(0, 0.6, 0)), { size: 0.8, rise: 1.3, life: 1.5, dx: 0.25 });
     }
   }
+}
+
+// Сон на даче в уютной кровати с пропуском ночи
+export function dachaSleep(hero, save, { toast, confetti, SFX, persist, MOTYA }) {
+  if (!hero) return;
+  hero.pos.set(DACHA_BED.x, DACHA_BED.y + 0.35, DACHA_BED.z);
+  hero.vel.set(0, 0, 0);
+  hero.face = Math.PI;
+  if (hero.model?.root) hero.model.root.rotation.y = Math.PI;
+  hero.sleeping = true;
+  hero.sleep = true;
+  hero.climb = {
+    seat: true,
+    sleep: true,
+    dur: 1e9,
+    t: 0.1,
+    ride: () => new T.Vector3(DACHA_BED.x, DACHA_BED.y + 0.35, DACHA_BED.z),
+    face: Math.PI,
+  };
+
+  SFX.yawn?.();
+  toast('😴 Спокойной ночи! Засыпаем...<small>нажми 🚶 или прыжок/джойстик, чтобы встать</small>');
+
+  for (let i = 0; i < 3; i++) {
+    setTimeout(() => {
+      if (hero.sleeping || hero.climb?.sleep) {
+        puff('💤', new T.Vector3(DACHA_BED.x + (Math.random() - 0.5) * 0.4, DACHA_BED.y + 1.2 + i * 0.3, DACHA_BED.z + 0.6), { size: 1.1 + i * 0.2, rise: 1.2, life: 1.8 });
+      }
+    }, i * 380);
+  }
+
+  runSleepScreen(() => {
+    if (!hero.sleeping && !hero.climb?.sleep) return;
+    hero.sleeping = false;
+    hero.sleep = false;
+    hero.climb = null;
+    hero.pos.set(DACHA_BED.x + 1.2, 0.45, DACHA_BED.z);
+    hero.vel.set(0, 0, 0);
+
+    save.coins = (save.coins || 0) + 50;
+    persist();
+    SFX.fanfare?.();
+    SFX.coins?.();
+    confetti(hero.pos.clone().setY(hero.pos.y + 1.8), 40);
+    toast('☀️ С добрым утром! Вы отлично выспались и полны сил! +50 🪙<small>наступил ясный солнечный день 🌅</small>');
+  });
+}
+
+// Встать с кровати на даче
+export function dachaWakeup(hero, { toast, SFX } = {}) {
+  if (!hero) return;
+  hero.sleeping = false;
+  hero.sleep = false;
+  hero.climb = null;
+  hero.pos.set(DACHA_BED.x + 1.2, 0.45, DACHA_BED.z);
+  hero.vel.set(0, 0, 0);
+  dismissSleepScreen();
+  if (toast) toast('🚶 Встал с кровати');
 }

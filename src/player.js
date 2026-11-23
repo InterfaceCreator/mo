@@ -47,7 +47,7 @@ export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
     // нажал прыжок или сдвинул джойстик (на скамейке/пеньке) — встал
     if (wantJump && c.t > 0.05 && c.onJump) c.onJump(c.t);                                      // горка с трамплином: прыжок = толчок, не соскок
     else if ((wantJump || (c.seat && Math.hypot(mv.x, mv.y) > 0.2)) && c.t > 0.05) {
-      pl.climb = null; pl.relax = false; pl.dachaAnim = null;
+      pl.climb = null; pl.relax = false; pl.dachaAnim = null; pl.sleeping = false; pl.sleep = false;
       pl.vel.set(Math.sin(pl.face) * (wantJump ? 3 : 1.5), wantJump ? JUMP_V * 0.6 : 0, Math.cos(pl.face) * (wantJump ? 3 : 1.5));
       pl.grounded = false; if (wantJump) pl.jumped = true;
       return;

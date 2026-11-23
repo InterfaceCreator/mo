@@ -197,15 +197,25 @@ function swingArm(p) {
 }
 
 // анимация: speed — скорость по земле, air — в воздухе
-export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 0, carry = false, stun = false, tool = null, swing = -1, glide = false, sit = false, ride = false, swim = false, spa = null, spaK = 0, dacha = null, dachaK = 0 } = {}) {
+export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 0, carry = false, stun = false, tool = null, swing = -1, glide = false, sit = false, ride = false, swim = false, spa = null, spaK = 0, dacha = null, dachaK = 0, sleep = false } = {}) {
   animMove(m, dt, speed, maxSpeed, air, vy);
   if (ride) {                                                              // верхом на драконе: сидит в седле, ноги по бокам, руки вперёд; ride 2 — сзади, на втором седле
     m.body.position.y = 1.45; m.body.position.z = ride === 2 ? -0.95 : 0; m.legL.rotation.x = m.legR.rotation.x = -1.1; m.legL.rotation.z = -0.45; m.legR.rotation.z = 0.45;
     m.armL.rotation.x = m.armR.rotation.x = -1.0; m.armL.rotation.z = -0.15; m.armR.rotation.z = 0.15;
   } else { m.legL.rotation.z = m.legR.rotation.z = 0; m.body.position.z = 0; }
-  if (sit) {                                                               // сидит за партой / скамейкой / на качелях: ноги вперёд, руки на столе/коленях
+  if (sit && !sleep) {                                                               // сидит за партой / скамейкой / на качелях: ноги вперёд, руки на столе/коленях
     m.legL.rotation.x = m.legR.rotation.x = -1.45; m.body.position.y = -0.36;
     m.armL.rotation.x = m.armR.rotation.x = -1.1; m.armL.rotation.z = m.armR.rotation.z = 0;
+  }
+  if (sleep) {
+    m.body.rotation.x = -Math.PI / 2 + 0.05;
+    m.body.position.y = 0.36 + Math.sin((m.sleepT = (m.sleepT || 0) + dt * 1.5)) * 0.03;
+    m.body.position.z = -0.55;
+    m.legL.rotation.x = m.legR.rotation.x = 0.04;
+    m.legL.rotation.z = -0.06; m.legR.rotation.z = 0.06;
+    m.armL.rotation.x = m.armR.rotation.x = -0.35;
+    m.armL.rotation.z = -0.22; m.armR.rotation.z = 0.22;
+    m.head.rotation.x = 0.22;
   }
   if (m.outfit) m.outfit.animate(dt, speed, air);                         // одежда из магазина: плащ развевается, крылья машут (clothes.js)
   // планирует на зонтике: держит его обеими руками над головой, ноги болтаются

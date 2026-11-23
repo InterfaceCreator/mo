@@ -465,3 +465,55 @@ if (typeof window !== 'undefined') {
   window.getDayTime = getDayTime;
   window.toggleTimeOfDay = () => skipToPhase();
 }
+
+// Экран сна и пропуска ночи с мягким затемнением
+let sleepCutsceneTimer = null;
+
+export function runSleepScreen(onMorning) {
+  let el = document.getElementById('sleepCurtain');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'sleepCurtain';
+    el.style.cssText = 'position:fixed;inset:0;background:radial-gradient(ellipse at center, #182245 0%, #090c16 100%);opacity:0;pointer-events:none;transition:opacity 0.75s ease-in-out;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;text-align:center;user-select:none;';
+    el.innerHTML = `
+      <div id="sleepMoonIcon" style="font-size:68px;margin-bottom:14px;filter:drop-shadow(0 0 18px rgba(255,230,120,0.5));transition:transform 0.6s ease;">🌙</div>
+      <div id="sleepMainText" style="font-size:26px;font-weight:900;letter-spacing:0.5px;color:#ffeaa7;text-shadow:0 3px 10px rgba(0,0,0,0.7);">Спокойной ночи...</div>
+      <div id="sleepSubText" style="font-size:16px;color:#c8d6e5;margin-top:8px;">Сладких снов 💤</div>
+    `;
+    document.body.appendChild(el);
+  }
+  const icon = document.getElementById('sleepMoonIcon');
+  const t1 = document.getElementById('sleepMainText');
+  const t2 = document.getElementById('sleepSubText');
+  if (icon) icon.textContent = '🌙';
+  if (t1) t1.textContent = 'Спокойной ночи...';
+  if (t2) t2.textContent = 'Сладких снов 💤';
+
+  el.style.pointerEvents = 'all';
+  el.style.opacity = '1';
+
+  clearTimeout(sleepCutsceneTimer);
+  sleepCutsceneTimer = setTimeout(() => {
+    // Переводим время на яркий солнечный день (80с в 480с суточном цикле)
+    setDayTime(80);
+    if (icon) icon.textContent = '☀️';
+    if (t1) t1.textContent = 'Наступает утро! 🌅';
+    if (t2) t2.textContent = 'Птицы поют, солнце взошло!';
+
+    sleepCutsceneTimer = setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.pointerEvents = 'none';
+      if (onMorning) onMorning();
+    }, 1100);
+  }, 1200);
+}
+
+export function dismissSleepScreen() {
+  clearTimeout(sleepCutsceneTimer);
+  const el = document.getElementById('sleepCurtain');
+  if (el) {
+    el.style.opacity = '0';
+    el.style.pointerEvents = 'none';
+  }
+}
+

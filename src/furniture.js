@@ -9,6 +9,7 @@ import { animateAnimal } from './animals.js';
 import { makeLabel, puff, confetti } from './fx.js';
 import { buildPet, petName, modelThumb } from './pets.js';
 import { openOv } from './ui.js';
+import { runSleepScreen, dismissSleepScreen } from './daynight.js';
 
 // w, d — сколько места занимает (по x и по z, если смотрит вперёд); h — высота (для столкновений)
 export const FURNITURE = [
@@ -273,3 +274,52 @@ export function panel(title, cards, empty) {
   }
   openOv('ward');
 }
+
+// Проверка близости к кровати в доме
+export function homeBedNear(p) {
+  if (!st || !st.items) return null;
+  for (const it of st.items) {
+    if (it && (it.id === 'bed' || it.id === 'rocketbed')) {
+      const d = Math.hypot(p.x - it.g.position.x, p.z - it.g.position.z);
+      if (d < 2.5) return it;
+    }
+  }
+  return null;
+}
+
+// Взаимодействие со сном в доме
+export function homeUse(act, hero, save, { toast, confetti, SFX, persist }) {
+  if (act === 'sleep') {
+    const bed = homeBedNear(hero.pos);
+    if (!bed) return;
+    const bp = bed.g.position;
+    hero.pos.set(bp.x, 0.9, bp.z);
+    hero.vel.set(0, 0, 0);
+    hero.face = bed.g.rotation.y + Math.PI;
+    if (hero.model?.root) hero.model.root.rotation.y = hero.face;
+    hero.sleeping = true;
+    hero.sleep = true;
+    hero.climb = { seat: true, sleep: true, dur: 1e9, t: 0.1, ride: () => new T.Vector3(bp.x, 0.9, bp.z), face: hero.face };
+    SFX.yawn?.();
+    toast('😴 Спокойной ночи! Засыпаем...<small>нажми 🚶 или прыжок/джойстик, чтобы встать</small>');
+    puff('💤', new T.Vector3(bp.x, 1.8, bp.z), { size: 1.2, rise: 1.3, life: 1.8 });
+    runSleepScreen(() => {
+      if (!hero.sleeping && !hero.climb?.sleep) return;
+      hero.sleeping = false; hero.sleep = false; hero.climb = null;
+      hero.pos.set(bp.x + 1.2, 0.1, bp.z); hero.vel.set(0, 0, 0);
+      save.coins = (save.coins || 0) + 50; persist();
+      SFX.fanfare?.(); SFX.coins?.();
+      confetti(hero.pos.clone().setY(hero.pos.y + 1.8), 40);
+      toast('☀️ С добрым утром! Вы отлично выспались! +50 🪙<small>наступил ясный солнечный день 🌅</small>');
+    });
+    return;
+  }
+  if (act === 'wakeup') {
+    hero.sleeping = false; hero.sleep = false; hero.climb = null;
+    hero.pos.y = 0.1; hero.vel.set(0, 0, 0);
+    dismissSleepScreen();
+    toast('🚶 Встал с кровати');
+    return;
+  }
+}
+
