@@ -137,9 +137,12 @@ export function startSwingRide(hero) {
       const amp = 0.58 * Math.min(1, k * 3.5) * (k > 0.88 ? (1 - k) / 0.12 : 1);
       const a = amp * Math.sin(k * dur / per * Math.PI * 2);
       if (st && st.swingBench) {
-        st.swingBench.rotation.x = a;
+        st.swingBench.rotation.x = -a;
       }
-      return new T.Vector3(SW_POS.x, H - 2.96 * Math.cos(a) - 0.29, SW_POS.z + 2.96 * Math.sin(a));
+      if (hero.model?.root) {
+        hero.model.root.rotation.x = -a;
+      }
+      return new T.Vector3(SW_POS.x, H - 2.96 * Math.cos(a) - 0.29, SW_POS.z + 2.96 * Math.sin(a) - 0.05 * Math.cos(a));
     },
     t: 0,
     dur,
@@ -798,6 +801,7 @@ export function dachaUse(act, hero, save, { toast, confetti, SFX, persist, MOTYA
     hero.climb = null;
     hero.relax = false;
     hero.dachaAnim = null;
+    if (hero.model?.root) hero.model.root.rotation.x = 0;
     if (hero.model?.teaCup) hero.model.teaCup.visible = false;
     if (hero.model?.marshStick) hero.model.marshStick.visible = false;
     toast('🚶 Встал со скамейки');
