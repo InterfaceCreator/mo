@@ -20,8 +20,19 @@ export function buildBase() {
   // зелёная плита перед прилавком — встал на неё, и магазин открылся
   box(scene, 3, 0.12, 2.4, 0x5fd35f, SHOP.pad.x, 0.06, SHOP.pad.z, { shadow: false });
 
-  // Фонарь у магазина
-  createLampPost(scene, SHOP.x + 4.8, SHOP.z, -Math.PI / 2);
+  // Фонари на центральной площади базы
+  createLampPost(scene, -6, 0, 0);                       // центральная аллея слева
+  createLampPost(scene, 6, 0, Math.PI);                  // центральная аллея справа
+  createLampPost(scene, -18, -14, 0);                    // у портала слева
+  createLampPost(scene, 0, -14, 0);                      // у центрального портала
+  createLampPost(scene, 18, -14, Math.PI);               // у портала справа
+  createLampPost(scene, 14, 12, 0);                      // у загона питомцев слева
+  createLampPost(scene, 28, 12, Math.PI);                // у загона питомцев справа
+  createLampPost(scene, 21, 24, -Math.PI / 2);           // у инкубаторов
+  createLampPost(scene, -14, 10, 0);                     // у верстака
+  createLampPost(scene, -26, 16, -Math.PI / 2);          // у домика
+  createLampPost(scene, SHOP.x + 4.8, SHOP.z, -Math.PI / 2); // у магазина
+  createLampPost(scene, SHOP.x - 4.8, SHOP.z, Math.PI / 2);
 
   // беговая дорожка
   const t = group(scene, TREADMILL.x, 0, TREADMILL.z);

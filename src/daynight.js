@@ -101,11 +101,13 @@ export function initDayNight(save) {
   if (st) return st;
 
   // Пул динамических источников света для ближайших к герою фонарей (без нагрузки на FPS)
-  const l1 = new T.PointLight(0xffdf66, 0, 18);
-  const l2 = new T.PointLight(0xffdf66, 0, 18);
-  const l3 = new T.PointLight(0xffdf66, 0, 18);
-  l1.userData.keep = l2.userData.keep = l3.userData.keep = true;
-  scene.add(l1, l2, l3);
+  const l1 = new T.PointLight(0xffdf66, 0, 22);
+  const l2 = new T.PointLight(0xffdf66, 0, 22);
+  const l3 = new T.PointLight(0xffdf66, 0, 22);
+  const l4 = new T.PointLight(0xffdf66, 0, 22);
+  const l5 = new T.PointLight(0xffdf66, 0, 22);
+  l1.userData.keep = l2.userData.keep = l3.userData.keep = l4.userData.keep = l5.userData.keep = true;
+  scene.add(l1, l2, l3, l4, l5);
 
   st = {
     time: save?.dayTime ?? 100, // начинаем в середине солнечного дня
@@ -117,7 +119,7 @@ export function initDayNight(save) {
     moon: createMoon(),
     lamps: [],
     windows: [],
-    lampLights: [l1, l2, l3]
+    lampLights: [l1, l2, l3, l4, l5]
   };
   return st;
 }
@@ -350,12 +352,12 @@ export function updateDayNight(dt, hero, levelId, save) {
     hemi.intensity = 0.7 * (1 - 0.3 * nightK);
     sunDisc.material.opacity = Math.max(0, 1 - nightK * 2);
   } else if (nightK > 0.05) {
-    // Ночное лунное освещение
-    sun.color.lerpColors(new T.Color(0xfff1d8), new T.Color(0x80a8f8), nightK);
-    sun.intensity = 0.85 * (1 - 0.78 * nightK); // мягкий лунный свет
-    hemi.color.lerpColors(new T.Color(0xe2f2ff), new T.Color(0x1a264a), nightK);
-    hemi.groundColor.lerpColors(new T.Color(0x8fae6a), new T.Color(0x0e1726), nightK);
-    hemi.intensity = 0.7 * (1 - 0.55 * nightK);
+    // Ночное освещение: комфортный серебристый лунный свет и отличная видимость
+    sun.color.lerpColors(new T.Color(0xfff1d8), new T.Color(0x92b6ff), nightK);
+    sun.intensity = 0.85 * (1 - 0.65 * nightK); // = 0.30 — направленный свет луны
+    hemi.color.lerpColors(new T.Color(0xe2f2ff), new T.Color(0x35508a), nightK);
+    hemi.groundColor.lerpColors(new T.Color(0x8fae6a), new T.Color(0x22384e), nightK);
+    hemi.intensity = 0.7 * (1 - 0.36 * nightK); // = 0.45 — мягкое ночное рассеяние
     sunDisc.material.opacity = Math.max(0, 1 - nightK * 2.5);
   } else {
     // Яркий день

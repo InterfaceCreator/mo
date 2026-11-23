@@ -58,9 +58,13 @@ export function buildPlayground(w) {
   // большой надувной мяч
   st.ball = makeBall(scene, 0.9, 'beach', PG.ball.x, PG.ball.z);
 
-  // Фонари на детской площадке: освещение качелей и карусели
-  createLampPost(w, S.x - 4.5, S.z, -Math.PI / 2);
-  createLampPost(w, C.x - 4.2, C.z, -Math.PI / 2);
+  // Фонари на детской площадке: качели, карусель, пузыри и горки
+  createLampPost(w, S.x - 4.5, S.z, -Math.PI / 2);      // у качелей слева
+  createLampPost(w, S.x + 4.5, S.z, Math.PI / 2);       // у качелей справа
+  createLampPost(w, C.x - 4.5, C.z, -Math.PI / 2);      // у карусели слева
+  createLampPost(w, C.x + 4.5, C.z, Math.PI / 2);       // у карусели справа
+  createLampPost(w, B.x - 2.8, B.z, 0);                 // у машины пузырей
+  createLampPost(w, 32, 24, 0);                         // у игровой лужайки
 }
 
 // раз в кадр. События: { sfx: [], say, coins }

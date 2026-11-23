@@ -277,13 +277,33 @@ export function buildDacha(w) {
   const gs = makeLabel(4.4, 1.1, { face: Math.PI }); gs.position.set(gx, 4.5, D.z0 - 0.2); scene.add(gs); gs.userData.set('🏡 Дача', { color: '#ffe14d' });
   box(w, 0.15, 1.2, 0.15, 0x6a3f1e, gx + 3.4, 0.6, D.z0 - 0.6); box(w, 0.7, 0.5, 0.5, 0x3a6ad8, gx + 3.4, 1.4, D.z0 - 0.6);
 
-  // Фонари у ворот и вдоль дачной дороги
+  // Фонари у ворот и вдоль всей дачной дороги
+  createLampPost(w, -38, 108, 0);                      // у начала дороги из аквапарка
+  createLampPost(w, -36, 118, -Math.PI / 2);           // первый поворот среди сосен
+  createLampPost(w, -33, 128, Math.PI / 2);            // среди берёз
+  createLampPost(w, -29, 137, -Math.PI / 4);           // перед ручьём
+  createLampPost(w, br.x - 2.8, br.z, Math.PI / 2);    // у мостика через ручей (запад)
+  createLampPost(w, br.x + 2.8, br.z, -Math.PI / 2);   // у мостика через ручей (восток)
+  createLampPost(w, -24, 153, 0);                      // за мостиком
+  createLampPost(w, -26, 163, Math.PI / 2);            // на пригорке к даче
+  createLampPost(w, -28, 171, -Math.PI / 2);           // перед дачными воротами
   createLampPost(w, gx - 2.8, D.z0 - 0.5, 0);          // у калитки слева
   createLampPost(w, gx + 2.8, D.z0 - 0.5, Math.PI);    // у калитки справа
-  createLampPost(w, br.x - 2.6, br.z, Math.PI / 2);    // у мостика через ручей
-  createLampPost(w, -14.5, 186.5, -Math.PI / 4);       // у скамейки и поворота дороги
+  createLampPost(w, -14.5, 186.5, -Math.PI / 4);       // у скамейки и развилки дорожки
+  createLampPost(w, -22, 186, 0);                      // у колодца
+  createLampPost(w, -16, 196, -Math.PI / 2);           // у грядок и пугала
+  createLampPost(w, -43, 196, Math.PI / 2);            // у будки Дружка
+  createLampPost(w, -39, 203, 0);                      // у поленницы
+  createLampPost(w, -43, 185, 0);                      // у яблонь слева
+  createLampPost(w, -1, 196, 0);                       // у входа в теплицу слева
+  createLampPost(w, 7, 196, Math.PI);                  // у теплицы справа
+  createLampPost(w, 13, 184, 0);                       // у садовых качелей
   createLampPost(w, 20.5, 187.5, 0);                   // у дорожки к беседке
+  createLampPost(w, 31, 186.5, -Math.PI / 2);          // перед входом в беседку
   createLampPost(w, 31.5, 196.5, Math.PI / 3);         // у костровища
+  createLampPost(w, 42.5, 196.5, -Math.PI / 3);        // за костровищем
+  createLampPost(w, 20, 174, 0);                       // у бани слева
+  createLampPost(w, 28, 174, Math.PI);                 // у бани справа
 
   // тропинка от калитки к крыльцу
   for (let z = D.z0 + 0.5; z < D.house.z - 4.2; z += 1.1) box(w, 1.1, 0.06, 0.8, 0xb9b9c8, gx - (z - D.z0) * 0.4 + (z % 2.2 > 1.1 ? 0.3 : -0.3), 0.05, z, { shadow: false });
