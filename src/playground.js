@@ -6,6 +6,7 @@ import { T, scene, group, box } from './engine.js';
 import { groundY, solid, addCollider, onLevelReset } from './world.js';
 import { makeLabel, puff } from './fx.js';
 import { makeBall, stepBall } from './kids.js';
+import { createLampPost } from './daynight.js';
 
 // всё — на просторной «Детской площадке» на зелёной территории восточной части базы
 export const PG = { swing: { x: 38, z: 10 }, carousel: { x: 48, z: 22, r: 3.2 }, bubbles: { x: 58, z: 10 }, ball: { x: 38, z: 17 } };
@@ -56,6 +57,10 @@ export function buildPlayground(w) {
 
   // большой надувной мяч
   st.ball = makeBall(scene, 0.9, 'beach', PG.ball.x, PG.ball.z);
+
+  // Фонари на детской площадке: освещение качелей и карусели
+  createLampPost(w, S.x - 4.5, S.z, -Math.PI / 2);
+  createLampPost(w, C.x - 4.2, C.z, -Math.PI / 2);
 }
 
 // раз в кадр. События: { sfx: [], say, coins }

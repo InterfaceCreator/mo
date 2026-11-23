@@ -1,7 +1,7 @@
 // Запуск и главный цикл.
 import { renderer, scene, camera, resize, followSun, followSky, ECO } from './engine.js';
 import { updateWater } from './terrain.js';
-import { updateWorld, cullChunks } from './world.js';
+import { updateWorld, cullChunks, level } from './world.js';
 import { LOCS } from './locations.js';
 import { buildHero, animateHero, LOOK_OF } from './hero.js';
 import { makePlayer, updatePlayer, WALK } from './player.js';
@@ -17,6 +17,7 @@ import { chooseProfile, showLock, noteOpen, toast } from './ui.js';
 import { FS } from './fs.js';
 import './update.js';                  // плашка «загружается новая версия» на стартовом экране
 import { startRest, checkRest, unlockRest } from './rest.js';
+import { updateDayNight, skipToPhase, getDayPhase } from './daynight.js';
 
 const Q = new URLSearchParams(location.search);
 
@@ -79,6 +80,19 @@ function start(who) {
       if (FS.on()) FS.exit(); else FS.enter();
     });
   }
+
+  // Кнопка быстрого переключения времени суток (День / Закат / Ночь / Рассвет)
+  const timeBtn = document.getElementById('timeBtn');
+  if (timeBtn) {
+    timeBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      skipToPhase();
+      const ph = getDayPhase();
+      const txt = ph === 'night' ? '🌙 Звёздная ночь' : ph === 'sunset' ? '🌇 Тёплый закат' : ph === 'sunrise' ? '🌅 Нежный рассвет' : '☀️ Ясный день';
+      toast(txt);
+      SFX.tap();
+    });
+  }
   input.onFirstTouch = () => {
     initAudio();
     if (touch && FS.can && !FS.on()) FS.enter();     // на Android — сразу во весь экран; свернуть — кнопкой
@@ -110,7 +124,7 @@ function start(who) {
       pollInput();
       updateCam(cam, dt, hero, { look: takeLook(), zoom: takeZoom(), lastLook: input.lastLook });
       updateSpyGame(dt); duoAfterAnimate(dt);
-      updateWorld(dt); updateFx(dt); followSun(hero.pos); followSky(); updateWater(dt); cullChunks(camera.position);
+      updateWorld(dt); updateDayNight(dt, hero, level?.id, save); updateFx(dt); followSun(hero.pos); followSky(); updateWater(dt); cullChunks(camera.position);
       draw();
       return;
     }
@@ -125,6 +139,7 @@ function start(who) {
       dacha: hero.dachaAnim, dachaK: hero.dachaK || 0 });
     duoAfterAnimate(dt);                // вдвоём: рядом — сердечки
     updateWorld(dt);
+    updateDayNight(dt, hero, level?.id, save);
     updateFx(dt);
     followSun(hero.pos); followSky(); updateWater(dt); cullChunks(camera.position);
 

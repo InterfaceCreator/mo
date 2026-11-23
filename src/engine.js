@@ -34,31 +34,55 @@ const skyTop = new T.Color(0x3f8fe0), skyHor = new T.Color(SKY);
 const skyMesh = new T.Mesh(skyGeo, new T.MeshBasicMaterial({ vertexColors: true, side: T.BackSide, fog: false, depthWrite: false }));
 skyMesh.userData.keep = true; skyMesh.renderOrder = -1; scene.add(skyMesh);
 function paintSky() {
-  const pos = skyGeo.attributes.position, c = new T.Color(); skyCol.length = 0;
-  for (let i = 0; i < pos.count; i++) { const k = Math.max(0, pos.getY(i) / 330); c.copy(skyHor).lerp(skyTop, Math.pow(k, 0.6)); skyCol.push(c.r, c.g, c.b); }
-  skyGeo.setAttribute('color', new T.Float32BufferAttribute(skyCol, 3));
+  const pos = skyGeo.attributes.position, c = new T.Color();
+  const attr = skyGeo.attributes.color;
+  if (!attr) {
+    skyCol.length = 0;
+    for (let i = 0; i < pos.count; i++) { const k = Math.max(0, pos.getY(i) / 330); c.copy(skyHor).lerp(skyTop, Math.pow(k, 0.6)); skyCol.push(c.r, c.g, c.b); }
+    skyGeo.setAttribute('color', new T.Float32BufferAttribute(skyCol, 3));
+  } else {
+    const arr = attr.array;
+    for (let i = 0; i < pos.count; i++) {
+      const k = Math.max(0, pos.getY(i) / 330);
+      c.copy(skyHor).lerp(skyTop, Math.pow(k, 0.6));
+      arr[i * 3] = c.r;
+      arr[i * 3 + 1] = c.g;
+      arr[i * 3 + 2] = c.b;
+    }
+    attr.needsUpdate = true;
+  }
 }
-const sunDisc = (() => {
+export const sunDisc = (() => {
   const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d');
   const g = c.createRadialGradient(64, 64, 8, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,240,1)'); g.addColorStop(0.25, 'rgba(255,245,200,.9)'); g.addColorStop(1, 'rgba(255,240,200,0)');
   c.fillStyle = g; c.fillRect(0, 0, 128, 128);
-  const s = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(cv), fog: false, depthWrite: false })); s.scale.set(70, 70, 1); s.userData.keep = true; scene.add(s); return s;
+  const s = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(cv), fog: false, depthWrite: false, transparent: true })); s.scale.set(70, 70, 1); s.userData.keep = true; scene.add(s); return s;
 })();
 // цвет неба у горизонта (и тумана) для локации; верх неба — насыщеннее
 export function sky(c) {
   scene.background.set(c); scene.fog.color.set(c);
   skyHor.set(c); skyTop.set(c).multiplyScalar(0.55).lerp(new T.Color(0x2f7fe0), 0.5); paintSky();
 }
+// установка горизонта и верха неба напрямую
+export function setSkyGrad(hor, top) {
+  scene.background.copy(hor);
+  if (scene.fog) scene.fog.color.copy(hor);
+  skyHor.copy(hor);
+  skyTop.copy(top);
+  paintSky();
+}
 paintSky();
 // купол и солнце всегда вокруг камеры
 export function followSky() { skyMesh.position.copy(camera.position); sunDisc.position.copy(camera.position).addScaledVector(SUN_DIR, 300); }
 
-const hemi = new T.HemisphereLight(0xe2f2ff, 0x8fae6a, 0.7); hemi.userData.keep = true; scene.add(hemi);
+export const hemi = new T.HemisphereLight(0xe2f2ff, 0x8fae6a, 0.7); hemi.userData.keep = true; scene.add(hemi);
 // ночь (0 — день, 1 — ночь): тусклее свет, солнце прячется. Небо красит тот, кто зовёт (sky)
 export function setNight(n) { hemi.intensity = 0.7 * (1 - 0.55 * n); sun.intensity = 0.85 * (1 - 0.75 * n); sunDisc.material.opacity = 1 - n; }
 export const sun = new T.DirectionalLight(0xfff1d8, 0.85);
 sun.castShadow = true; sun.shadow.mapSize.set(PHONE ? 1024 : 2048, PHONE ? 1024 : 2048); sun.shadow.bias = -0.0005;
-const SUN_SIZE = 26, SUN_OFF = new T.Vector3(14, 30, 10), SUN_DIR = SUN_OFF.clone().normalize();
+const SUN_SIZE = 26;
+export const SUN_OFF = new T.Vector3(14, 30, 10);
+export const SUN_DIR = SUN_OFF.clone().normalize();
 Object.assign(sun.shadow.camera, { near: 1, far: 90, left: -SUN_SIZE, right: SUN_SIZE, top: SUN_SIZE, bottom: -SUN_SIZE });
 sun.userData.keep = sun.target.userData.keep = true;
 scene.add(sun, sun.target);

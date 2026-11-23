@@ -11,6 +11,7 @@ import { makeLabel, puff, confetti } from './fx.js';
 import { buildHero, compactHero, PEOPLE } from './hero.js';
 import { BANYA } from './spa.js';
 import { PIT } from './bunker.js';
+import { createLampPost, registerLamp, registerWindow, getNightK } from './daynight.js';
 
 export const DACHA_GATE = { x: -38, z: 107, w: 6 };
 export const DACHA = { x0: -46, x1: 46, z0: 182, z1: 208, house: { x: -36, z: 198 }, well: { x: -22, z: 188 }, beds: [194, 197.5, 201].map(z => ({ x: -21, z })) };
@@ -276,6 +277,14 @@ export function buildDacha(w) {
   const gs = makeLabel(4.4, 1.1, { face: Math.PI }); gs.position.set(gx, 4.5, D.z0 - 0.2); scene.add(gs); gs.userData.set('🏡 Дача', { color: '#ffe14d' });
   box(w, 0.15, 1.2, 0.15, 0x6a3f1e, gx + 3.4, 0.6, D.z0 - 0.6); box(w, 0.7, 0.5, 0.5, 0x3a6ad8, gx + 3.4, 1.4, D.z0 - 0.6);
 
+  // Фонари у ворот и вдоль дачной дороги
+  createLampPost(w, gx - 2.8, D.z0 - 0.5, 0);          // у калитки слева
+  createLampPost(w, gx + 2.8, D.z0 - 0.5, Math.PI);    // у калитки справа
+  createLampPost(w, br.x - 2.6, br.z, Math.PI / 2);    // у мостика через ручей
+  createLampPost(w, -14.5, 186.5, -Math.PI / 4);       // у скамейки и поворота дороги
+  createLampPost(w, 20.5, 187.5, 0);                   // у дорожки к беседке
+  createLampPost(w, 31.5, 196.5, Math.PI / 3);         // у костровища
+
   // тропинка от калитки к крыльцу
   for (let z = D.z0 + 0.5; z < D.house.z - 4.2; z += 1.1) box(w, 1.1, 0.06, 0.8, 0xb9b9c8, gx - (z - D.z0) * 0.4 + (z % 2.2 > 1.1 ? 0.3 : -0.3), 0.05, z, { shadow: false });
 
@@ -289,7 +298,11 @@ export function buildDacha(w) {
   }
   const win = (x, z, rotY) => {
     const g = group(w, x, 1.9, z); g.rotation.y = rotY;
-    box(g, 1.5, 1.4, 0.1, 0xffffff, 0, 0, 0.25); box(g, 1.2, 1.1, 0.12, 0x9fdcff, 0, 0, 0.27); box(g, 0.08, 1.1, 0.14, 0xffffff, 0, 0, 0.29); box(g, 1.2, 0.08, 0.14, 0xffffff, 0, 0, 0.29);
+    box(g, 1.5, 1.4, 0.1, 0xffffff, 0, 0, 0.25);
+    const glass = box(g, 1.2, 1.1, 0.12, 0x9fdcff, 0, 0, 0.27);
+    glass.userData.dynamic = true;
+    registerWindow(glass);
+    box(g, 0.08, 1.1, 0.14, 0xffffff, 0, 0, 0.29); box(g, 1.2, 0.08, 0.14, 0xffffff, 0, 0, 0.29);
     box(g, 1.8, 0.3, 0.12, 0xffffff, 0, 0.85, 0.27); box(g, 1.5, 0.12, 0.3, 0xffffff, 0, -0.75, 0.3);
     for (const sx of [-1, 1]) box(g, 0.55, 1.3, 0.1, 0x4a9a4a, sx * 1.05, 0, 0.27);
   };
@@ -300,6 +313,11 @@ export function buildDacha(w) {
   box(w, 3, 0.3, 1.4, 0x9c6a3c, H0.x, 0.15, HZ0 - 0.9); box(w, 3, 0.3, 0.7, 0x8a5a2b, H0.x, 0.45, HZ0 - 0.55);
   for (const sx of [-1, 1]) box(w, 0.2, 4.2, 0.2, 0x6a3f1e, H0.x + sx * 1.4, 2.1, HZ0 - 1.4);
   box(w, 3.4, 0.25, 1.8, 0xb8462a, H0.x, 4.25, HZ0 - 0.85);
+
+  // Фонарь над крыльцом
+  const porchBulb = box(w, 0.28, 0.35, 0.28, 0x8a7f66, H0.x, 3.8, HZ0 - 1.2, { shadow: false });
+  porchBulb.userData.dynamic = true;
+  registerLamp(porchBulb, null);
 
   // Двускатная крыша дома
   for (const sx of [-1, 1]) { const r = box(w, hw * 2 + 1.2, 0.3, hd + 1.4, 0xc0392b, H0.x, WH + 1.35, H0.z + sx * (hd + 1.4) / 2 * 0.82); r.rotation.x = sx * 0.62; }
@@ -423,6 +441,17 @@ export function buildDacha(w) {
   box(w, 0.18, 0.14, 0.18, 0xffffff, GZ.x - 0.6, 0.95, GZ.z);  // чашки
   box(w, 0.18, 0.14, 0.18, 0xffffff, GZ.x + 0.6, 0.95, GZ.z);
   box(w, 0.35, 0.08, 0.35, 0xe8c45a, GZ.x, 0.95, GZ.z + 0.45); // баранки
+
+  // Подвесной светильник под куполом беседки
+  box(w, 0.06, 0.5, 0.06, 0x222222, GZ.x, 3.8, GZ.z, { shadow: false });
+  const gzBulb = box(w, 0.35, 0.42, 0.35, 0x8a7f66, GZ.x, 3.35, GZ.z, { shadow: false });
+  gzBulb.userData.dynamic = true;
+  registerLamp(gzBulb, null);
+  st.gazeboLight = new T.PointLight(0xffbe4d, 0, 11);
+  st.gazeboLight.position.set(GZ.x, 3.2, GZ.z);
+  st.gazeboLight.userData.dynamic = true;
+  w.add(st.gazeboLight);
+
   const gzl = makeLabel(3.5, 0.8);
   gzl.position.set(GZ.x - 2.8, 3.8, GZ.z);
   gzl.rotation.y = -Math.PI / 2;
@@ -439,6 +468,35 @@ export function buildDacha(w) {
   box(w, 1.2, 0.2, 1.2, 0x4a2a1a, CF.x, 0.1, CF.z);
   box(w, 0.7, 0.35, 0.7, 0xff5a1e, CF.x, 0.25, CF.z);
   st.campfire = new T.Vector3(CF.x, 0.5, CF.z);
+
+  // Живой свет и пятно на земле от костра
+  st.campLight = new T.PointLight(0xff6818, 0, 16);
+  st.campLight.position.set(CF.x, 1.2, CF.z);
+  st.campLight.userData.dynamic = true;
+  w.add(st.campLight);
+
+  // Ореол огня на земле
+  const ccv = document.createElement('canvas'); ccv.width = ccv.height = 128;
+  const cctx = ccv.getContext('2d');
+  const ccg = cctx.createRadialGradient(64, 64, 8, 64, 64, 64);
+  ccg.addColorStop(0, 'rgba(255, 120, 30, 0.85)');
+  ccg.addColorStop(0.35, 'rgba(255, 90, 20, 0.55)');
+  ccg.addColorStop(0.75, 'rgba(200, 60, 10, 0.18)');
+  ccg.addColorStop(1, 'rgba(180, 50, 0, 0)');
+  cctx.fillStyle = ccg; cctx.fillRect(0, 0, 128, 128);
+  const campGlowMat = new T.MeshBasicMaterial({
+    map: new T.CanvasTexture(ccv),
+    transparent: true,
+    opacity: 0.35,
+    depthWrite: false,
+    side: T.DoubleSide
+  });
+  st.campGlow = new T.Mesh(new T.PlaneGeometry(8, 8), campGlowMat);
+  st.campGlow.position.set(CF.x, 0.04, CF.z);
+  st.campGlow.rotation.x = -Math.PI / 2;
+  st.campGlow.userData.dynamic = true;
+  w.add(st.campGlow);
+
   for (const s of CAMP_STUMPS) {
     solid(w, 0.8, 0.6, 0.8, 0xe8e8e8, s.x, 0, s.z);
     box(w, 0.7, 0.05, 0.7, 0xc4a070, s.x, 0.62, s.z, { shadow: false });
@@ -929,7 +987,20 @@ export function updateDacha(dt, hero, save) {
     puff('💨', st.chimney.clone().add(new T.Vector3((Math.random() - 0.5) * 0.4, 0, (Math.random() - 0.5) * 0.4)), { size: 1.1, rise: 1.2, life: 2.2, dx: 0.3 });
   }
 
-  // 9. Искры и дым от костра
+  // 9. Искры, дым и живой свет от костра
+  if (st.campLight) {
+    const nightK = getNightK();
+    const t = performance.now() / 1000;
+    const flk = 0.84 + Math.sin(t * 11) * 0.10 + Math.sin(t * 22.7) * 0.06;
+    st.campLight.intensity = (0.9 + 1.8 * nightK) * flk;
+    if (st.campGlow?.material) {
+      st.campGlow.material.opacity = (0.28 + 0.55 * nightK) * flk;
+    }
+  }
+  if (st.gazeboLight) {
+    const nightK = getNightK();
+    st.gazeboLight.intensity = nightK * 1.5;
+  }
   if (st.campfire && (st.campT = (st.campT ?? 0) - dt) <= 0) {
     if (Math.hypot(hero.pos.x - st.campfire.x, hero.pos.z - st.campfire.z) < 50) {
       st.campT = 0.35;

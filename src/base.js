@@ -2,6 +2,7 @@
 import { T, scene, group, box } from './engine.js';
 import { SHOP, TREADMILL, addCollider, onLevelReset } from './world.js';
 import { sprite, makeLabel } from './fx.js';
+import { createLampPost } from './daynight.js';
 
 const tread = { stripes: [], bar: null, barCv: null, label: null };
 onLevelReset(() => { tread.stripes = []; tread.bar = tread.label = null; lastPart = -1; });
@@ -18,6 +19,9 @@ export function buildBase() {
   const sign = makeLabel(5, 1.25); sign.position.set(SHOP.x, 6.6, SHOP.z); scene.add(sign); sign.userData.set('🛒 Магазин', { color: '#ffffff' });
   // зелёная плита перед прилавком — встал на неё, и магазин открылся
   box(scene, 3, 0.12, 2.4, 0x5fd35f, SHOP.pad.x, 0.06, SHOP.pad.z, { shadow: false });
+
+  // Фонарь у магазина
+  createLampPost(scene, SHOP.x + 4.8, SHOP.z, -Math.PI / 2);
 
   // беговая дорожка
   const t = group(scene, TREADMILL.x, 0, TREADMILL.z);

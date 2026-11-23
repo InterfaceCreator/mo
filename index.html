@@ -111,6 +111,10 @@ html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;color:var(--in
 #mapHint{display:block;text-align:center;color:#6a6280;margin-top:6px}
 /* таймер «новые яйца» убран: над пустым гнездом и так написано, через сколько там будет яйцо */
 #sun{display:none!important}
+#timeBtn{flex:none;height:min(11vmin,46px);padding:0 12px;border-radius:16px;border:3px solid #fff;background:rgba(255,255,255,.9);color:#2b2340;font-family:inherit;font-weight:bold;font-size:min(3.5vw,14px);cursor:pointer;display:flex;align-items:center;gap:6px;touch-action:manipulation;box-shadow:0 4px 0 rgba(0,0,0,.15);user-select:none;transition:background .3s,color .3s,border-color .3s}
+#timeBtn.night{background:rgba(22,25,50,.92);color:#e8eaff;border-color:#5c6b99;box-shadow:0 4px 0 rgba(0,0,0,.3)}
+#timeBtn.sunset{background:rgba(235,115,65,.92);color:#fff;border-color:#ffd0a0}
+#timeBtn.sunrise{background:rgba(235,145,110,.92);color:#fff;border-color:#ffe8d0}
 /* подсказка «как играть» у занятия (Зимняя долина): наверху — под плашкой с монетами, правее кнопок; место считает ui.js */
 #zoneHint{position:fixed;top:80px;left:90px;right:max(10px,env(safe-area-inset-right));
   padding:7px 12px;border-radius:14px;background:rgba(30,25,50,.62);color:#fff;font-weight:bold;
@@ -470,7 +474,7 @@ body.spy #spyBar{top:auto;bottom:max(10px,env(safe-area-inset-bottom))}
 <button id="jump" aria-label="Прыжок">
   <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l7-7 7 7"/><path d="M5 20l7-7 7 7"/></svg>
 </button>
-<div id="topL"><div id="sun" class="pill"><span class="ic">🥚</span><span class="lbl"><small>новые яйца</small><span id="sunT">1:00</span></span></div><button id="fsBtn" aria-label="Во весь экран"></button><button id="duoBtn" aria-label="Играть вдвоём" data-st="off">👫</button></div>
+<div id="topL"><div id="sun" class="pill"><span class="ic">🥚</span><span class="lbl"><small>новые яйца</small><span id="sunT">1:00</span></span></div><button id="timeBtn" class="pill day" aria-label="Время суток"><span id="timeIcon">☀️</span><span id="timeLbl">День</span></button><button id="fsBtn" aria-label="Во весь экран"></button><button id="duoBtn" aria-label="Играть вдвоём" data-st="off">👫</button></div>
 <div id="topR">
   <div id="hud" class="pill">
     <div class="row"><span id="coins"><i class="coin"></i><span id="coinsN">0</span></span><span id="speed"><span class="ic">👟</span><span id="speedN">1</span></span><span id="starsP"><span class="ic">⭐</span><span id="starsN">0</span></span></div>

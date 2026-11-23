@@ -1,0 +1,386 @@
+// Смена времени суток 🌅☀️🌇🌙
+// Плавный суточный цикл: солнечный день → тёплый закат → звёздная ночь с луной → нежный рассвет.
+// Фонари вдоль дорог, свет из окон домика, мерцающий свет от костра.
+import { T, scene, camera, sun, hemi, sunDisc, setSkyGrad, SUN_OFF, SUN_DIR, group, box, solid } from './engine.js';
+import { cloudNight, onLevelReset } from './world.js';
+
+export const DAY_CYCLE = 480; // Полный суточный цикл: 8 минут (480 секунд)
+
+let st = null;
+onLevelReset(() => {
+  if (st) {
+    if (st.stars) scene.remove(st.stars);
+    if (st.moon) scene.remove(st.moon);
+  }
+  st = null;
+});
+
+// Создание звёздного купола
+function createStars() {
+  const N = 500, pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const th = Math.random() * Math.PI * 2;
+    const ph = 0.06 * Math.PI + Math.random() * 0.44 * Math.PI; // верхняя полусфера
+    const r = 320;
+    pos[i * 3] = Math.cos(th) * Math.cos(ph) * r;
+    pos[i * 3 + 1] = Math.sin(ph) * r;
+    pos[i * 3 + 2] = Math.sin(th) * Math.cos(ph) * r;
+  }
+  const geo = new T.BufferGeometry();
+  geo.setAttribute('position', new T.BufferAttribute(pos, 3));
+  const mat = new T.PointsMaterial({
+    color: 0xffffff,
+    size: 2.6,
+    sizeAttenuation: false,
+    transparent: true,
+    opacity: 0,
+    fog: false,
+    depthWrite: false
+  });
+  const stars = new T.Points(geo, mat);
+  stars.userData.dynamic = true;
+  stars.userData.keep = true;
+  stars.renderOrder = 0;
+  scene.add(stars);
+  return stars;
+}
+
+// Создание сияющего диска луны
+function createMoon() {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const c = cv.getContext('2d');
+  const g = c.createRadialGradient(64, 64, 8, 64, 64, 60);
+  g.addColorStop(0, 'rgba(255,255,248,1)');
+  g.addColorStop(0.35, 'rgba(235,245,255,0.92)');
+  g.addColorStop(0.70, 'rgba(160,205,255,0.32)');
+  g.addColorStop(1, 'rgba(160,205,255,0)');
+  c.fillStyle = g; c.fillRect(0, 0, 128, 128);
+  const tex = new T.CanvasTexture(cv);
+  const mat = new T.SpriteMaterial({ map: tex, fog: false, depthWrite: false, transparent: true, opacity: 0 });
+  const s = new T.Sprite(mat);
+  s.scale.set(65, 65, 1);
+  s.userData.dynamic = true;
+  s.userData.keep = true;
+  scene.add(s);
+  return s;
+}
+
+// Текстура светового пятна под фонарём
+const poolTexture = (() => {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const c = cv.getContext('2d');
+  const g = c.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255, 235, 140, 0.9)');
+  g.addColorStop(0.3, 'rgba(255, 215, 110, 0.6)');
+  g.addColorStop(0.7, 'rgba(255, 180, 80, 0.2)');
+  g.addColorStop(1, 'rgba(255, 160, 60, 0)');
+  c.fillStyle = g; c.fillRect(0, 0, 128, 128);
+  return new T.CanvasTexture(cv);
+})();
+
+// Инициализация системы времени суток
+export function initDayNight(save) {
+  if (st) return st;
+  st = {
+    time: save?.dayTime ?? 100, // начинаем в середине солнечного дня
+    nightK: 0,
+    sunsetK: 0,
+    sunriseK: 0,
+    phase: 'day',
+    stars: createStars(),
+    moon: createMoon(),
+    lamps: [],
+    windows: []
+  };
+  return st;
+}
+
+// Регистрация фонаря для включения/выключения света
+export function registerLamp(bulbMesh, poolMesh) {
+  if (!st) initDayNight();
+  st.lamps.push({ bulb: bulbMesh, pool: poolMesh });
+}
+
+// Регистрация окна дома (днём голубое, ночью уютный янтарный свет)
+export function registerWindow(glassMesh) {
+  if (!st) initDayNight();
+  st.windows.push(glassMesh);
+}
+
+// Создание красивого дачного фонарного столба
+export function createLampPost(parent, x, z, rotY = 0) {
+  const lp = group(parent, x, 0, z);
+  lp.rotation.y = rotY;
+
+  // Опора столба и коллизия
+  solid(lp, 0.35, 3.4, 0.35, 0x3d352e, 0, 0, 0);
+  box(lp, 0.6, 0.3, 0.6, 0x5a4d40, 0, 0.15, 0);
+  // Металлический/деревянный кронштейн фонаря
+  box(lp, 0.7, 0.12, 0.12, 0x2b241e, 0.3, 3.25, 0);
+  box(lp, 0.1, 0.5, 0.1, 0x2b241e, 0.18, 2.95, 0);
+
+  // Корпус фонаря
+  box(lp, 0.55, 0.12, 0.55, 0x1f1d1a, 0.55, 3.38, 0); // крышка фонаря
+  box(lp, 0.45, 0.08, 0.45, 0x1f1d1a, 0.55, 2.82, 0); // донышко фонаря
+
+  // Светящийся плафон
+  const bulbMat = new T.MeshBasicMaterial({ color: 0x8a7f66 });
+  const bulbGeo = new T.BoxGeometry(0.38, 0.48, 0.38);
+  const bulb = new T.Mesh(bulbGeo, bulbMat);
+  bulb.position.set(0.55, 3.1, 0);
+  bulb.userData.dynamic = true;
+  lp.add(bulb);
+
+  // Световое пятно на земле под фонарём
+  // Координаты пятна в мировом пространстве: смещены в сторону свисания плафона
+  const lx = x + Math.cos(rotY) * 0.55;
+  const lz = z - Math.sin(rotY) * 0.55;
+  const poolMat = new T.MeshBasicMaterial({
+    map: poolTexture,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    side: T.DoubleSide
+  });
+  const poolGeo = new T.PlaneGeometry(6.5, 6.5);
+  const pool = new T.Mesh(poolGeo, poolMat);
+  pool.position.set(lx, 0.035, lz);
+  pool.rotation.x = -Math.PI / 2;
+  pool.userData.dynamic = true;
+  parent.add(pool);
+
+  registerLamp(bulb, pool);
+  return { group: lp, bulb, pool };
+}
+
+// Текущий коэффициент ночи (0 — день, 1 — глубокая ночь)
+export function getNightK() {
+  return st ? st.nightK : 0;
+}
+
+// Фаза суток ('day', 'sunset', 'night', 'sunrise')
+export function getDayPhase() {
+  return st ? st.phase : 'day';
+}
+
+export function getDayTime() {
+  return st ? st.time : 100;
+}
+
+export function setDayTime(timeSec) {
+  if (!st) initDayNight();
+  st.time = (timeSec % DAY_CYCLE + DAY_CYCLE) % DAY_CYCLE;
+}
+
+// Переключение на конкретную или следующую фазу (для кнопки в интерфейсе)
+export function skipToPhase(target) {
+  if (!st) initDayNight();
+  if (target === 'day') st.time = 80;
+  else if (target === 'sunset') st.time = 245;
+  else if (target === 'night') st.time = 320;
+  else if (target === 'sunrise') st.time = 425;
+  else {
+    // Следующая фаза по кругу
+    if (st.phase === 'day') st.time = 245;
+    else if (st.phase === 'sunset') st.time = 320;
+    else if (st.phase === 'night') st.time = 425;
+    else st.time = 80;
+  }
+}
+
+// Цветовые палитры для неба и освещения
+const COL_DAY_HOR = new T.Color(0x8fd3ff);
+const COL_DAY_TOP = new T.Color(0x3f8fe0);
+
+const COL_SUNSET_HOR = new T.Color(0xe86438);
+const COL_SUNSET_TOP = new T.Color(0x5a2560);
+
+const COL_NIGHT_HOR = new T.Color(0x0a1226);
+const COL_NIGHT_TOP = new T.Color(0x040714);
+
+const COL_SUNRISE_HOR = new T.Color(0xe58265);
+const COL_SUNRISE_TOP = new T.Color(0x3c5c9a);
+
+const COL_WIN_DAY = new T.Color(0x9fdcff);
+const COL_WIN_NIGHT = new T.Color(0xffc244);
+
+export function updateDayNight(dt, hero, levelId, save) {
+  if (!st) initDayNight(save);
+
+  // Цикл смены суток работает на базе, в парке и на даче
+  if (levelId !== 'base') {
+    if (st.nightK > 0) {
+      st.nightK = 0;
+      st.stars.material.opacity = 0;
+      st.moon.material.opacity = 0;
+      cloudNight(0);
+    }
+    return;
+  }
+
+  // Обновление времени
+  st.time = (st.time + dt) % DAY_CYCLE;
+  if (save) save.dayTime = st.time;
+  const p = st.time / DAY_CYCLE; // от 0.0 до 1.0
+
+  // Фазы суточного цикла (480 сек = 8 мин):
+  // 0.00 .. 0.50 (4.0 мин) — Солнечный день (nightK = 0)
+  // 0.50 .. 0.625 (1.0 мин) — Закат (плавный переход 0 -> 1)
+  // 0.625 .. 0.875 (2.0 мин) — Звёздная ночь (nightK = 1)
+  // 0.875 .. 1.00 (1.0 мин) — Рассвет (плавный переход 1 -> 0)
+  let nightK = 0, sunsetK = 0, sunriseK = 0, phase = 'day';
+
+  if (p < 0.50) {
+    nightK = 0;
+    phase = 'day';
+  } else if (p < 0.625) {
+    const k = (p - 0.50) / 0.125;
+    nightK = k * k * (3 - 2 * k); // smoothstep
+    sunsetK = Math.sin(k * Math.PI);
+    phase = 'sunset';
+  } else if (p < 0.875) {
+    nightK = 1;
+    phase = 'night';
+  } else {
+    const k = (p - 0.875) / 0.125;
+    nightK = 1 - k * k * (3 - 2 * k); // smoothstep
+    sunriseK = Math.sin(k * Math.PI);
+    phase = 'sunrise';
+  }
+
+  st.nightK = nightK;
+  st.sunsetK = sunsetK;
+  st.sunriseK = sunriseK;
+  st.phase = phase;
+
+  // 1. Плавный цвет неба и тумана
+  const curHor = new T.Color().copy(COL_DAY_HOR);
+  const curTop = new T.Color().copy(COL_DAY_TOP);
+
+  if (sunsetK > 0) {
+    curHor.lerp(COL_SUNSET_HOR, sunsetK);
+    curTop.lerp(COL_SUNSET_TOP, sunsetK);
+  }
+  if (nightK > 0) {
+    curHor.lerp(COL_NIGHT_HOR, nightK);
+    curTop.lerp(COL_NIGHT_TOP, nightK);
+  }
+  if (sunriseK > 0) {
+    curHor.lerp(COL_SUNRISE_HOR, sunriseK);
+    curTop.lerp(COL_SUNRISE_TOP, sunriseK);
+  }
+
+  setSkyGrad(curHor, curTop);
+
+  // 2. Движение солнца и луны по небосводу + перемещение теней
+  // Солнце всходит на востоке (+X), поднимается в зенит, заходит на западе (-X)
+  const sunAngle = (p - 0.25) * Math.PI * 2;
+  const sunX = Math.cos(sunAngle) * 22;
+  const sunY = Math.max(4, Math.sin(sunAngle) * 32);
+  const sunZ = 12 + Math.cos(sunAngle * 0.5) * 4;
+  SUN_OFF.set(sunX, sunY, sunZ);
+  SUN_DIR.copy(SUN_OFF).normalize();
+
+  // Освещение: солнце и окружающий свет (hemi)
+  if (sunsetK > 0.1) {
+    sun.color.lerpColors(new T.Color(0xfff1d8), new T.Color(0xff7c32), sunsetK);
+    sun.intensity = 0.85 * (1 - nightK * 0.5);
+    hemi.color.lerpColors(new T.Color(0xe2f2ff), new T.Color(0xff9977), sunsetK);
+    hemi.groundColor.lerpColors(new T.Color(0x8fae6a), new T.Color(0x503320), sunsetK);
+    hemi.intensity = 0.7 * (1 - 0.3 * nightK);
+    sunDisc.material.opacity = Math.max(0, 1 - nightK * 2);
+  } else if (sunriseK > 0.1) {
+    sun.color.lerpColors(new T.Color(0xfff1d8), new T.Color(0xffa575), sunriseK);
+    sun.intensity = 0.85 * (1 - nightK * 0.5);
+    hemi.color.lerpColors(new T.Color(0xe2f2ff), new T.Color(0xd8b4a0), sunriseK);
+    hemi.groundColor.lerpColors(new T.Color(0x8fae6a), new T.Color(0x403328), sunriseK);
+    hemi.intensity = 0.7 * (1 - 0.3 * nightK);
+    sunDisc.material.opacity = Math.max(0, 1 - nightK * 2);
+  } else if (nightK > 0.05) {
+    // Ночное лунное освещение
+    sun.color.lerpColors(new T.Color(0xfff1d8), new T.Color(0x80a8f8), nightK);
+    sun.intensity = 0.85 * (1 - 0.78 * nightK); // мягкий лунный свет
+    hemi.color.lerpColors(new T.Color(0xe2f2ff), new T.Color(0x1a264a), nightK);
+    hemi.groundColor.lerpColors(new T.Color(0x8fae6a), new T.Color(0x0e1726), nightK);
+    hemi.intensity = 0.7 * (1 - 0.55 * nightK);
+    sunDisc.material.opacity = Math.max(0, 1 - nightK * 2.5);
+  } else {
+    // Яркий день
+    sun.color.set(0xfff1d8);
+    sun.intensity = 0.85;
+    hemi.color.set(0xe2f2ff);
+    hemi.groundColor.set(0x8fae6a);
+    hemi.intensity = 0.7;
+    sunDisc.material.opacity = 1;
+  }
+
+  cloudNight(nightK);
+
+  // 3. Звёздное небо и луна
+  const tSec = performance.now() / 1000;
+  if (st.stars) {
+    st.stars.position.copy(camera.position);
+    st.stars.rotation.y += dt * 0.005; // медленное вращение созвездий
+    st.stars.material.opacity = Math.max(0, (nightK - 0.22) / 0.78) * (0.84 + Math.sin(tSec * 2.0) * 0.16);
+  }
+  if (st.moon) {
+    // Луна находится напротив солнца
+    st.moon.position.copy(camera.position).addScaledVector(SUN_DIR, -280);
+    st.moon.material.opacity = Math.max(0, (nightK - 0.18) / 0.82);
+  }
+
+  // 4. Фонари и световые пятна под ними
+  if (st.lamps.length) {
+    // Очищаем отвязанные фонари (если сектор пересоздавался)
+    st.lamps = st.lamps.filter(l => l.bulb?.parent);
+    const bulbColor = new T.Color(0x8a7f66).lerp(new T.Color(0xffea55), nightK);
+    for (const lamp of st.lamps) {
+      if (lamp.bulb?.material) lamp.bulb.material.color.copy(bulbColor);
+      if (lamp.pool?.material) lamp.pool.material.opacity = nightK * 0.65;
+    }
+  }
+
+  // 5. Окна домика (днём прозрачно-голубые, ночью тёплый янтарный уют)
+  if (st.windows.length) {
+    st.windows = st.windows.filter(w => w?.parent);
+    const winColor = new T.Color().copy(COL_WIN_DAY).lerp(COL_WIN_NIGHT, nightK);
+    for (const w of st.windows) {
+      if (w?.material) w.material.color.copy(winColor);
+    }
+  }
+
+  // 6. Обновление плашки времени в HUD (если она есть на странице)
+  updateTimeHud(phase, p);
+}
+
+// Обновление кнопки/индикатора в интерфейсе
+function updateTimeHud(phase, p) {
+  const btn = document.getElementById('timeBtn');
+  const ic = document.getElementById('timeIcon');
+  const lbl = document.getElementById('timeLbl');
+  if (!btn) return;
+
+  let icon = '☀️', text = 'День', cls = 'day';
+  if (phase === 'sunset') {
+    icon = '🌇'; text = 'Закат'; cls = 'sunset';
+  } else if (phase === 'night') {
+    icon = '🌙'; text = 'Ночь'; cls = 'night';
+  } else if (phase === 'sunrise') {
+    icon = '🌅'; text = 'Рассвет'; cls = 'sunrise';
+  }
+
+  if (ic && ic.textContent !== icon) ic.textContent = icon;
+  if (lbl && lbl.textContent !== text) lbl.textContent = text;
+  if (!btn.classList.contains(cls)) {
+    btn.className = `pill ${cls}`;
+  }
+}
+
+// Делаем функции переключения времени доступными глобально для тестов
+if (typeof window !== 'undefined') {
+  window.skipToPhase = skipToPhase;
+  window.setDayTime = setDayTime;
+  window.getDayPhase = getDayPhase;
+  window.getDayTime = getDayTime;
+  window.toggleTimeOfDay = () => skipToPhase();
+}

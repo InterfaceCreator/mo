@@ -9,6 +9,7 @@ import { solid, addCollider, onLevelReset } from './world.js';
 import { water } from './terrain.js';
 import { makeLabel, puff } from './fx.js';
 import { DACHA_GATE } from './dacha.js';
+import { createLampPost } from './daynight.js';
 
 export const PARK = { x0: -66, x1: 66, z0: 66, z1: 106, gate: { x: 0, w: 12 } };
 export const POOL = { x0: -8, x1: 38, z0: 74, z1: 102, floor: -1, surf: -0.25 };
@@ -136,6 +137,13 @@ export function buildPark(w, save, who) {
   // дорожка: от аллеи базы (x 0) на запад — мимо лестницы на башню — и вдоль западной стены до калитки на дачу
   solid(w, 42.2, 0.08, 2.4, 0xe9d9a6, -18.1, 0, 68.2, { shadow: false });          // x −39.2…3, z 67…69.4
   solid(w, 2.4, 0.08, P.z1 - 69.4, 0xe9d9a6, -38, 0, (69.4 + P.z1) / 2, { shadow: false });   // x −39.2…−36.8, z 69.4…106 — к калитке
+
+  // Фонари в парке: освещение дорожки к башне и к даче
+  createLampPost(w, 2.5, 66.5, 0);                       // у входа в парк справа
+  createLampPost(w, -3.5, 66.5, Math.PI);                 // у входа в парк слева
+  createLampPost(w, -24, 73, Math.PI / 2);               // у основания лестницы
+  createLampPost(w, -36, 88, -Math.PI / 2);              // вдоль западной аллеи к даче
+  createLampPost(w, -36, 103, -Math.PI / 2);             // перед калиткой на дачу
 
   // башня: четыре столба, площадка с бортиком, флажки; лестница с юга
   const T0 = TOWER_P;
