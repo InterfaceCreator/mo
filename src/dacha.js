@@ -23,18 +23,21 @@ const STREAM_Z = 146;
 const BERRY_COOLDOWN = 3 * 60 * 1000; // 3 минуты (180 000 мс) на созревание ягод
 
 // Места для сидения в беседке (скамейки вокруг стола)
+// y = 0.25 обеспечивает идеальную посадку: при анимации сидения (y_leg_min = +0.29)
+// ноги и бёдра ложатся ровно на поверхность скамьи (y = 0.54) без зависания в воздухе
 export const GAZEBO_BENCHES = [
-  { x: 22, z: 189.55, y: 0.48, face: 0 },          // южная скамья -> смотрит на север к столу
-  { x: 22, z: 192.45, y: 0.48, face: Math.PI },   // северная скамья -> смотрит на юг к столу
-  { x: 23.4, z: 191, y: 0.48, face: -Math.PI / 2 } // восточная скамья -> смотрит на запад к столу
+  { x: 22, z: 189.55, y: 0.25, face: 0 },          // южная скамья -> смотрит на север к столу
+  { x: 22, z: 192.45, y: 0.25, face: Math.PI },   // северная скамья -> смотрит на юг к столу
+  { x: 23.4, z: 191, y: 0.25, face: -Math.PI / 2 } // восточная скамья -> смотрит на запад к столу
 ];
 
 // Пеньки вокруг костра (4 берёзовых чурбака для сидения)
+// y = 0.35 обеспечивает точную посадку: 0.35 + 0.29 = 0.64 (ровно верх чурбака)
 export const CAMP_STUMPS = [
-  { x: 34.8, z: 201, y: 0.62, face: Math.PI / 2 },    // западный пенёк -> смотрит на восток к костру
-  { x: 39.2, z: 201, y: 0.62, face: -Math.PI / 2 },   // восточный пенёк -> смотрит на запад к костру
-  { x: 37, z: 198.8, y: 0.62, face: 0 },              // южный пенёк -> смотрит на север к костру
-  { x: 37, z: 203.2, y: 0.62, face: Math.PI }         // северный пенёк -> смотрит на юг к костру
+  { x: 34.8, z: 201, y: 0.35, face: Math.PI / 2 },    // западный пенёк -> смотрит на восток к костру
+  { x: 39.2, z: 201, y: 0.35, face: -Math.PI / 2 },   // восточный пенёк -> смотрит на запад к костру
+  { x: 37, z: 198.8, y: 0.35, face: 0 },              // южный пенёк -> смотрит на север к костру
+  { x: 37, z: 203.2, y: 0.35, face: Math.PI }         // северный пенёк -> смотрит на юг к костру
 ];
 
 // Яблони на дачном участке, которые можно трясти
@@ -97,7 +100,7 @@ export function sitGazebo(hero) {
     Math.hypot(hero.pos.x - cur.x, hero.pos.z - cur.z) < Math.hypot(hero.pos.x - best.x, hero.pos.z - best.z) ? cur : best
   );
   hero.climb = {
-    ride: () => new T.Vector3(b.x, b.y + 0.36, b.z),
+    ride: () => new T.Vector3(b.x, b.y, b.z),
     t: 0,
     dur: 999999,
     face: b.face,
@@ -114,7 +117,7 @@ export function sitCampfire(hero) {
     Math.hypot(hero.pos.x - cur.x, hero.pos.z - cur.z) < Math.hypot(hero.pos.x - best.x, hero.pos.z - best.z) ? cur : best
   );
   hero.climb = {
-    ride: () => new T.Vector3(s.x, s.y + 0.36, s.z),
+    ride: () => new T.Vector3(s.x, s.y, s.z),
     t: 0,
     dur: 999999,
     face: s.face,
@@ -128,7 +131,7 @@ export function sitCampfire(hero) {
 // Запуск катания на садовых качелях с раскачиванием сиденья
 export function startSwingRide(hero) {
   const SW_POS = { x: 13, z: 186.5 };
-  const dur = 20, per = 2.4, H = 3.8, L = 3.1;
+  const dur = 20, per = 2.4, H = 3.8;
   hero.climb = {
     ride: k => {
       const amp = 0.58 * Math.min(1, k * 3.5) * (k > 0.88 ? (1 - k) / 0.12 : 1);
@@ -136,7 +139,7 @@ export function startSwingRide(hero) {
       if (st && st.swingBench) {
         st.swingBench.rotation.x = a;
       }
-      return new T.Vector3(SW_POS.x, H - L * Math.cos(a) + 0.45, SW_POS.z + L * Math.sin(a));
+      return new T.Vector3(SW_POS.x, H - 2.96 * Math.cos(a) - 0.29, SW_POS.z + 2.96 * Math.sin(a));
     },
     t: 0,
     dur,
@@ -1035,10 +1038,10 @@ export function updateDacha(dt, hero, save) {
   // 4. Авто-посадка на скамейки в беседке или пеньки у костра при остановке на них
   if (hero.grounded && hero.speed < 0.3 && !hero.climb) {
     const nearBench = GAZEBO_BENCHES.find(b =>
-      Math.abs(hero.pos.x - b.x) < 0.9 && Math.abs(hero.pos.z - b.z) < 0.9 && hero.pos.y >= 0.2 && hero.pos.y <= 1.0
+      Math.abs(hero.pos.x - b.x) < 0.9 && Math.abs(hero.pos.z - b.z) < 0.9 && hero.pos.y >= 0.1 && hero.pos.y <= 1.0
     );
     const nearStump = CAMP_STUMPS.find(s =>
-      Math.hypot(hero.pos.x - s.x, hero.pos.z - s.z) < 0.75 && hero.pos.y >= 0.2 && hero.pos.y <= 1.2
+      Math.hypot(hero.pos.x - s.x, hero.pos.z - s.z) < 0.85 && hero.pos.y >= 0.1 && hero.pos.y <= 1.2
     );
 
     if (nearBench) {
@@ -1161,7 +1164,7 @@ export function updateDacha(dt, hero, save) {
 // Сон на даче в уютной кровати с пропуском ночи
 export function dachaSleep(hero, save, { toast, confetti, SFX, persist, MOTYA }) {
   if (!hero) return;
-  hero.pos.set(DACHA_BED.x, DACHA_BED.y + 0.35, DACHA_BED.z);
+  hero.pos.set(DACHA_BED.x, DACHA_BED.y + 0.15, DACHA_BED.z);
   hero.vel.set(0, 0, 0);
   hero.face = Math.PI;
   if (hero.model?.root) hero.model.root.rotation.y = Math.PI;
@@ -1172,7 +1175,7 @@ export function dachaSleep(hero, save, { toast, confetti, SFX, persist, MOTYA })
     sleep: true,
     dur: 1e9,
     t: 0.1,
-    ride: () => new T.Vector3(DACHA_BED.x, DACHA_BED.y + 0.35, DACHA_BED.z),
+    ride: () => new T.Vector3(DACHA_BED.x, DACHA_BED.y + 0.15, DACHA_BED.z),
     face: Math.PI,
   };
 
