@@ -16,7 +16,8 @@ export function makePlayer(model, spawn) {
 function groundAt(x, z, y, invis = false) {
   let g = -Infinity;
   const r = RADIUS * 0.7;
-  for (const c of nearColliders(x - r, x + r, z - r, z + r)) { if (c.off || c.ghost || (invis && c.fence)) continue;
+  for (const c of nearColliders(x - r, x + r, z - r, z + r)) {
+    if (c.off || c.ghost || (invis && c.fence)) continue;
     if (x + r <= c.x0 || x - r >= c.x1 || z + r <= c.z0 || z - r >= c.z1) continue;
     if (c.y1 <= y + STEP && c.y1 > g) g = c.y1;
   }
@@ -25,7 +26,8 @@ function groundAt(x, z, y, invis = false) {
 
 // выталкивание из стен по горизонтали (круг против прямоугольника)
 function pushOut(p, invis = false) {
-  for (const c of nearColliders(p.x - RADIUS, p.x + RADIUS, p.z - RADIUS, p.z + RADIUS)) { if (c.off || c.ghost || (invis && c.fence)) continue;
+  for (const c of nearColliders(p.x - RADIUS, p.x + RADIUS, p.z - RADIUS, p.z + RADIUS)) {
+    if (c.off || c.ghost || (invis && c.fence)) continue;
     if (c.y1 <= p.y + STEP || c.y0 >= p.y + HERO_H) continue;     // низкий блок — на него можно шагнуть
     const nx = Math.max(c.x0, Math.min(p.x, c.x1)), nz = Math.max(c.z0, Math.min(p.z, c.z1));
     let dx = p.x - nx, dz = p.z - nz; const d2 = dx * dx + dz * dz;
@@ -119,9 +121,10 @@ export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
     p.y = g; pl.vel.y = 0;                       // спуск со ступеньки — прилипаем к полу
   } else pl.grounded = false;
   // потолок: не влезаем головой в блок
-  for (const c of nearColliders(p.x - RADIUS, p.x + RADIUS, p.z - RADIUS, p.z + RADIUS)) { if (c.off || c.ghost || (invis && c.fence)) continue;
+  for (const c of nearColliders(p.x - RADIUS, p.x + RADIUS, p.z - RADIUS, p.z + RADIUS)) {
+    if (c.off || c.ghost || (invis && c.fence)) continue;
     if (pl.vel.y > 0 && p.y + HERO_H > c.y0 && before + HERO_H <= c.y0 + 0.01 &&
-        p.x + RADIUS * 0.7 > c.x0 && p.x - RADIUS * 0.7 < c.x1 && p.z + RADIUS * 0.7 > c.z0 && p.z - RADIUS * 0.7 < c.z1) {
+      p.x + RADIUS * 0.7 > c.x0 && p.x - RADIUS * 0.7 < c.x1 && p.z + RADIUS * 0.7 > c.z0 && p.z - RADIUS * 0.7 < c.z1) {
       p.y = c.y0 - HERO_H; pl.vel.y = 0;
     }
   }

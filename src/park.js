@@ -197,9 +197,11 @@ function startSlide(S, hero, ev) {
   // камикадзе: жмёшь кнопку 💨 (или прыжок) — разгоняешься; чем больше нажатий, тем дальше полетишь
   if (S.jump) {
     const cl = hero.climb, base = cl.exit.clone();
-    st.mash = { n: 0, taps: 0, p: 0,
+    st.mash = {
+      n: 0, taps: 0, p: 0,
       add() { if (hero.climb !== cl) return; this.n++; this.taps++; this.p += MASH_ADD * (1 - this.p); this.apply(); },
-      apply() { const k = this.p; cl.exit.set(base.x * (1 + 3 * k), base.y + 13 * k, base.z * (1 + 3 * k)); mashBar(k, this.n); } };
+      apply() { const k = this.p; cl.exit.set(base.x * (1 + 3 * k), base.y + 13 * k, base.z * (1 + 3 * k)); mashBar(k, this.n); }
+    };
     cl.onJump = () => st.mash?.add();
     mashShow(true); mashBar(0, 0);
   }
@@ -253,7 +255,7 @@ export function updatePark(dt, hero, save) {
       st.armed = false;
       if (S.jump) {                                           // камикадзе: сначала отсчёт 3-2-1 — приготовить палец к кнопке
         const at = S.curve.getPointAt(0).add(V(0, 0.38, 0));
-        hero.climb = { park: 'ready', t: 0, dur: 1e6, face: Math.PI / 2, ride: () => at.clone(), onJump() {} };
+        hero.climb = { park: 'ready', t: 0, dur: 1e6, face: Math.PI / 2, ride: () => at.clone(), onJump() { } };
         st.count = { S, t: 3, shown: 3 }; mashCount('3'); ev.sfx.push('pop');
         mashShow(true); mashBar(0, 0); mashUI().classList.add('wait');
         ev.say = '🔴 Камикадзе! Приготовься жать 💨<small>чем быстрее жмёшь — тем дальше улетишь</small>';
