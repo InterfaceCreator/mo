@@ -470,7 +470,7 @@ function homeItems(hero) {
 // ---------- огород на даче ----------
 // кнопки у грядки: 🌱 посадить, 💧 полить, 🧺 собрать, ⏳ сколько ждать; у колодца 🪣; у крыльца 💰 продать
 function gardenItems() {
-  if (level.id !== 'base' || (hero.climb && !hero.climb.seat) || riding() || gardenBusy()) return [];
+  if (level.id !== 'base' || (hero.climb && !hero.climb.seat && !hero.climb.sleep) || riding() || gardenBusy()) return [];
   const sn = spaNear(hero.pos); if (sn) return [{ id: sn === 'steam' ? 'g_steam' : 'g_bubbles', icon: sn === 'steam' ? '♨️' : '🫧' }];
   const dn = dachaNear(hero.pos, save, hero); if (dn && dn.length) return dn;
   const g = gardenNear(hero.pos); if (!g) return [];

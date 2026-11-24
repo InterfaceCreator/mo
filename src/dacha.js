@@ -23,21 +23,20 @@ const STREAM_Z = 146;
 const BERRY_COOLDOWN = 3 * 60 * 1000; // 3 минуты (180 000 мс) на созревание ягод
 
 // Места для сидения в беседке (скамейки вокруг стола)
-// y = 0.25 обеспечивает идеальную посадку: при анимации сидения (y_leg_min = +0.29)
-// ноги и бёдра ложатся ровно на поверхность скамьи (y = 0.54) без зависания в воздухе
+// y = 0.15 обеспечивает идеальную посадку: 0.15 + 0.39 = 0.54 (ровно поверхность деревянной скамьи)
 export const GAZEBO_BENCHES = [
-  { x: 22, z: 189.55, y: 0.25, face: 0 },          // южная скамья -> смотрит на север к столу
-  { x: 22, z: 192.45, y: 0.25, face: Math.PI },   // северная скамья -> смотрит на юг к столу
-  { x: 23.4, z: 191, y: 0.25, face: -Math.PI / 2 } // восточная скамья -> смотрит на запад к столу
+  { x: 22, z: 189.55, y: 0.15, face: 0 },          // южная скамья -> смотрит на север к столу
+  { x: 22, z: 192.45, y: 0.15, face: Math.PI },   // северная скамья -> смотрит на юг к столу
+  { x: 23.4, z: 191, y: 0.15, face: -Math.PI / 2 } // восточная скамья -> смотрит на запад к столу
 ];
 
 // Пеньки вокруг костра (4 берёзовых чурбака для сидения)
-// y = 0.35 обеспечивает точную посадку: 0.35 + 0.29 = 0.64 (ровно верх чурбака)
+// y = 0.25 обеспечивает точную посадку: 0.25 + 0.39 = 0.64 (ровно верх чурбака)
 export const CAMP_STUMPS = [
-  { x: 34.8, z: 201, y: 0.35, face: Math.PI / 2 },    // западный пенёк -> смотрит на восток к костру
-  { x: 39.2, z: 201, y: 0.35, face: -Math.PI / 2 },   // восточный пенёк -> смотрит на запад к костру
-  { x: 37, z: 198.8, y: 0.35, face: 0 },              // южный пенёк -> смотрит на север к костру
-  { x: 37, z: 203.2, y: 0.35, face: Math.PI }         // северный пенёк -> смотрит на юг к костру
+  { x: 34.8, z: 201, y: 0.25, face: Math.PI / 2 },    // западный пенёк -> смотрит на восток к костру
+  { x: 39.2, z: 201, y: 0.25, face: -Math.PI / 2 },   // восточный пенёк -> смотрит на запад к костру
+  { x: 37, z: 198.8, y: 0.25, face: 0 },              // южный пенёк -> смотрит на север к костру
+  { x: 37, z: 203.2, y: 0.25, face: Math.PI }         // северный пенёк -> смотрит на юг к костру
 ];
 
 // Яблони на дачном участке, которые можно трясти
@@ -101,13 +100,14 @@ export function sitGazebo(hero) {
   );
   hero.climb = {
     ride: () => new T.Vector3(b.x, b.y, b.z),
-    t: 0,
-    dur: 999999,
+    t: 1,
+    dur: 1e9,
     face: b.face,
     seat: true,
     exit: new T.Vector3(Math.sin(b.face) * 1.5, 0.5, Math.cos(b.face) * 1.5)
   };
   hero.relax = true;
+  hero.sit = true;
   return b;
 }
 
@@ -118,13 +118,14 @@ export function sitCampfire(hero) {
   );
   hero.climb = {
     ride: () => new T.Vector3(s.x, s.y, s.z),
-    t: 0,
-    dur: 999999,
+    t: 1,
+    dur: 1e9,
     face: s.face,
     seat: true,
     exit: new T.Vector3(Math.sin(s.face) * 1.5, 0.5, Math.cos(s.face) * 1.5)
   };
   hero.relax = true;
+  hero.sit = true;
   return s;
 }
 
@@ -142,15 +143,25 @@ export function startSwingRide(hero) {
       if (hero.model?.root) {
         hero.model.root.rotation.x = -a;
       }
-      return new T.Vector3(SW_POS.x, H - 2.96 * Math.cos(a) - 0.29, SW_POS.z + 2.96 * Math.sin(a) - 0.05 * Math.cos(a));
+      return new T.Vector3(SW_POS.x, H - 2.96 * Math.cos(a) - 0.39, SW_POS.z + 2.96 * Math.sin(a));
     },
-    t: 0,
+    t: 0.1,
     dur,
     face: 0,
     seat: true,
-    exit: new T.Vector3(0, 1.8, 2.4)
+    exit: new T.Vector3(0, 1.8, 2.4),
+    onJump: () => {
+      hero.climb = null;
+      hero.relax = false;
+      hero.sit = false;
+      if (hero.model?.root) hero.model.root.rotation.x = 0;
+      hero.vel.set(0, 2.2, 3.5);
+      hero.grounded = false;
+      if (st) st.swingCool = -2.0;
+    }
   };
   hero.relax = true;
+  hero.sit = true;
 }
 
 export function buildDacha(w) {
@@ -286,7 +297,7 @@ export function buildDacha(w) {
   box(w, 0.15, 1.2, 0.15, 0x6a3f1e, gx + 3.4, 0.6, D.z0 - 0.6); box(w, 0.7, 0.5, 0.5, 0x3a6ad8, gx + 3.4, 1.4, D.z0 - 0.6);
 
   // Уютные фонари у ключевых ориентиров (на обочинах вне дороги)
-  createLampPost(w, br.x - 3.2, br.z, Math.PI / 2);    // у мостика через ручей (на берегу)
+  createLampPost(w, br.x - 5.5, br.z - 2.5, Math.PI / 2);    // у мостика через ручей (на берегу вне дороги)
   createLampPost(w, gx + 2.8, D.z0 - 0.5, Math.PI);    // у калитки дачи (сбоку от ворот)
   createLampPost(w, -18, 188, 0);                      // у колодца и грядок
   createLampPost(w, 0, 196, 0);                        // у входа в теплицу
@@ -693,14 +704,14 @@ export function dachaNear(p, save, hero) {
   }
 
   // Если персонаж уже сидит в беседке, на пеньке или качелях
-  if (hero?.climb?.seat) {
-    if (Math.hypot(p.x - 22, p.z - 191) < 3.2) {
+  if (hero?.climb?.seat || hero?.relax || hero?.sit) {
+    if (Math.hypot(p.x - 22, p.z - 191) < 4.5) {
       return [{ id: 'g_dacha_tea', icon: '🫖' }, { id: 'g_dacha_stand', icon: '🚶' }];
     }
-    if (Math.hypot(p.x - 37, p.z - 201) < 3.5) {
+    if (Math.hypot(p.x - 37, p.z - 201) < 4.5) {
       return [{ id: 'g_dacha_marsh', icon: '🍡' }, { id: 'g_dacha_stand', icon: '🚶' }];
     }
-    if (Math.hypot(p.x - 13, p.z - 186.5) < 2.5) {
+    if (Math.hypot(p.x - 13, p.z - 186.5) < 4.5) {
       return [{ id: 'g_dacha_stand', icon: '🚶' }];
     }
   }
@@ -800,10 +811,20 @@ export function dachaUse(act, hero, save, { toast, confetti, SFX, persist, MOTYA
   if (act === 'stand') {
     hero.climb = null;
     hero.relax = false;
+    hero.sit = false;
     hero.dachaAnim = null;
     if (hero.model?.root) hero.model.root.rotation.x = 0;
     if (hero.model?.teaCup) hero.model.teaCup.visible = false;
     if (hero.model?.marshStick) hero.model.marshStick.visible = false;
+    const face = hero.face ?? 0;
+    hero.pos.x += Math.sin(face) * 1.2;
+    hero.pos.z += Math.cos(face) * 1.2;
+    hero.vel.set(Math.sin(face) * 2.5, 1.5, Math.cos(face) * 2.5);
+    hero.grounded = false;
+    if (st) {
+      st.sitWait = -2.0;
+      st.swingCool = -2.0;
+    }
     toast('🚶 Встал со скамейки');
     return;
   }
@@ -851,50 +872,44 @@ export function dachaUse(act, hero, save, { toast, confetti, SFX, persist, MOTYA
 
   // 4. Чаепитие в беседке у самовара (с посадкой и анимацией глотков)
   if (act === 'tea') {
-    const cd = 40000;
-    const left = cd - (now - (d.teaTime || 0));
-    if (left > 0) {
-      if (!hero.climb?.seat) sitGazebo(hero);
-      toast(`🫖 Самовар ещё закипает... Подожди ${Math.ceil(left / 1000)} сек! ♨️`);
-      return;
+    const cd = 30000;
+    const giveCoins = !d.teaTime || (now - d.teaTime >= cd);
+    if (giveCoins) {
+      d.teaTime = now;
+      save.coins = (save.coins || 0) + 20;
+      persist();
+      SFX.levelUp?.();
     }
-    d.teaTime = now;
     if (!hero.climb?.seat) sitGazebo(hero);
     hero.dachaAnim = 'tea';
     hero.dachaK = 0;
     ensureProps(hero);
     hero.boostT = Math.max(hero.boostT || 0, 30);
-    save.coins = (save.coins || 0) + 20;
-    persist();
     SFX.splash?.();
-    SFX.levelUp?.();
     puff('♨️', new T.Vector3(22, 1.8, 191), { size: 1.4, rise: 1.6, life: 1.5 });
     puff('✨', hero.pos.clone().setY(hero.pos.y + 1.5), { size: 1.0, rise: 1.4, life: 1.2 });
-    toast('🫖 Пьём ароматный чай с мятой и баранками в беседке... Вкуснотища! +20 🪙<small>⚡️ Скорость увеличена на 30 сек! (нажми прыжок или 🚶, чтобы встать)</small>');
+    toast(`🫖 Пьём ароматный чай с мятой и баранками в беседке... Вкуснотища!${giveCoins ? ' +20 🪙' : ''}<small>⚡️ Скорость увеличена! (нажми прыжок или 🚶, чтобы встать)</small>`);
     return;
   }
 
   // 5. Жарка маршмеллоу на костре (с посадкой на пенёк и анимацией подрумянивания)
   if (act === 'marsh') {
-    const cd = 35000;
-    const left = cd - (now - (d.marshTime || 0));
-    if (left > 0) {
-      if (!hero.climb?.seat) sitCampfire(hero);
-      toast(`🍡 Зефирки ещё подрумяниваются... Подожди ${Math.ceil(left / 1000)} сек! 🔥`);
-      return;
+    const cd = 30000;
+    const giveCoins = !d.marshTime || (now - d.marshTime >= cd);
+    if (giveCoins) {
+      d.marshTime = now;
+      save.coins = (save.coins || 0) + 15;
+      persist();
     }
-    d.marshTime = now;
     if (!hero.climb?.seat) sitCampfire(hero);
     hero.dachaAnim = 'marsh';
     hero.dachaK = 0;
     hero.marshEaten = false;
     ensureProps(hero);
-    save.coins = (save.coins || 0) + 15;
-    persist();
     SFX.crunch?.();
     puff('🍡', new T.Vector3(37, 1.0, 201), { size: 1.3, rise: 1.4, life: 1.2 });
     puff('🔥', new T.Vector3(37, 0.8, 201), { size: 1.1, rise: 1.2, life: 0.8 });
-    toast('🍡 Поджариваем маршмеллоу на костре до хрустящей корочки! Ням! +15 🪙<small>(нажми прыжок или 🚶, чтобы встать)</small>');
+    toast(`🍡 Поджариваем маршмеллоу на костре до хрустящей корочки! Ням!${giveCoins ? ' +15 🪙' : ''}<small>(нажми прыжок или 🚶, чтобы встать)</small>`);
     return;
   }
 
@@ -1030,7 +1045,9 @@ export function updateDacha(dt, hero, save) {
   }
 
   // Авто-посадка на качели, если персонаж встал на сиденье
-  if (hero.grounded && !hero.climb && Math.abs(hero.pos.x - 13) < 0.9 && Math.abs(hero.pos.z - 186.5) < 0.8 && hero.pos.y < 1.4) {
+  if (st.swingCool < 0) {
+    st.swingCool += dt;
+  } else if (hero.grounded && !hero.climb && Math.abs(hero.pos.x - 13) < 0.9 && Math.abs(hero.pos.z - 186.5) < 0.8 && hero.pos.y < 1.4) {
     if ((st.swingCool = (st.swingCool || 0) + dt) > 0.4) {
       st.swingCool = 0;
       startSwingRide(hero);
@@ -1040,7 +1057,9 @@ export function updateDacha(dt, hero, save) {
   }
 
   // 4. Авто-посадка на скамейки в беседке или пеньки у костра при остановке на них
-  if (hero.grounded && hero.speed < 0.3 && !hero.climb) {
+  if (st.sitWait < 0) {
+    st.sitWait += dt;
+  } else if (hero.grounded && hero.speed < 0.3 && !hero.climb) {
     const nearBench = GAZEBO_BENCHES.find(b =>
       Math.abs(hero.pos.x - b.x) < 0.9 && Math.abs(hero.pos.z - b.z) < 0.9 && hero.pos.y >= 0.1 && hero.pos.y <= 1.0
     );

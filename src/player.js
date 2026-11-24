@@ -45,9 +45,9 @@ export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
   if (pl.climb?.ride) {
     const c = pl.climb;
     // нажал прыжок или сдвинул джойстик (на скамейке/пеньке) — встал
-    if (wantJump && c.t > 0.05 && c.onJump) c.onJump(c.t);                                      // горка с трамплином: прыжок = толчок, не соскок
-    else if ((wantJump || (c.seat && Math.hypot(mv.x, mv.y) > 0.2)) && c.t > 0.05) {
-      pl.climb = null; pl.relax = false; pl.dachaAnim = null; pl.sleeping = false; pl.sleep = false;
+    if (wantJump && (c.t > 0.05 || c.dur > 100) && c.onJump) c.onJump(c.t);                                      // горка с трамплином: прыжок = толчок, не соскок
+    else if ((wantJump || (c.seat && Math.hypot(mv.x, mv.y) > 0.2)) && (c.t > 0.05 || c.dur > 100)) {
+      pl.climb = null; pl.relax = false; pl.sit = false; pl.dachaAnim = null; pl.sleeping = false; pl.sleep = false;
       if (pl.model?.root) pl.model.root.rotation.x = 0;
       pl.vel.set(Math.sin(pl.face) * (wantJump ? 3 : 1.5), wantJump ? JUMP_V * 0.6 : 0, Math.cos(pl.face) * (wantJump ? 3 : 1.5));
       pl.grounded = false; if (wantJump) pl.jumped = true;
@@ -58,7 +58,7 @@ export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
     pl.vel.set(0, 0, 0); pl.grounded = false; pl.speed = 0;
     if (c.face !== undefined) pl.model.root.rotation.y = pl.face = c.face;
     else if (pl.pos.distanceTo(prev) > 0.001) pl.model.root.rotation.y = pl.face = Math.atan2(pl.pos.x - prev.x, pl.pos.z - prev.z);
-    if (c.t >= 1) { pl.climb = null; pl.relax = false; pl.dachaAnim = null; if (pl.model?.root) pl.model.root.rotation.x = 0; if (c.exit) { pl.vel.copy(c.exit); pl.coast = !!c.coast; } }   // coast — с горки летим по инерции
+    if (c.t >= 1 && c.dur < 1000) { pl.climb = null; pl.relax = false; pl.sit = false; pl.dachaAnim = null; if (pl.model?.root) pl.model.root.rotation.x = 0; if (c.exit) { pl.vel.copy(c.exit); pl.coast = !!c.coast; } }   // coast — с горки летим по инерции
     return;
   }
   // канатная дорога: висим на ролике и едем по тросу вниз (трос чуть провисает)
