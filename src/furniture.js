@@ -307,10 +307,11 @@ export function homeUse(act, hero, save, { toast, confetti, SFX, persist }) {
       if (!hero.sleeping && !hero.climb?.sleep) return;
       hero.sleeping = false; hero.sleep = false; hero.climb = null;
       hero.pos.set(bp.x + 1.2, 0.1, bp.z); hero.vel.set(0, 0, 0);
-      save.coins = (save.coins || 0) + 50; persist();
-      SFX.fanfare?.(); SFX.coins?.();
+      const paid = !save.sleepAt || Date.now() - save.sleepAt >= 20 * 60000;   // +50 за сон — не чаще раза в 20 минут (общий с дачей)
+      if (paid) { save.sleepAt = Date.now(); save.coins = (save.coins || 0) + 50; SFX.coins?.(); }
+      persist(); SFX.fanfare?.();
       confetti(hero.pos.clone().setY(hero.pos.y + 1.8), 40);
-      toast('☀️ С добрым утром! Вы отлично выспались! +50 🪙<small>наступил ясный солнечный день 🌅</small>');
+      toast(`☀️ С добрым утром! Хорошо выспались!${paid ? ' +50 🪙' : ''}<small>наступил ясный солнечный день 🌅</small>`);
     });
     return;
   }

@@ -21,6 +21,8 @@ const GROUND = { x0: -66, x1: 66, z0: 105, z1: 213 };
 const ROAD = [[-38, 106], [-37.5, 116], [-34, 128], [-27, 140], [-25, 151], [-28, 164], [-30, 175], [-30, 183]];
 const STREAM_Z = 146;
 const BERRY_COOLDOWN = 3 * 60 * 1000; // 3 минуты (180 000 мс) на созревание ягод
+// как часто дача платит монеты за одно и то же (иначе можно «фармить» без конца)
+const MIN = 60000, CD = { tea: 3 * MIN, marsh: 3 * MIN, dog: 3 * MIN, apple: 2 * MIN, wood: 3 * MIN, gh: 5 * MIN, sleep: 20 * MIN };
 
 // Места для сидения в беседке (скамейки вокруг стола)
 // y = 0.15 обеспечивает идеальную посадку: 0.15 + 0.39 = 0.54 (ровно поверхность деревянной скамьи)
@@ -44,6 +46,12 @@ const APPLE_TREES = [
   [-44.5, 186], [-44, 205.5], [-15.5, 186.5], [-26, 205.5],
   [13, 203], [30, 186.5], [42, 205]
 ];
+
+// плафон светильника: свой материал (цвет меняется ночью — общий кэшированный трогать нельзя)
+function lampBulb(p, w, h, d, x, y, z) {
+  const m = new T.Mesh(new T.BoxGeometry(w, h, d), new T.MeshBasicMaterial({ color: 0x8a7f66 }));
+  m.position.set(x, y, z); m.userData.dynamic = true; p.add(m); return m;
+}
 
 let st = null;
 onLevelReset(() => { if (st?.bedLabel) scene.remove(st.bedLabel); st = null; });
@@ -339,6 +347,7 @@ export function buildDacha(w) {
     const g = group(w, x, 1.9, z); g.rotation.y = rotY;
     box(g, 1.5, 1.4, 0.1, 0xffffff, 0, 0, 0.25);
     const glass = box(g, 1.2, 1.1, 0.12, 0x9fdcff, 0, 0, 0.27);
+    glass.material = new T.MeshLambertMaterial({ color: 0x9fdcff });   // свой материал: ночью окно желтеет, общий кэшированный не трогаем
     glass.userData.dynamic = true;
     registerWindow(glass);
     box(g, 0.08, 1.1, 0.14, 0xffffff, 0, 0, 0.29); box(g, 1.2, 0.08, 0.14, 0xffffff, 0, 0, 0.29);
@@ -371,9 +380,6 @@ export function buildDacha(w) {
   box(w, 0.7, 1.4, 0.7, 0xf5f5ee, H0.x + 2.7, 2.9, H0.z + 2.0); // дымоход к крыше
   box(w, 0.26, 0.26, 0.26, 0x2b2b2b, H0.x + 2.3, 2.45, H0.z + 1.4); // чугунок
   box(w, 0.22, 0.22, 0.22, 0x2b2b2b, H0.x + 2.65, 2.43, H0.z + 1.4);
-  const stoveLight = new T.PointLight(0xff6611, 0.45, 6);
-  stoveLight.position.set(H0.x + 2.7, 1.2, H0.z + 0.8);
-  w.add(stoveLight);
 
   // 2. Деревенский обеденный стол и скамья у окна
   solid(w, 1.8, 0.9, 1.1, 0x9c6a3c, H0.x + 2.2, 0.5, H0.z - 1.5); // стол
@@ -390,12 +396,7 @@ export function buildDacha(w) {
 
   // 4. Подвесная люстра-лампа под потолком
   box(w, 0.04, 0.75, 0.04, 0x665544, H0.x, WH - 0.4, H0.z);
-  const houseBulb = box(w, 0.38, 0.26, 0.38, 0xfff0aa, H0.x, WH - 0.85, H0.z, { shadow: false });
-  houseBulb.userData.dynamic = true;
-  st.houseLight = new T.PointLight(0xffdf88, 0.35, 18);
-  st.houseLight.position.set(H0.x, WH - 0.85, H0.z);
-  st.houseLight.userData.dynamic = true;
-  w.add(st.houseLight);
+  const houseBulb = lampBulb(w, 0.38, 0.26, 0.38, H0.x, WH - 0.85, H0.z);
   registerLamp(houseBulb, null, null, H0.x, H0.z);
 
   // 5. БОЛЬШАЯ УЮТНАЯ КРОВАТЬ (DACHA_BED: x: -38.6, z: 199.8)
@@ -444,12 +445,7 @@ export function buildDacha(w) {
   st.bedLabel = bedLbl;
 
   // Фонарь над крыльцом
-  const porchBulb = box(w, 0.28, 0.35, 0.28, 0x8a7f66, H0.x, 3.8, HZ0 - 1.2, { shadow: false });
-  porchBulb.userData.dynamic = true;
-  st.porchLight = new T.PointLight(0xffcf66, 0, 18);
-  st.porchLight.position.set(H0.x, 3.7, HZ0 - 1.2);
-  st.porchLight.userData.dynamic = true;
-  w.add(st.porchLight);
+  const porchBulb = lampBulb(w, 0.28, 0.35, 0.28, H0.x, 3.8, HZ0 - 1.2);
   registerLamp(porchBulb, null, null, H0.x, HZ0 - 1.2);
 
   // Двускатная крыша дома
@@ -577,12 +573,7 @@ export function buildDacha(w) {
 
   // Подвесной светильник под куполом беседки
   box(w, 0.06, 0.5, 0.06, 0x222222, GZ.x, 3.8, GZ.z, { shadow: false });
-  const gzBulb = box(w, 0.35, 0.42, 0.35, 0x8a7f66, GZ.x, 3.35, GZ.z, { shadow: false });
-  gzBulb.userData.dynamic = true;
-  st.gazeboLight = new T.PointLight(0xffbe4d, 0, 18);
-  st.gazeboLight.position.set(GZ.x, 3.2, GZ.z);
-  st.gazeboLight.userData.dynamic = true;
-  w.add(st.gazeboLight);
+  const gzBulb = lampBulb(w, 0.35, 0.42, 0.35, GZ.x, 3.35, GZ.z);
   registerLamp(gzBulb, null, null, GZ.x, GZ.z);
 
   const gzl = makeLabel(3.5, 0.8);
@@ -602,11 +593,7 @@ export function buildDacha(w) {
   box(w, 0.7, 0.35, 0.7, 0xff5a1e, CF.x, 0.25, CF.z);
   st.campfire = new T.Vector3(CF.x, 0.5, CF.z);
 
-  // Живой свет и пятно на земле от костра
-  st.campLight = new T.PointLight(0xff6818, 0, 22);
-  st.campLight.position.set(CF.x, 1.2, CF.z);
-  st.campLight.userData.dynamic = true;
-  w.add(st.campLight);
+  // пятно света на земле от костра (без настоящего источника света — телефону так легче)
 
   // Ореол огня на земле (мягкое аккуратное свечение)
   const ccv = document.createElement('canvas'); ccv.width = ccv.height = 128;
@@ -832,7 +819,7 @@ export function dachaUse(act, hero, save, { toast, confetti, SFX, persist, MOTYA
   // 1. Сбор урожая из теплицы
   if (act === 'gh_harvest') {
     save.coins = (save.coins || 0) + 35;
-    d.ghTime = now + 90000;
+    d.ghTime = now + CD.gh;
     d.ghWatered = false;
     persist();
     SFX.fanfare?.();
@@ -840,7 +827,7 @@ export function dachaUse(act, hero, save, { toast, confetti, SFX, persist, MOTYA
     confetti(hero.pos.clone().setY(hero.pos.y + 1.8), 35);
     puff('🍅', hero.pos.clone().setY(hero.pos.y + 1.2), { size: 1.2, rise: 1.5, life: 1.0 });
     puff('🥒', hero.pos.clone().setY(hero.pos.y + 1.2), { size: 1.2, rise: 1.5, life: 1.0 });
-    toast('🧺 Собрали сочные помидоры и огурцы из теплицы! +35 🪙<small>следующий сбор через 1.5 минуты</small>');
+    toast('🧺 Собрали сочные помидоры и огурцы из теплицы! +35 🪙<small>следующий сбор через 5 минут</small>');
     return;
   }
 
@@ -872,7 +859,7 @@ export function dachaUse(act, hero, save, { toast, confetti, SFX, persist, MOTYA
 
   // 4. Чаепитие в беседке у самовара (с посадкой и анимацией глотков)
   if (act === 'tea') {
-    const cd = 30000;
+    const cd = CD.tea;
     const giveCoins = !d.teaTime || (now - d.teaTime >= cd);
     if (giveCoins) {
       d.teaTime = now;
@@ -894,7 +881,7 @@ export function dachaUse(act, hero, save, { toast, confetti, SFX, persist, MOTYA
 
   // 5. Жарка маршмеллоу на костре (с посадкой на пенёк и анимацией подрумянивания)
   if (act === 'marsh') {
-    const cd = 30000;
+    const cd = CD.marsh;
     const giveCoins = !d.marshTime || (now - d.marshTime >= cd);
     if (giveCoins) {
       d.marshTime = now;
@@ -917,13 +904,14 @@ export function dachaUse(act, hero, save, { toast, confetti, SFX, persist, MOTYA
   if (act === 'wood') {
     if (!d.hasWood) return;
     d.hasWood = false;
-    save.coins = (save.coins || 0) + 20;
+    const paid = !d.woodTime || now - d.woodTime >= CD.wood;           // монеты за дрова — не чаще раза в 3 минуты
+    if (paid) { d.woodTime = now; save.coins = (save.coins || 0) + 20; }
     persist();
     SFX.whoosh?.();
     SFX.fanfare?.();
     puff('🔥', new T.Vector3(37, 1.2, 201), { size: 2.4, rise: 2.2, life: 1.5, dx: 0.8 });
     puff('✨', new T.Vector3(37, 1.5, 201), { size: 1.6, rise: 2.0, life: 1.5, dx: 1.0 });
-    toast('🪵 Подбросил сухие берёзовые поленья! Костёр ярко пылает! +20 🪙🔥');
+    toast(`🪵 Подбросил сухие берёзовые поленья! Костёр ярко пылает!${paid ? ' +20 🪙' : ''}🔥`);
     return;
   }
 
@@ -978,7 +966,7 @@ export function dachaUse(act, hero, save, { toast, confetti, SFX, persist, MOTYA
 
   // 10. Собачья будка Дружка
   if (act === 'dog') {
-    const cd = 30000;
+    const cd = CD.dog;
     const left = cd - (now - (d.dogTime || 0));
     if (left > 0) {
       toast('🐶 Дружок сыт и сладко спит в будке... zzz... 🐾');
@@ -996,7 +984,7 @@ export function dachaUse(act, hero, save, { toast, confetti, SFX, persist, MOTYA
 
   // 11. Яблоня
   if (act === 'apple') {
-    const cd = 45000;
+    const cd = CD.apple;
     const left = cd - (now - (d.appleTime || 0));
     if (left > 0) {
       toast(`🍎 Новые яблочки ещё зреют на ветках... Подожди ${Math.ceil(left / 1000)} сек! 🍏`);
@@ -1153,26 +1141,9 @@ export function updateDacha(dt, hero, save) {
   }
 
   // 9. Искры, дым и живой свет от костра
-  if (st.campLight) {
-    const nightK = getNightK();
-    const t = performance.now() / 1000;
+  if (st.campGlow?.material) {                     // костёр мерцает (ночью — ярче)
     const flk = 0.84 + Math.sin(t * 11) * 0.10 + Math.sin(t * 22.7) * 0.06;
-    st.campLight.intensity = (0.35 + 0.45 * nightK) * flk;
-    if (st.campGlow?.material) {
-      st.campGlow.material.opacity = (0.12 + 0.15 * nightK) * flk;
-    }
-  }
-  if (st.gazeboLight) {
-    const nightK = getNightK();
-    st.gazeboLight.intensity = nightK * 0.38;
-  }
-  if (st.porchLight) {
-    const nightK = getNightK();
-    st.porchLight.intensity = nightK * 0.35;
-  }
-  if (st.houseLight) {
-    const nightK = getNightK();
-    st.houseLight.intensity = nightK * 0.35;
+    st.campGlow.material.opacity = (0.12 + 0.15 * getNightK()) * flk;
   }
   if (st.campfire && (st.campT = (st.campT ?? 0) - dt) <= 0) {
     if (Math.hypot(hero.pos.x - st.campfire.x, hero.pos.z - st.campfire.z) < 50) {
@@ -1221,12 +1192,12 @@ export function dachaSleep(hero, save, { toast, confetti, SFX, persist, MOTYA })
     hero.pos.set(DACHA_BED.x + 1.2, 0.45, DACHA_BED.z);
     hero.vel.set(0, 0, 0);
 
-    save.coins = (save.coins || 0) + 50;
+    const paid = !save.sleepAt || Date.now() - save.sleepAt >= CD.sleep;   // +50 за сон — не чаще раза в 20 минут (общий с кроватью дома)
+    if (paid) { save.sleepAt = Date.now(); save.coins = (save.coins || 0) + 50; SFX.coins?.(); }
     persist();
     SFX.fanfare?.();
-    SFX.coins?.();
     confetti(hero.pos.clone().setY(hero.pos.y + 1.8), 40);
-    toast('☀️ С добрым утром! Вы отлично выспались и полны сил! +50 🪙<small>наступил ясный солнечный день 🌅</small>');
+    toast(`☀️ С добрым утром! ${MOTYA?.() ? 'Выспалась и полна' : 'Выспался и полон'} сил!${paid ? ' +50 🪙' : ''}<small>наступил ясный солнечный день 🌅</small>`);
   });
 }
 

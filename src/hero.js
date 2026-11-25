@@ -297,7 +297,7 @@ export function animateHero(m, dt, { speed = 0, maxSpeed = 1, air = false, vy = 
     m.armL.rotation.z = -0.15; m.armR.rotation.z = 0.15;
     m.legL.rotation.x = Math.sin(t * 2.6) * 0.45; m.legR.rotation.x = -Math.sin(t * 2.6) * 0.45;
     m.head.rotation.x = -0.9;                                             // голову поднимает над водой
-  } else if (m.head.rotation.x < -0.5) m.head.rotation.x = 0;
+  } else if (!dacha && !sleep && m.head.rotation.x) m.head.rotation.x = Math.abs(m.head.rotation.x) < 0.01 ? 0 : damp(m.head.rotation.x, 0, 10, dt);   // после плавания, сна, чая — голова обратно прямо
   // поймали — плюхнулся и сплющился
   const sy = stun ? 0.6 : 1;
   m.body.scale.y = damp(m.body.scale.y, sy, stun ? 20 : 8, dt);

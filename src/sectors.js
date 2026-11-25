@@ -41,7 +41,7 @@ export class Sector {
       this.active = true;
       if (this.group) this.group.visible = true;
       for (const m of this.bakedChunks) m.visible = true;
-      for (const c of this.colliders) c.off = false;
+      for (const c of this.colliders) { c.off = !!c.offBefore; delete c.offBefore; }   // как было до выгрузки (открытая дверь осталась открытой)
     }
   }
 
@@ -50,7 +50,7 @@ export class Sector {
       this.active = false;
       if (this.group) this.group.visible = false;
       for (const m of this.bakedChunks) m.visible = false;
-      for (const c of this.colliders) c.off = true;
+      for (const c of this.colliders) { c.offBefore = !!c.off; c.off = true; }
     }
   }
 

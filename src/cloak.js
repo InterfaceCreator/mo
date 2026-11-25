@@ -18,6 +18,8 @@ import { onLevelReset, groundY } from './world.js';
 
 export const CLOAK_DUR = 40;      // длительность невидимости (секунды)
 export const CLOAK_COOL = 10;     // время перезарядки после окончания (секунды)
+// награды: огонёк появляется снова через 10 минут, одного и того же можно напугать раз в минуту
+const WISP_COINS = 5, WISP_BACK = 10 * 60 * 1000, SPOOK_COINS = 3, SPOOK_AGAIN = 60 * 1000;
 
 // ---------- полупрозрачность модели ----------
 export function setMeshInvis(root, on) {
@@ -161,9 +163,9 @@ export function doSpook(hero, save, levelId) {
   hero.spookCool = 1.0;
   const now = Date.now();
   if (target.type === 'vasya') {
-    catSpookedUntil = now + 8000;
+    catSpookedUntil = now + SPOOK_AGAIN;
   } else if (target.raw) {
-    target.raw.spookedUntil = now + 8000;
+    target.raw.spookedUntil = now + SPOOK_AGAIN;
   }
 
   const pos = target.pos;
@@ -171,10 +173,10 @@ export function doSpook(hero, save, levelId) {
   SFX.coins();
   puff('😱', pos.clone().setY(pos.y + 2.6), { size: 2.2, rise: 1.2, life: 2.2 });
   puff('💫', pos.clone().setY(pos.y + 3.4), { size: 1.6, rise: 0.8, life: 2.5 });
-  puff('🪙 +5', pos.clone().setY(pos.y + 4.0), { size: 1.8, rise: 1.0, life: 2.0 });
+  puff('coin', pos.clone().setY(pos.y + 4.0), { size: 1.4, rise: 1.0, life: 2.0 });
   confetti(pos.clone().setY(pos.y + 1.5), 80);
 
-  save.coins = (save.coins || 0) + 5;
+  save.coins = (save.coins || 0) + SPOOK_COINS;
   setCoins(save.coins);
 
   if (target.type === 'guard') {
@@ -193,7 +195,7 @@ export function doSpook(hero, save, levelId) {
     target.raw.g.rotation.y += Math.PI;
     if (target.raw.tasks) target.raw.tasks.unshift({ wait: 3.5, face: (target.raw.face || 0) + Math.PI });
   }
-  toast(`👻 БУ-У-У!<small>Ты напугал ${target.name}! +5 монет 🪙</small>`);
+  toast(`👻 БУ-У-У!<small>Ты напугал ${target.name}! +${SPOOK_COINS} монеты 🪙</small>`);
 }
 
 // ---------- Призрачные огоньки 🔮 (Ghost Wisps) ----------
@@ -326,6 +328,10 @@ const WISPS_BY_LOC = {
   ],
 };
 
+// одна геометрия и материал на все огоньки (их на базе ~80)
+const WISP_GEO = new T.OctahedronGeometry(0.48, 0), WISP_RING = new T.TorusGeometry(0.7, 0.05, 6, 16);
+const WISP_MAT = new T.MeshBasicMaterial({ color: 0xd680ff }), WISP_RING_MAT = new T.MeshBasicMaterial({ color: 0x80d8ff });
+for (const o of [WISP_GEO, WISP_RING, WISP_MAT, WISP_RING_MAT]) o.userData.cached = true;
 let activeWisps = [];
 onLevelReset(() => { activeWisps = []; catSpookedUntil = 0; });
 
@@ -347,25 +353,21 @@ export function initWisps(locId, save) {
     g.visible = false; // виден только призраку
 
     // светящийся кристалл октаэдр
-    const geo = new T.OctahedronGeometry(0.48, 0);
-    const mat = new T.MeshBasicMaterial({ color: 0xd680ff });
-    const crystal = new T.Mesh(geo, mat);
+    const crystal = new T.Mesh(WISP_GEO, WISP_MAT);
     g.add(crystal);
 
     // светящийся нимб
-    const ringGeo = new T.TorusGeometry(0.7, 0.05, 6, 16);
-    const ringMat = new T.MeshBasicMaterial({ color: 0x80d8ff });
-    const ring = new T.Mesh(ringGeo, ringMat);
+    const ring = new T.Mesh(WISP_RING, WISP_RING_MAT);
     ring.rotation.x = Math.PI / 2;
     g.add(ring);
 
     const collectedAt = save.wisps[key];
-    const isCollected = (collectedAt && typeof collectedAt === 'number' && (now - collectedAt < 90000));
+    const isCollected = (collectedAt && typeof collectedAt === 'number' && (now - collectedAt < WISP_BACK));
 
     activeWisps.push({
       key, g, crystal, ring, x, z, y,
       phase: Math.random() * 6,
-      collectedUntil: isCollected ? (collectedAt + 90000) : 0,
+      collectedUntil: isCollected ? (collectedAt + WISP_BACK) : 0,
     });
   }
 }
@@ -416,7 +418,7 @@ export function updateCloak(dt, hero, save) {
     // сбор огонька
     const dist = Math.hypot(hero.pos.x - w.x, hero.pos.z - w.z);
     if (dist < 2.3 && Math.abs(hero.pos.y - w.y) < 2.8) {
-      w.collectedUntil = now + 90000; // перезарядка 1.5 мин
+      w.collectedUntil = now + WISP_BACK;
       w.g.visible = false;
       save.wisps = save.wisps || {};
       save.wisps[w.key] = now;
@@ -429,10 +431,10 @@ export function updateCloak(dt, hero, save) {
       puff('✨', w.g.position.clone().setY(w.g.position.y + 0.5), { size: 1.6, rise: 0.8, life: 1.4 });
       confetti(w.g.position.clone(), 60);
 
-      save.coins = (save.coins || 0) + 10;
+      save.coins = (save.coins || 0) + WISP_COINS;
       setCoins(save.coins);
 
-      toast(`🔮 Призрачный огонёк пойман!<small>+10 монет 🪙 · Всего поймано: ${save.wispsTotal}</small>`);
+      toast(`🔮 Призрачный огонёк пойман!<small>+${WISP_COINS} монет 🪙 · Всего поймано: ${save.wispsTotal}</small>`);
     }
   }
 }

@@ -375,7 +375,7 @@ export function updateSchool(dt, hero) {
         if (!tn.invisReact) {
           tn.invisReact = true;
           puff('❓', new T.Vector3(tn.pos.x, 4.0, tn.pos.z), { size: 1.4, rise: 0.6, life: 2.2 });
-          toast(`👩‍🏫 ${tn.name}: «А где Мотя? Только что тут был! 👀»`);
+          toast(`👩‍🏫 ${tn.name}: «${st.who === 'mama' ? 'А где Юля? Только что тут была' : 'А где Мотя? Только что тут был'}! 👀»`);
         }
       }
     }
@@ -391,7 +391,7 @@ export function updateSchool(dt, hero) {
     if (nearKids.length && !st.kidsInvis) {
       st.kidsInvis = true;
       for (const k of nearKids) puff('🔍', new T.Vector3(k.pos.x, 3.2, k.pos.z), { size: 1.1, rise: 0.4, life: 1.8 });
-      toast('🎒 Ребята: «Мотя исчез! Прятки! Кто найдёт Мотю?» 🔍');
+      toast(st.who === 'mama' ? '🎒 Ребята: «Юля исчезла! Прятки! Кто найдёт?» 🔍' : '🎒 Ребята: «Мотя исчез! Прятки! Кто найдёт Мотю?» 🔍');
     }
   } else {
     for (const s of Object.keys(st.teachers)) st.teachers[s].invisReact = false;
@@ -402,7 +402,7 @@ export function updateSchool(dt, hero) {
       if (nearKids.length) {
         confetti(new T.Vector3(p.x, 2, p.z), 50);
         puff('🎉', new T.Vector3(p.x, 3.2, p.z), { size: 1.4, rise: 0.8 });
-        toast('🎒 Ребята: «Нашёлся! Вот он!» 😃🎉');
+        toast(st.who === 'mama' ? '🎒 Ребята: «Нашлась! Вот она!» 😃🎉' : '🎒 Ребята: «Нашёлся! Вот он!» 😃🎉');
       }
     }
   }
