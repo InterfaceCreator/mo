@@ -18,6 +18,7 @@ import { FS } from './fs.js';
 import './update.js';                  // плашка «загружается новая версия» на стартовом экране
 import { startRest, checkRest, unlockRest } from './rest.js';
 import { updateDayNight, skipToPhase, getDayPhase } from './daynight.js';
+import { moveIn } from './move.js';
 
 const Q = new URLSearchParams(location.search);
 
@@ -29,6 +30,8 @@ const heroThumb = id => modelThumb('hero:' + id, s => buildHero(s, LOOK_OF[id]),
 const thumbs = {};
 for (const id of ['motya', 'mama']) { try { thumbs[id] = heroThumb(id); } catch (e) { thumbs[id] = ''; window.__bootErr?.('превью героя: ' + e.message); } }
 window.__menuReady = true;
+document.querySelectorAll('.pcard img').forEach(i => { i.src = thumbs[i.closest('.pcard').dataset.p] || ''; });   // картинки героев — сразу, даже пока идёт перенос
+if (!SPY) await moveIn().catch(e => window.__bootErr?.('перенос прогресса: ' + e.message));   // переезд на новый адрес — до выбора игрока
 (SPY ? Promise.resolve('spy').then(w => { document.getElementById('profiles').classList.remove('on'); return w; }) : chooseProfile(thumbs, SFX)).then(start).catch(e => window.__bootErr?.('запуск: ' + (e.stack || e.message)));
 
 // выбрали игрока — запускаем игру
