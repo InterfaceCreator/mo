@@ -205,6 +205,10 @@ export function createLampPost(parent, x, z, rotY = 0) {
 }
 
 // Текущий коэффициент ночи (0 — день, 1 — глубокая ночь)
+// объект ещё в сцене (сектор не выгружен) и виден (сектор не спрятан)
+const inScene = o => { for (; o; o = o.parent) if (o === scene) return true; return false; };
+const shown = o => { for (; o; o = o.parent) { if (!o.visible) return false; if (o === scene) return true; } return false; };
+
 export function getNightK() {
   return st ? st.nightK : 0;
 }
@@ -393,7 +397,7 @@ export function updateDayNight(dt, hero, levelId, save) {
   // 4. Фонари, сияющие ореолы и мягкие световые пятна под ними
   if (st.lamps.length) {
     // Очищаем отвязанные фонари (если сектор пересоздавался)
-    st.lamps = st.lamps.filter(l => l.bulb?.parent);
+    st.lamps = st.lamps.filter(l => inScene(l.bulb));
     const bulbColor = new T.Color(0x8a7f66).lerp(new T.Color(0xffbf55), nightK);
     const poolOpacity = nightK * 0.9;
     const haloOpacity = nightK * 0.85;
@@ -405,7 +409,7 @@ export function updateDayNight(dt, hero, levelId, save) {
     }
     // один настоящий свет — у ближайшего фонаря (до 16 м); сменился ближайший — гаснет, переезжает и разгорается
     let best = null, bd = 16;
-    if (nightK > 0.05 && hero?.pos) for (const l of st.lamps) { const d = Math.hypot(l.x - hero.pos.x, l.z - hero.pos.z); if (d < bd && l.bulb?.parent?.visible !== false) { bd = d; best = l; } }
+    if (nightK > 0.05 && hero?.pos) for (const l of st.lamps) { const d = Math.hypot(l.x - hero.pos.x, l.z - hero.pos.z); if (d < bd && shown(l.bulb)) { bd = d; best = l; } }
     if (best !== st.lampAt) { st.lampK = Math.max(0, st.lampK - dt * 4); if (st.lampK <= 0) { st.lampAt = best; if (best) st.lampLight.position.set(best.x, 3.0, best.z); } }
     else st.lampK = Math.min(1, st.lampK + dt * 2);
   }
@@ -413,7 +417,7 @@ export function updateDayNight(dt, hero, levelId, save) {
 
   // 5. Окна домика (днём прозрачно-голубые, ночью тёплый янтарный уют)
   if (st.windows.length) {
-    st.windows = st.windows.filter(w => w?.parent);
+    st.windows = st.windows.filter(w => inScene(w));
     const winColor = new T.Color().copy(COL_WIN_DAY).lerp(COL_WIN_NIGHT, nightK);
     for (const w of st.windows) {
       if (w?.material) w.material.color.copy(winColor);

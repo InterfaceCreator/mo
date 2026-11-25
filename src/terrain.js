@@ -86,7 +86,7 @@ function tufts(parent, n, size, ground, hue = 0.27) {
 }
 
 // вода — одна прозрачная плоскость; там, где земля выше, её просто не видно
-const waters = [];
+export const waters = [];                 // текстуры воды с бегущей рябью (сектора убирают свои при выгрузке)
 onLevelReset(() => { waters.length = 0; });
 const rippleTex = (() => {
   const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d');

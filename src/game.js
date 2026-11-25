@@ -156,7 +156,7 @@ function enter(id, spawn, owner = null) {
       duoBase: buildDuoBase,
       duoMe,
       houseFor,
-    });
+    }, spawn);                                     // что рядом с точкой появления — строится сразу, остальное — по мере приближения
   }
   if (id === 'winter') buildWinterFun(save);       // головоломки, сосульки, рыбалка, сова, пингвинята, снежная битва, звёзды
   buildPickups(id, save);                                // продукты для кухни: яйца, яблоки, ягоды, грибы, мёд, снег, какао
@@ -929,7 +929,7 @@ export function updateGame(dt) {
     }
     if (be.all) { fireworks(hero.pos.clone().setY(6), 12); notify({ icon: '🛡️', title: 'Бункер откопан целиком!', text: `Все комнаты бункера откопаны — ${profile === 'mama' ? 'ты настоящая копательница' : 'ты настоящий копатель'}! +${ALL_COINS} монет 🎉`, keep: true }); }
   }
-  if (atBase) updateSectors(dt, hero, save);
+  if (atBase) updateSectors(dt, hero.pos);
   if (atBase && isSectorActive('base_north')) updateHouse(dt);
   if (atBase && profile === 'mama') updatePlane(dt);   // пасхалка для мамы: самолётик с растяжкой «Бубнилка ❤️»
   if (level.id === 'home' || level.id === 'loft') {   // мебель: встал на кнопку места — выбираешь, что поставить; на лежанке — питомцы

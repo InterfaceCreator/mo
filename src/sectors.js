@@ -1,212 +1,121 @@
-// Динамический стриминг секторов / чанков для открытого мира (База, Дача и будущие зоны).
-// Сектор вдали:
-//   - скрывает меши (visible = false: 0 вызовов отрисовки и 0 нагрузки на GPU),
-//   - отключает коллизии (c.off = true: физика игрока и камеры не проверяет далёкие стены),
-//   - приостанавливает логику update (0 нагрузки на CPU).
-// Сектор вблизи: плавно активируется, полностью сохраняя визуальное качество и интерактивность.
+// Сектора открытого мира 🧱: база поделена на куски (площадь, аквапарк, дача; потом — новые зоны).
+// Сектор живёт по расстоянию от героя до его границ:
+//   < SHOW     — построен и виден, работает (логика, коллизии);
+//   < PREBUILD — построен заранее, но спрятан (чтобы подойти — и сразу всё на месте, без рывка);
+//   > HIDE     — спрятан: не рисуется, коллизии выключены, логика спит;
+//   > DISPOSE  — выгружен целиком: геометрия, материалы, коллизии — память освобождается. Подойдёшь — построится снова.
+// Всё состояние модулей (огород, бункер, дача…) хранится в сохранении, поэтому пересборка ничего не теряет.
+// При постройке сектор запоминает всё, что он добавил: свою группу, то, что модули положили прямо в сцену (подписи),
+// коллизии, деревья (их рубят топором), воду с рябью, склеенные меши — и при выгрузке убирает ровно это.
+// Строится не больше одного сектора за кадр. ?perf — на экране видно, сколько миллисекунд строился каждый сектор.
 import { scene, group } from './engine.js';
-import { captureColliders, removeColliders, onLevelReset, bake, removeChunks } from './world.js';
+import { captureColliders, removeColliders, onLevelReset, bake, removeChunks, trees } from './world.js';
+import { waters } from './terrain.js';
 
-export class Sector {
-  constructor({ id, bounds, center, build, update }) {
-    this.id = id;
-    this.bounds = bounds; // { x0, x1, z0, z1 }
-    this.center = center || {
-      x: (bounds.x0 + bounds.x1) / 2,
-      z: (bounds.z0 + bounds.z1) / 2,
-    };
-    this.buildFn = build;
-    this.updateFn = update;
-    this.group = null;
-    this.colliders = [];
-    this.bakedChunks = [];
-    this.built = false;
-    this.active = false;
+const SHOW = 95, HIDE = 125, PREBUILD = 150, DISPOSE = 230;   // туман — 60…150 м: появление и исчезновение не видно
+const PERF = new URLSearchParams(location.search).has('perf');
+
+class Sector {
+  constructor({ id, bounds, build, keep = false }) {
+    this.id = id; this.bounds = bounds; this.buildFn = build; this.keep = keep;   // keep — не выгружать (там земля базы)
+    this.built = false; this.active = false; this.reset();
   }
-
-  ensureBuilt(save, profile, hero) {
-    if (this.built) return;
-    this.group = group(scene);
-    this.group.userData.sector = this.id;
-    this.colliders = captureColliders(() => {
-      this.buildFn(this.group, save, profile, hero);
-    });
-    this.bakedChunks = bake(this.group) || [];
-    this.built = true;
+  reset() { this.group = null; this.loose = []; this.colliders = []; this.chunks = []; this.trees = []; this.waters = []; }
+  dist(p) {
+    const b = this.bounds;
+    return Math.hypot(Math.max(b.x0 - p.x, 0, p.x - b.x1), Math.max(b.z0 - p.z, 0, p.z - b.z1));
   }
-
-  activate(save, profile, hero) {
-    this.ensureBuilt(save, profile, hero);
-    if (!this.active) {
-      this.active = true;
-      if (this.group) this.group.visible = true;
-      for (const m of this.bakedChunks) m.visible = true;
-      for (const c of this.colliders) { c.off = !!c.offBefore; delete c.offBefore; }   // как было до выгрузки (открытая дверь осталась открытой)
-    }
+  // построить: всё, что появилось в сцене и в общих списках за время постройки, — принадлежит сектору
+  build() {
+    const t0 = performance.now();
+    const g = group(scene); g.userData.sector = this.id;
+    const before = new Set(scene.children), tr0 = trees.length, wa0 = waters.length;
+    this.colliders = captureColliders(() => this.buildFn(g));
+    this.loose = scene.children.filter(o => o !== g && !before.has(o));
+    this.trees = trees.slice(tr0); this.waters = waters.slice(wa0);
+    this.chunks = bake(g) || [];
+    this.group = g; this.built = true; this.active = true;
+    perf(this.id, performance.now() - t0);
   }
-
-  deactivate() {
-    if (this.active) {
-      this.active = false;
-      if (this.group) this.group.visible = false;
-      for (const m of this.bakedChunks) m.visible = false;
-      for (const c of this.colliders) { c.offBefore = !!c.off; c.off = true; }
-    }
+  show(on) {
+    if (this.active === on) return;
+    this.active = on;
+    if (this.group) this.group.visible = on;
+    for (const o of this.loose) o.visible = on;
+    for (const m of this.chunks) m.visible = on;
+    // коллизии: прячем все, а при возврате — как было (открытая дверь остаётся открытой)
+    if (on) for (const c of this.colliders) { c.off = !!c.offBefore; delete c.offBefore; }
+    else for (const c of this.colliders) { c.offBefore = !!c.off; c.off = true; }
   }
-
-  update(dt, hero, save) {
-    if (!this.active) return;
-    if (this.updateFn) this.updateFn(dt, hero, save);
-  }
-
   dispose() {
-    this.deactivate();
-    if (this.built) {
-      if (this.group) {
-        scene.remove(this.group);
-        this.group.traverse(o => {
-          if (o.geometry && !o.geometry.userData?.cached) o.geometry.dispose();
-          if (o.material && !o.material.userData?.cached && !o.material.map) o.material.dispose();
-        });
-        this.group = null;
-      }
-      if (this.bakedChunks.length) {
-        removeChunks(this.bakedChunks);
-        for (const m of this.bakedChunks) {
-          scene.remove(m);
-          if (m.geometry) m.geometry.dispose();
-        }
-        this.bakedChunks = [];
-      }
-      removeColliders(this.colliders);
-      this.colliders = [];
-      this.built = false;
-    }
+    if (!this.built || this.keep) return;
+    this.show(false);
+    const free = o => o.traverse(m => {
+      if (m.geometry && !m.geometry.userData?.cached) m.geometry.dispose();
+      const mats = Array.isArray(m.material) ? m.material : m.material ? [m.material] : [];
+      for (const mt of mats) { if (mt.userData?.cached) continue; mt.map?.dispose(); mt.dispose(); }   // свои текстуры (подписи, вода) — тоже
+    });
+    for (const o of [this.group, ...this.loose]) { scene.remove(o); free(o); }
+    removeChunks(this.chunks); removeColliders(this.colliders);
+    const del = (arr, own) => { const s = new Set(own); for (let i = arr.length - 1; i >= 0; i--) if (s.has(arr[i])) arr.splice(i, 1); };
+    del(trees, this.trees); del(waters, this.waters);
+    this.reset(); this.built = false;
+    perf(this.id, -1);
   }
 }
 
-let activeSectors = [];
-let currentLoc = null;
+let sectors = [];
 
-// Дистанция загрузки (95 м) и выгрузки (125 м с гистерезисом 30 м)
-// В тумане (Fog: 60..150м) переключение происходит абсолютно незаметно
-const LOAD_DIST = 95;
-const UNLOAD_DIST = 125;
-
-export function initSectors(locId, sectorDefs, save, profile, hero) {
+// база: площадь (с землёй базы, всегда построена) + аквапарк и дача — по мере приближения
+export function setupBaseSectors(w, save, profile, hero, B, at = hero.pos) {
   clearSectors();
-  currentLoc = locId;
-  activeSectors = sectorDefs.map(d => new Sector(d));
-  updateSectors(0, hero, save);
+  const north = new Sector({ id: 'base_north', bounds: { x0: -72, x1: 72, z0: -15, z1: 65 }, keep: true });
+  north.colliders = captureColliders(() => {
+    B.playground(w);
+    B.house(w, B.duoMe(), save, B.houseFor(B.duoMe()));
+    B.cup(w, save, profile, B.houseFor(B.duoMe()));
+    B.duoBase(w);
+  });
+  north.chunks = bake(w) || [];
+  north.group = w; north.built = north.active = true;
+  sectors = [
+    north,
+    new Sector({ id: 'base_park', bounds: { x0: -72, x1: 72, z0: 60, z1: 115 }, build: g => { B.park(g, save, profile); B.spa(g); } }),
+    new Sector({ id: 'base_dacha', bounds: { x0: -72, x1: 72, z0: 115, z1: 220 }, build: g => { B.dacha(g); B.garden(save, hero); B.bunker(g, save, profile); } }),
+  ];
+  // при входе: всё, что рядом с точкой появления, — сразу (герой не должен оказаться без земли под ногами)
+  for (const s of sectors) if (!s.built && s.dist(at) < SHOW) s.build();
+  updateSectors(0, at);
 }
 
-export function setupBaseSectors(w, save, profile, hero, builders) {
-  clearSectors();
-  currentLoc = 'base';
-
-  // 1. Сектор Северной Базы (Порталы, площадь, загон, площадка, дом, кубок)
-  const northCols = captureColliders(() => {
-    builders.playground(w);
-    builders.house(w, builders.duoMe(), save, builders.houseFor(builders.duoMe()));
-    builders.cup(w, save, profile, builders.houseFor(builders.duoMe()));
-    builders.duoBase(w);
-  });
-  const northBaked = bake(w) || [];
-  const north = new Sector({
-    id: 'base_north',
-    bounds: { x0: -72, x1: 72, z0: -15, z1: 65 },
-    build: () => {},
-  });
-  north.group = w;
-  north.colliders = northCols;
-  north.bakedChunks = northBaked;
-  north.built = true;
-  north.active = true;
-
-  // 2. Сектор Аквапарка и Бани
-  const g_park = group(scene);
-  g_park.userData.sector = 'base_park';
-  const parkCols = captureColliders(() => {
-    builders.park(g_park, save, profile);
-    builders.spa(g_park);
-  });
-  const parkBaked = bake(g_park) || [];
-  const park = new Sector({
-    id: 'base_park',
-    bounds: { x0: -72, x1: 72, z0: 60, z1: 115 },
-    build: () => {},
-  });
-  park.group = g_park;
-  park.colliders = parkCols;
-  park.bakedChunks = parkBaked;
-  park.built = true;
-  park.active = true;
-
-  // 3. Сектор Дачи (Дорога, забор, дом дедушки и бабушки, огород, бункер)
-  const g_dacha = group(scene);
-  g_dacha.userData.sector = 'base_dacha';
-  const dachaCols = captureColliders(() => {
-    builders.dacha(g_dacha);
-    builders.garden(save, hero);
-    builders.bunker(g_dacha, save, profile);
-  });
-  const dachaBaked = bake(g_dacha) || [];
-  const dacha = new Sector({
-    id: 'base_dacha',
-    bounds: { x0: -72, x1: 72, z0: 115, z1: 220 },
-    build: () => {},
-  });
-  dacha.group = g_dacha;
-  dacha.colliders = dachaCols;
-  dacha.bakedChunks = dachaBaked;
-  dacha.built = true;
-  dacha.active = true;
-
-  activeSectors = [north, park, dacha];
-
-  // Сразу при входе выключаем далёкие секторы относительно спавна героя
-  updateSectors(0, hero, save);
-}
-
-export function updateSectors(dt, hero, save) {
-  if (!activeSectors.length || !hero) return;
-  const p = hero.pos;
-
-  for (const s of activeSectors) {
-    const dx = Math.max(s.bounds.x0 - p.x, 0, p.x - s.bounds.x1);
-    const dz = Math.max(s.bounds.z0 - p.z, 0, p.z - s.bounds.z1);
-    const dist = Math.hypot(dx, dz);
-
-    if (dist < LOAD_DIST) {
-      if (!s.active) s.activate(save, null, hero);
-    } else if (dist > UNLOAD_DIST) {
-      if (s.active) s.deactivate();
-    }
-
-    if (s.active) {
-      s.update(dt, hero, save);
-    }
+// раз в кадр (на базе). p — где герой
+export function updateSectors(dt, p) {
+  if (!sectors.length || !p) return;
+  let builtNow = false;
+  for (const s of sectors) {
+    const d = s.dist(p);
+    if (d < SHOW) { if (!s.built) { s.build(); builtNow = true; } s.show(true); }
+    else if (d < PREBUILD && !s.built && !builtNow) { s.build(); s.show(false); builtNow = true; }   // заранее, по одному за кадр
+    else if (d > DISPOSE) { if (s.keep) s.show(false); else s.dispose(); }
+    else if (d > HIDE) s.show(false);
   }
 }
 
+// работает ли сектор (его логику обновлять). Нет секторов на уровне — всё «работает»
 export function isSectorActive(id) {
-  if (!activeSectors.length) return true; // если стриминг не включен на уровне, всё активно
-  const s = activeSectors.find(x => x.id === id);
-  return s ? s.active : true;
+  const s = sectors.find(x => x.id === id);
+  return s ? s.built && s.active : true;
 }
+export const sectorInfo = () => sectors.map(s => ({ id: s.id, built: s.built, active: s.active }));
 
-export function clearSectors() {
-  for (const s of activeSectors) {
-    s.active = false;
-    s.built = false;
-    s.group = null;
-    s.colliders = [];
-    s.bakedChunks = [];
-  }
-  activeSectors = [];
-  currentLoc = null;
+export function clearSectors() { sectors = []; }   // сами объекты убирает clearLevel при смене локации
+onLevelReset(clearSectors);
+
+// ?perf: сколько строился сектор (на телефоне — есть ли рывок)
+let perfEl = null; const perfLog = [];
+function perf(id, ms) {
+  if (!PERF) return;
+  perfLog.unshift(ms < 0 ? `🗑 ${id}: выгружен` : `🧱 ${id}: ${Math.round(ms)} мс`); perfLog.length = Math.min(perfLog.length, 6);
+  if (!perfEl) { perfEl = document.createElement('div'); perfEl.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:50;background:#0009;color:#fff;font:12px monospace;padding:6px 8px;border-radius:8px;pointer-events:none;white-space:pre'; document.body.appendChild(perfEl); }
+  perfEl.textContent = perfLog.join('\n');
 }
-
-onLevelReset(() => {
-  clearSectors();
-});
