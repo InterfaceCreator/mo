@@ -8,7 +8,8 @@ import { vasyaPos } from './vasya.js';
 
 const FACE = { pushinka: '🐿️', timosha: '🎃', ryaba: '🐔', galya: '👩‍🍳', gena: '🧔', misha: '🧢', vanya: '👦', sonya: '👧', kolya: '⚽', olya: '⚽', masha: '🎨', alisa: '🦆', timur: '🎳', petya: '🏃', vasya: '🐱', borya: '🦫', yosha: '🦔', uhu: '🦉', lisa: '🦊', tyoma: '🐻' };
 const BEAST = { capy: '🐹', goose: '🪿', boar: '🐗', deer: '🦌', brownbear: '🐻', lizard: '🦎', dragon: '🐉', peng: '🐧', dino: '🦖', bear: '🐻‍❄️', icedragon: '🐉', golddragon: '🐲', gorilla: '🦍' };
-const TABS = [['base', '🏠 База'], ['forest', '🌲 Лес'], ['autumn', '🍂 Осень'], ['track', '🏁 Дорожка']];
+const TABS = [['cove', '⚓ Бухта'], ['base', '🏠 База'], ['dino', '🦖 Долина'], ['forest', '🌲 Лес'], ['autumn', '🍂 Осень'], ['track', '🏁 Дорожка']];
+const locOf = id => id === 'cove' || id === 'dino' ? 'base' : id;     // бухта и Долина — части базы
 const $ = id => document.getElementById(id);
 
 // st: { loc, hero: { x, z, face }, save }
@@ -18,11 +19,12 @@ export function openMap(st) {
   const show = id => { tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.loc === id)); draw(id, st); };
   tabs.querySelectorAll('button').forEach(b => b.onclick = () => show(b.dataset.loc));
   $('map').classList.add('on');
-  show(TABS.some(([id]) => id === st.loc) ? st.loc : 'base');
+  const start = st.loc === 'base' && st.hero ? (st.hero.x < -66 ? 'cove' : st.hero.x > 66 ? 'dino' : 'base') : st.loc;   // открываем там, где ты
+  show(TABS.some(([id]) => id === start) ? start : 'base');
 }
 
 function draw(id, st) {
-  const M = mapData(id), cv = $('mapC'), box = cv.parentElement.getBoundingClientRect();
+  const M = mapData(id), L = locOf(id), cv = $('mapC'), box = cv.parentElement.getBoundingClientRect();
   // широкую карту (база) на вертикальном экране поворачиваем боком — так она крупнее
   const land = innerWidth > innerHeight, { x0, x1, z0, z1 } = M.bounds;
   const rot = M.rotate === 'landscape' ? land : (innerHeight > innerWidth && (x1 - x0) / (z1 - z0) > 1.3);
@@ -37,6 +39,7 @@ function draw(id, st) {
   const P = (x, z) => rot ? [ox + (z1 - z) * k, oy + (x - x0) * k] : [ox + (x - x0) * k, oy + (z - z0) * k];
   // земля и подложки
   c.fillStyle = M.ground; c.beginPath(); c.roundRect ? c.roundRect(ox, oy, ww * k, hh * k, 14) : c.rect(ox, oy, ww * k, hh * k); c.fill();
+  c.save(); c.clip();                                                          // вид на часть базы — рисуем только внутри рамки
   for (const a of M.areas) {
     c.fillStyle = a.fill; c.beginPath();
     if (a.rect) { const [ax0, ax1, az0, az1] = a.rect, p = P(ax0, az0), q = P(ax1, az1); c.rect(Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.abs(q[0] - p[0]), Math.abs(q[1] - p[1])); }
@@ -52,7 +55,7 @@ function draw(id, st) {
   const label = (txt, x, y, color = '#fff', size = 11, align = 'center') => { c.font = `bold ${size}px "Arial Rounded MT Bold","Trebuchet MS",sans-serif`; c.textAlign = align; c.lineWidth = 3; c.strokeStyle = 'rgba(30,25,50,.85)'; c.strokeText(txt, x, y); c.fillStyle = color; c.fillText(txt, x, y); };
   const icon = (e, x, y, size = fs) => { c.font = `${size}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(e, x, y); c.textBaseline = 'alphabetic'; };
   // места
-  for (const [e, name, x, z] of M.marks) { const [px, py] = P(x, z); icon(e, px, py); label(name, px, py + fs * 0.95, '#fff', 10); }
+  for (const [e, name, x, z] of M.marks) { if (x < x0 || x > x1 || z < z0 || z > z1) continue; const [px, py] = P(x, z); icon(e, px, py); label(name, px, py + fs * 0.95, '#fff', 10); }
   // Дорожка: звери по порядку, побеждённые — с галочкой
   if (id === 'track') {
     const T = st.save.track || {}, stage = T.stage || 0, round = T.round || 1;
@@ -66,7 +69,7 @@ function draw(id, st) {
   }
   // жители
   for (const f of FRIENDS) {
-    if (f.loc !== id) continue;
+    if (f.loc !== L) continue;
     let pos = f.x !== undefined ? { x: f.x, z: f.z } : null;
     if (f.id === 'vasya') pos = (st.loc === 'base' && vasyaPos()) || { x: 0, z: 22 };
     if (f.id === 'borya') pos = { x: 24, z: 62 };
@@ -77,21 +80,22 @@ function draw(id, st) {
     label(met ? f.name : f.name + ' ❔', px, py - fs * 0.95, '#ffd0e4', 9);
   }
   // сундучок с нарядом 🎁 — если он сейчас лежит
-  const rb = (st.save.rareBox || {})[id];
+  const rb = (st.save.rareBox || {})[L];
   if (rb && rb.x !== undefined && Date.now() >= rb.at) { const [px, py] = P(rb.x, rb.z); icon('🎁', px, py, fs * 1.1); label('Сундучок', px, py + fs * 0.95, '#ffe14d', 10); }
   // второй игрок (игра вдвоём)
-  if (st.duo && st.duo.loc === id) {
+  if (st.duo && st.duo.loc === L) {
     const [px, py] = P(st.duo.x, st.duo.z);
     c.fillStyle = '#fff'; c.strokeStyle = '#3fbf5f'; c.lineWidth = 3; c.beginPath(); c.arc(px, py, fs * 0.8, 0, 7); c.fill(); c.stroke();
     icon(st.duo.who === 'mama' ? '👩' : '👦', px, py, fs); label(st.duo.name, px, py - fs * 1.05, '#9dffb0', 11);
   }
   // ты: красная стрелка — куда смотришь
-  if (st.loc === id && st.hero) {
+  if (st.loc === L && st.hero) {
     const [px, py] = P(st.hero.x, st.hero.z), dx = Math.sin(st.hero.face), dz = Math.cos(st.hero.face);
     const [vx, vy] = rot ? [-dz, dx] : [dx, dz], a = Math.atan2(vy, vx), r = fs * 0.8;
     c.save(); c.translate(px, py); c.rotate(a);
     c.fillStyle = '#ff3b3b'; c.strokeStyle = '#fff'; c.lineWidth = 3; c.beginPath(); c.moveTo(r, 0); c.lineTo(-r * 0.7, -r * 0.65); c.lineTo(-r * 0.35, 0); c.lineTo(-r * 0.7, r * 0.65); c.closePath(); c.stroke(); c.fill();
     c.restore(); label('Ты', px, py - r - 4, '#ff6a6a', 12);
   }
-  $('mapHint').textContent = id === 'track' ? `Круг ${(st.save.track || {}).round || 1} · ` + (rot ? 'дом слева → логово дракона справа' : 'дом внизу → логово дракона вверху') + ' · жёлтым — кто следующий' : id === 'base' ? (rot ? 'справа — порталы в Лес, Пустыню и Лёд' : 'вверху — порталы в Лес, Пустыню и Лёд') : 'вход из базы — внизу (🌀)';
+  c.restore();
+  $('mapHint').textContent = id === 'cove' ? (rot ? 'вверху — море и острова, внизу — база' : 'слева — море и острова, справа — база') : id === 'dino' ? (rot ? 'вверху — база, внизу — Долина динозавров' : 'слева — база, справа — Долина динозавров') : id === 'track' ? `Круг ${(st.save.track || {}).round || 1} · ` + (rot ? 'дом слева → логово дракона справа' : 'дом внизу → логово дракона вверху') + ' · жёлтым — кто следующий' : id === 'base' ? (rot ? 'справа — порталы в Лес, Пустыню и Лёд' : 'вверху — порталы в Лес, Пустыню и Лёд') : 'вход из базы — внизу (🌀)';
 }

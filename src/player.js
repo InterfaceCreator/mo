@@ -44,6 +44,7 @@ function pushOut(p, invis = false) {
 export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
   // лезет по верёвке: плавно поднимаемся к точке наверху
   // катание (колесо обозрения, горка): ride(t) говорит, где герой в момент t от 0 до 1
+  if (pl.climb) pl.inSea = false;                 // сел на корабль прямо из воды — уже не плывёт (ниже флаг не пересчитается)
   if (pl.climb?.ride) {
     const c = pl.climb;
     // нажал прыжок или сдвинул джойстик (на скамейке/пеньке) — встал
@@ -89,7 +90,7 @@ export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
   // зонтик: держишь прыжок в воздухе — падаешь медленно и летишь вперёд быстрее; в невидимости — призрачное парение
   const invis = !!(pl.invisT > 0);
   pl.gliding = !!((pl.canGlide || invis) && pl.holdJump && !pl.grounded && pl.vel.y < 0);
-  const target = (mag < 0.12 ? 0 : WALK * pl.speedMul * (0.35 + 0.65 * mag)) * (pl.gliding ? 1.5 : 1) * (pl.fly ? 1.7 : 1) * (invis ? 1.15 : 1);   // на драконе и призраком — быстрее     // слабое отклонение — шаг, сильное — бег
+  const target = (mag < 0.12 ? 0 : WALK * pl.speedMul * (0.35 + 0.65 * mag)) * (pl.gliding ? 1.5 : 1) * (pl.fly ? 1.7 : 1) * (invis ? 1.15 : 1) * (pl.inSea ? 0.72 : 1);   // в море — медленнее; на драконе и призраком — быстрее     // слабое отклонение — шаг, сильное — бег
   const len = Math.hypot(wx, wz); if (len > 0.01) { wx /= len; wz /= len; }
 
   // разгон и торможение быстрые — управление «как в Roblox», без скольжения
@@ -105,6 +106,15 @@ export function updatePlayer(pl, dt, mv, camYaw, wantJump) {
   else if (wantJump && pl.airT < COYOTE) { pl.vel.y = JUMP_V * (pl.jumpMul || 1) * (invis ? 1.25 : 1); pl.grounded = false; pl.airT = COYOTE; pl.jumped = true; }
   else pl.jumped = false;
   pl.vel.y = Math.max(pl.vel.y - (pl.fly ? 9 : (invis ? GRAVITY * 0.55 : GRAVITY)) * dt, pl.gliding ? -2.5 : pl.fly ? -5 : -40);   // на драконе и призраком — плавно снижается
+  // море (cove.js): pl.sea — уровень воды здесь. На поверхности держится головой над водой; ныряет (pl.dive) —
+  // медленно опускается, прыжок — гребок вверх. Прыжок на поверхности — выпрыгнуть (на причал, на берег)
+  pl.inSea = pl.sea !== undefined && pl.pos.y < pl.sea - 0.8 && !pl.fly;
+  pl.seaJump = pl.jumped ? 0.4 : Math.max(0, (pl.seaJump || 0) - dt);   // выпрыгнул — полсекунды вода не тянет обратно
+  if (pl.inSea) {
+    if (pl.dive) { if (pl.jumped) pl.vel.y = 5.5; pl.vel.y = Math.max(-2.4, Math.min(5.5, pl.vel.y + (GRAVITY - 2.6) * dt)); }
+    else if (!pl.seaJump) pl.vel.y = Math.max(-6, Math.min(4, (pl.sea - 0.95 - pl.pos.y) * 6));
+    pl.airT = 0;                                   // в воде прыгать (грести) можно всегда
+  }
 
   const p = pl.pos;
   // по горизонтали — мелкими шагами, чтобы не проскочить сквозь тонкий забор

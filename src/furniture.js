@@ -303,7 +303,7 @@ export function homeUse(act, hero, save, { toast, confetti, SFX, persist }) {
     SFX.yawn?.();
     toast('😴 Спокойной ночи! Засыпаем...<small>нажми 🚶 или прыжок/джойстик, чтобы встать</small>');
     puff('💤', new T.Vector3(bp.x, 1.8, bp.z), { size: 1.2, rise: 1.3, life: 1.8 });
-    runSleepScreen(() => {
+    runSleepScreen(toNight => {
       if (!hero.sleeping && !hero.climb?.sleep) return;
       hero.sleeping = false; hero.sleep = false; hero.climb = null;
       hero.pos.set(bp.x + 1.2, 0.1, bp.z); hero.vel.set(0, 0, 0);
@@ -311,7 +311,8 @@ export function homeUse(act, hero, save, { toast, confetti, SFX, persist }) {
       if (paid) { save.sleepAt = Date.now(); save.coins = (save.coins || 0) + 50; SFX.coins?.(); }
       persist(); SFX.fanfare?.();
       confetti(hero.pos.clone().setY(hero.pos.y + 1.8), 40);
-      toast(`☀️ С добрым утром! Хорошо выспались!${paid ? ' +50 🪙' : ''}<small>наступил ясный солнечный день 🌅</small>`);
+      toast(toNight ? `🌙 Добрый вечер! Хорошо отдохнули!${paid ? ' +50 🪙' : ''}<small>наступила звёздная ночь — горят фонари ✨</small>`
+        : `☀️ С добрым утром! Хорошо выспались!${paid ? ' +50 🪙' : ''}<small>наступил ясный солнечный день 🌅</small>`);
     });
     return;
   }

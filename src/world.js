@@ -11,7 +11,14 @@ export const C = {
 // ---------- текущая локация ----------
 // ground(x, z) — высота земли (у рельефа), иначе 0; safe — безопасное место у портала { x, z, r }: туда сторожа не бегут
 export const level = { id: null, ground: null, safe: null };
-export const groundY = (x, z) => level.ground ? level.ground(x, z) : 0;
+// куски рельефа на базе (сектора бухты и Долины, relief.js): у каждого своя высота в своём прямоугольнике
+const patches = new Map();
+export const setGroundPatch = (id, p) => { if (p) patches.set(id, p); else patches.delete(id); };
+export const groundPatchIds = () => [...patches.keys()];
+export const groundY = (x, z) => {
+  for (const p of patches.values()) if (x >= p.x0 && x < p.x1 && z >= p.z0 && z < p.z1) return p.h(x, z);
+  return level.ground ? level.ground(x, z) : 0;
+};
 
 // ---------- твёрдые блоки ----------
 // { x0, x1, y0, y1, z0, z1, cam?, ghost?, off? }: cam — заслоняет камеру, ghost — только для камеры (кроны), off — убран (открытая дверь)
@@ -97,7 +104,7 @@ export function clearLevel() {
     });
   }
   for (const f of resetters) f();
-  level.ground = null; level.safe = null;
+  level.ground = null; level.safe = null; patches.clear();
 }
 
 // ---------- строительные кусочки ----------

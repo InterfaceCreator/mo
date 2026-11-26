@@ -35,6 +35,12 @@ import { buildRareBox, updateRareBox } from './rarebox.js';
 import { initDuo, duoToggle, duoState, together, houseFor, homeSave, visiting, applySide, buildDuoBase, updateDuo, duoAt, duoWhere, duoResume, duoMe, initSpy, spyTarget, spyInfo, duoLink, duoPartner, onDuoExtra, duoSend, partnerPos, partnerRide, partnerFire, partnerModel } from './duo.js';
 import { updateCloak, toggleCloak, setMeshInvis, findSpookTarget, doSpook, initWisps } from './cloak.js';
 import { setupBaseSectors, updateSectors, isSectorActive } from './sectors.js';
+import { buildForestRoad, buildJungle, buildValley, updateForest, updateJungle, updateValley, dinoItems, dinoUse, dinoPostNear, dinoPostSend } from './dinoland.js';
+import { updateQuests as updateDinoQuests, passDone } from './dinoquest.js';
+import { updatePlay as updateDinoPlay } from './dinoplay.js';
+import { updateDinoPit, inDinoPit } from './dinopit.js';
+import { buildMeadow, buildCove, buildSea, coveItems, coveUse, updateCove, coveIdle } from './cove.js';
+import { setWho as setCoveWho } from './covecore.js';
 import { panel } from './furniture.js';
 import { net, qrHost, qrAccept, duoOff } from './net.js';
 import { makeQR, scanQR } from './qr.js';
@@ -144,6 +150,7 @@ function enter(id, spawn, owner = null) {
   buildKids(id, w);                                // места для игр детей: футбол, боулинг, цветные плиты, челнок
   if (id === 'base') {
     buildVillage(w || scene, save);
+    setCoveWho(profile);                           // пасхалки бухты для мамы
     setupBaseSectors(w, save, profile, hero, {
       playground: buildPlayground,
       park: buildPark,
@@ -156,6 +163,12 @@ function enter(id, spawn, owner = null) {
       duoBase: buildDuoBase,
       duoMe,
       houseFor,
+      forest: buildForestRoad,
+      jungle: buildJungle,
+      valley: buildValley,
+      meadow: buildMeadow,
+      cove: buildCove,
+      sea: buildSea,
     }, spawn);                                     // что рядом с точкой появления — строится сразу, остальное — по мере приближения
   }
   if (id === 'winter') buildWinterFun(save);       // головоломки, сосульки, рыбалка, сова, пингвинята, снежная битва, звёзды
@@ -166,7 +179,7 @@ function enter(id, spawn, owner = null) {
   hero.pos.set(spawn.x, groundY(spawn.x, spawn.z), spawn.z); hero.vel.set(0, 0, 0);
   hero.face = spawn.face; hero.model.root.rotation.y = spawn.face; hero.safe = hero.pos.clone();
   hero.swing = hero.climb = hero.dig = hero.digTool = null; hero.camFloor = undefined; hero.camPitchMin = id === 'bunker' ? 0.75 : 0; hero.stun = 0;
-  hero.sled = false; hero.ice = false; hero.swim = false; hero.relax = false;                // санки и каток — только в Зимней долине
+  hero.sled = false; hero.ice = false; hero.swim = false; hero.relax = false; hero.sea = undefined; hero.dive = false; hero.camAt = null;                // санки и каток — только в Зимней долине
   cam.yaw = spawn.face + Math.PI; cam.init = false;
   portalCool = 1;
 }
@@ -284,7 +297,7 @@ function useItem(id) {
     if (riding()) { dismount(hero); SFX.tap(); return; }
     if (carry) { SFX.nope(); toast('🥚 Сначала отнеси яйцо<small>с яйцом на драконе нельзя</small>'); return; }
     if (!DRAGON_OK.includes(level.id)) { SFX.nope(); toast('🐉 Тут тесно для дракона<small>выйди на улицу</small>'); return; }
-    mount(hero); SFX.boing(); return;
+    mount(hero, save.dragon?.color); SFX.boing(); return;
   }
   if (id === 'fire') { breathe(); SFX.boom?.(); duoSend({ t: 'fire' }); return; }
   if (id === 'hop') {                                                             // сесть сзади на дракона второго игрока / слезть
@@ -488,10 +501,17 @@ function pickMenu(title, line, opts) {
   b.querySelectorAll('[data-k]').forEach(x => x.onclick = () => { SFX.tap(); opts[+x.dataset.k][1](); });
   openOverlay('talk');
 }
+function coveDone() {                                       // корабль починен: попугай Кеша и праздник
+  SFX.fanfare(); kidMoment(); fireworks(hero.pos.clone().setY(hero.pos.y + 5), 12);
+  toast('⛵ Корабль готов! Можно в море!<small>капитан Ёрш дарит попугая Кешу 🦜 · жми ⛵ у корабля</small>');
+  notify({ icon: '⛵', title: 'Корабль починен!', text: `Капитан Ёрш: «${profile === 'mama' ? 'Ты настоящая капитанша' : 'Ты настоящий капитан'}! Корабль твой. Держи попугая Кешу 🦜 — он сидит на плече, подсказывает 🔥 тепло / ❄️ холодно, а по кнопке 🦜 летает, и сверху видно, где закопан клад ❌. Плыви к маяку 🗼 и на Кокосовый остров 🥥, ныряй 🤿 у затонувшего корабля!»`, keep: true });
+}
 const MOTYA = () => profile === 'mama' ? 'а' : '';
 function gardenUse(id) {
   if (id === 'g_up') { if (climbOut(hero)) SFX.climb(); return; }          // бункер: вылезти из ямы
   if (id === 'g_dig') return;                                              // лопата — по удержанию (bunker.js)
+  if (id.startsWith('g_cove_')) return coveUse(id.slice(7), hero, save, { toast, SFX, persist, carrying: !!carry, kid: kidMoment, egg: e => { const inc = freeIncubator(); if (inc) { placeEgg(inc, e.r, Date.now() + hatchTime(e.r, e.v || null), null, 'forest', e.v || null); saveInc(); } else save.coins += 200; }, done: coveDone });   // ⚓ бухта
+  if (id.startsWith('g_dino_')) return dinoUse(id.slice(7), hero, { toast, SFX, carrying: !!carry, save });   // 🦕 покататься, 🪽 полетать
   if (id === 'g_steam' || id === 'g_bubbles') { const r = spaUse(id.slice(2), hero); if (r.sfx) SFX[r.sfx]?.(); if (r.say) { toast(r.say); spaSaid(r.key); } return; }
   if (id.startsWith('g_dacha_')) {
     dachaUse(id.slice(8), hero, save, { toast, confetti, SFX, persist, MOTYA });
@@ -546,7 +566,7 @@ function startTalk(n) {
     questFor, questTalk, questAct, foodQuest, takeFood: q => { takeFood(q); SFX.pick(); }, reward: questReward,
     crops: cropsHave, giveCrop,
     canRide: k => level.id === 'base' && !!save.dragon?.got && !!k.plan && !carry && !hero.passenger,
-    rideKid: k => { closeOverlay(document.getElementById('talk')); if (!riding()) mount(hero); takeRider(k); SFX.fanfare(); toast(`🐉 ${k.name} — позади тебя на драконе!<small>прыжок — взлететь · джойстик — куда лететь · 🛬 — высадить</small>`); }, pie: () => { hero.jumpT = (hero.jumpT || 0) + 40; save.coins += 15; persist(); SFX.levelUp(); }, coins: c => { save.coins += c; persist(); SFX.coins(); }, news: baseNews, gardenBusy: () => garden(save).slots.some(Boolean), special: () => { hero.boostT = (hero.boostT || 0) + 90; hero.jumpT = (hero.jumpT || 0) + 60; save.coins += 20; persist(); SFX.levelUp(); } });
+    rideKid: k => { closeOverlay(document.getElementById('talk')); if (!riding()) mount(hero, save.dragon?.color); takeRider(k); SFX.fanfare(); toast(`🐉 ${k.name} — позади тебя на драконе!<small>прыжок — взлететь · джойстик — куда лететь · 🛬 — высадить</small>`); }, pie: () => { hero.jumpT = (hero.jumpT || 0) + 40; save.coins += 15; persist(); SFX.levelUp(); }, coins: c => { save.coins += c; persist(); SFX.coins(); }, news: baseNews, gardenBusy: () => garden(save).slots.some(Boolean), special: () => { hero.boostT = (hero.boostT || 0) + 90; hero.jumpT = (hero.jumpT || 0) + 60; save.coins += 20; persist(); SFX.levelUp(); } });
 }
 // помог с просьбой: ❤️ дружбы (у ребят) и монетки
 function questReward(n, r) {
@@ -667,9 +687,11 @@ export function updateGame(dt) {
   const atBase = level.id === 'base';
   // подарок за то, что лёг спать: коробка → дракон
   if (atBase && updateGift(dt, hero)) {
-    save.dragon = { got: Date.now() }; persist(); SFX.fanfare(); fireworks(hero.pos.clone().setY(4), 10);
-    mount(hero);
-    showNote({ t: 'Ты большой молодец, что поспал, чемпион! 💪\nВот обещанный подарок —\nтвой собственный дракон!\nСадись и лети 🐉🔥', from: '<b>🎁 Подарок</b>', paw: '🐉', kid: true }, SFX);
+    const mama = profile === 'mama';
+    save.dragon = { got: Date.now(), color: mama ? 'red' : 'green' }; persist(); SFX.fanfare(); fireworks(hero.pos.clone().setY(4), 10);
+    mount(hero, save.dragon.color);
+    if (mama) showNote({ t: 'Красный дракон — для самой смелой девушки 🐉\nТеперь вы с Мотей можете летать вместе.\nСадись — небо твоё ❤️', from: '<b>🎁 Подарок для тебя</b>', paw: '❤️', love: true }, SFX);
+    else showNote({ t: 'Ты большой молодец, что поспал, чемпион! 💪\nВот обещанный подарок —\nтвой собственный дракон!\nСадись и лети 🐉🔥', from: '<b>🎁 Подарок</b>', paw: '🐉', kid: true }, SFX);
     setTimeout(() => toast('🐉 Твой дракон!<small>прыжок — взмах крыльями · 🔥 — огонь · 🐉 — слезть</small>'), 400);
   }
   // подарок за соревнования: коробка у кубка → кубок, медаль, золотой дракончик
@@ -770,7 +792,7 @@ export function updateGame(dt) {
 
   // глубокая вода (озеро): плюх (в яме бункера глубоко — это не вода) — и герой снова на берегу, где стоял последний раз
   if (hero.grounded && p.y > -0.6) { if (!hero.dry) hero.dry = new T.Vector3(); if ((hero.dryT = (hero.dryT || 0) - dt) <= 0) { hero.dry.copy(p); hero.dryT = 0.4; } }
-  if (p.y < -2 && hero.dry && !inPit(p)) { puff('💦', p.clone().setY(0.5), { size: 1.8, rise: 1 }); SFX.caught(); p.copy(hero.dry); hero.vel.set(0, 0, 0); toast('💦 Глубоко! Прыгай по кочкам'); }
+  if (p.y < -2 && hero.dry && !inPit(p) && !inDinoPit(p) && hero.sea === undefined) { puff('💦', p.clone().setY(0.5), { size: 1.8, rise: 1 }); SFX.caught(); p.copy(hero.dry); hero.vel.set(0, 0, 0); toast('💦 Глубоко! Прыгай по кочкам'); }
 
   // сторож догнал — яйцо летит обратно в гнездо
   const caught = updateGuards(dt, hero);
@@ -789,6 +811,16 @@ export function updateGame(dt) {
       if (c.nest.loc === 'forest') stat('eggsForest');
       SFX.place(); saveInc();
     } else if (now > fullWarn) { fullWarn = now + 2500; puff('⏳', p.clone().setY(3.6), { size: 1.5 }); SFX.nope(); }
+  }
+  // Долина динозавров: птеродактиль-почта относит яйцо в инкубатор (до загона — далеко)
+  if (carry && atBase && dinoPostNear(p)) {
+    const inc = freeIncubator();
+    if (inc) {
+      const c = carry; c.mesh.getWorldPosition(tmp); dropCarry(); releaseNest(c.nest);
+      placeEgg(inc, c.r, now + hatchTime(c.r, c.v), null, c.nest.pet || c.nest.loc, c.v);
+      dinoPostSend(p); SFX.place(); saveInc(); passDone(save, 'egg');
+      toast('🦅 Птеродактиль понёс яйцо в инкубатор!<small>загляни в загон — там оно и вылупится 🐣</small>');
+    } else if (now > fullWarn) { fullWarn = now + 2500; toast('⏳ Все инкубаторы заняты<small>подожди, пока кто-нибудь вылупится</small>'); SFX.nope(); }
   }
 
   // вылупились: в загоне гуляют лучшие, сколько помещается
@@ -967,6 +999,29 @@ export function updateGame(dt) {
       if (gd.done === 'fill') { persist(); SFX.refill?.(); toast('🪣 Лейка полная!<small>хватит на 6 поливов — иди к грядке и жми 💧</small>'); }
       if (gd.done === 'water') { persist(); toast(`💧 Полил${MOTYA()}! Теперь растёт<small>воды хватит на 20 минут · в лейке ещё ${garden(save).can}</small>`); }
     }
+    if (isSectorActive('base_forest')) { const fe2 = updateForest(dt, hero); if (fe2.say) { SFX.star(); toast(fe2.say); } }
+    if (isSectorActive('base_jungle')) updateJungle(dt, hero);
+    if (isSectorActive('base_valley')) {                        // Долина динозавров
+      const dv = updateValley(dt, hero, save);
+      if (dv.welcome) { persist(); SFX.fanfare(); kidMoment(); toast('🦖 Добро пожаловать в Долину динозавров!<small>катайся на трицератопсе 🦕, летай на птеродактиле 🪽, ищи яйца в гнёздах 🥚</small>'); notify({ icon: '🦖', title: 'Долина динозавров', text: `${profile === 'mama' ? 'Ты дошла' : 'Ты дошёл'} до Долины динозавров! Здесь: трицератопс катает по долине, птеродактиль катает над вулканом, в гнёздах — динозавровые яйца (из них вылупляются динозаврики!). Яйцо неси на почту птеродактиля у входа — он отнесёт его в инкубатор. Вулкан сонный и добрый: иногда выплёвывает кристаллы 💎. Домой — через волшебный пенёк ✨, а в следующий раз сюда можно попасть пеньком у ворот базы.`, keep: true }); }
+      if (dv.crystal) { save.res.crystal = (save.res.crystal || 0) + dv.crystal; SFX.collect(); persist(); toast(`💎 Кристалл из вулкана! +${dv.crystal}`); }
+      if (dv.erupt) SFX.pop();
+      if (dv.lava) SFX.boing();
+      const dq = updateDinoQuests(dt, hero, save);                     // паспорт, раскопки, яйца мамы, лава, горка, канатка, гонки
+      if (dq.save) persist();
+      if (dq.big) kidMoment();
+      const dpl = updateDinoPlay(dt, hero, save), dpt = updateDinoPit(dt, hero, save);   // этап 2 и глубокие раскопки
+      if (dpl.save || dpt.save) persist();
+      if (dpt.big) kidMoment();
+      if (hero.climb?.rings) cam.yaw = dampAngle(cam.yaw, hero.face + Math.PI, 3, dt);   // кольца: камера за спиной — джойстик «влево» = влево
+      for (const egg of [dq.giveEgg, dpt.giveEgg]) if (egg) { const inc = freeIncubator(); if (inc) { placeEgg(inc, egg.r, now + hatchTime(egg.r, egg.v || null), null, 'dinos', egg.v || null); saveInc(); } else save.coins += 200; }
+      if (dq.pet) {
+        const data = dq.pet; save.found[data.s] = true; save.pets.push(data); rebuildPen(save.pets, save.penCap, { data, from: hero.pos.clone() }); persist(); SFX.fanfare(); fireworks(hero.pos.clone().setY(hero.pos.y + 4), 12);
+        const pr = dq.page2 ? ['👑', 'Вторая страница паспорта заполнена!', 'Золотой Малыш Рекс'] : ['🌈', 'Паспорт исследователя заполнен!', 'Радужный динозаврик'];
+        toast(`${pr[0]} ${pr[1]}<small>${pr[2]} уже в загоне 🦖</small>`);
+        notify({ icon: pr[0], title: pr[1], text: `Профессор Палыч: «${profile === 'mama' ? 'Ты настоящая исследовательница' : 'Ты настоящий исследователь'} Долины динозавров! В награду — ${pr[2]}, уже гуляет в загоне.»`, keep: true });
+      }
+    }
     if (isSectorActive('base_park')) {
       const sp = updateSpa(dt, hero, save);                       // баня и джакузи
       for (const k of new Set(sp.sfx)) SFX[k]?.();
@@ -978,6 +1033,19 @@ export function updateGame(dt) {
       if (pk.coins) save.coins += pk.coins;
       if (pk.record) { confetti(p, 60); persist(); }
       if (hero.slide) cam.yaw = dampAngle(cam.yaw, hero.face + Math.PI, 2.5, dt);   // на горке камера сама заходит за спину
+    }
+    {                                                          // ⚓ Пиратская бухта: луг, пляж, море (после аквапарка — он сбрасывает «плывёт»)
+      const ca = { meadow: isSectorActive('base_meadow'), cove: isSectorActive('base_cove'), sea: isSectorActive('base_sea') };
+      if (ca.cove || ca.sea) {
+        const ce = updateCove(dt, hero, save, cam, ca);
+        for (const k of new Set(ce.sfx)) SFX[k]?.();
+        if (ce.coins) { save.coins += ce.coins; ce.save = true; }
+        if (ce.save) persist();
+        if (ce.big) kidMoment();
+        if (ce.giveEgg) { const inc = freeIncubator(); if (inc) { placeEgg(inc, ce.giveEgg.r, now + hatchTime(ce.giveEgg.r, ce.giveEgg.v || null), null, 'forest', ce.giveEgg.v || null); saveInc(); } else save.coins += 200; }
+        if (ce.say) toast(ce.say); if (ce.say2) toast(ce.say2);        // два события сразу — оба по очереди
+        if (ce.welcome) { SFX.fanfare(); kidMoment(); toast('⚓ Пиратская бухта!<small>капитан Ёрш у причала ждёт помощи · море, острова, пушка и клады</small>'); notify({ icon: '⚓', title: 'Пиратская бухта', text: `${profile === 'mama' ? 'Ты нашла' : 'Ты нашёл'} Пиратскую бухту! Капитан Ёрш у причала просит починить корабль: доски выносит на берег, верёвки — в лужицах на отмели, бревно — в пещере (она открывается в отлив), ткань — в бочках (стреляй из пушки 💣). Каждое утро море приносит бутылки 🍾 — в одной карта сокровищ. А когда корабль будет готов — плыви к островам, ныряй 🤿 к затонувшему кораблю!`, keep: true }); }
+      } else coveIdle(hero);
     }
     const vg = updateVillage(dt, hero);
     if (vg.splash) SFX.splash?.();
@@ -1114,7 +1182,7 @@ export function updateGame(dt) {
 
   fedCheck();
   setEffects([['🧪', hero.boostT], ['🦘', hero.jumpT], ['🫧', hero.bubT], ['🍩', hero.bigT], ['🐾', fedLeft()], ['🧭', hero.compassT], ['⏱', xe.raceT], ['👻', hero.invisT || 0]]);
-  setCoins(save.coins); setSpeed(save.speed); setItems([...(hero.invisT > 0 && findSpookTarget(hero, level.id) ? [{ id: 'spook', icon: '😱' }] : []), ...((level.id === 'school' && !hero.eat && nearNpc(hero.pos)) || (level.id === 'base' && !hero.climb && !riding() && nearVillager(hero.pos)) ? [{ id: 'talk', icon: '💬' }] : []), ...gardenItems(), ...(level.id === 'home' ? homeItems(hero) : []), ...(level.id === 'base' && !riding() ? bunkerItems(hero) : []), ...(level.id === 'bunker' ? bunkerLocItems(hero) : []), ...(hero.passenger || canHop() ? [{ id: 'hop', icon: hero.passenger ? '🛬' : '🫶' }] : []), ...(!hero.passenger && save.dragon?.got && DRAGON_OK.includes(level.id) ? [{ id: 'dragon', icon: riding() ? '🛬' : '🐉' }] : []), ...(riding() ? [{ id: 'fire', icon: '🔥' }] : []), ...(kitchen(save).dishes.length && friendNear(hero) ? [{ id: 'treat', icon: '🍽️' }] : []), ...(level.id === 'winter' && atHole(hero) ? [{ id: 'fish', icon: '🎣' }] : []), ...(level.id === 'winter' && !inPond() ? [{ id: 'snowball', icon: '❄️' }] : []), ...ITEMS.map(i => i.id === 'cloak' ? { ...i, icon: hero.invisT > 0 ? '✨' : (hero.invisCool > 0 ? '⏳' : '👻') } : i)].map(i => ({ ...i, n: itemCount(i.id) })), useItem);
+  setCoins(save.coins); setSpeed(save.speed); setItems([...(hero.invisT > 0 && findSpookTarget(hero, level.id) ? [{ id: 'spook', icon: '😱' }] : []), ...((level.id === 'school' && !hero.eat && nearNpc(hero.pos)) || (level.id === 'base' && !hero.climb && !riding() && nearVillager(hero.pos)) ? [{ id: 'talk', icon: '💬' }] : []), ...gardenItems(), ...(level.id === 'home' ? homeItems(hero) : []), ...(level.id === 'base' && !riding() ? bunkerItems(hero) : []), ...(level.id === 'base' && !riding() ? dinoItems(hero) : []), ...(level.id === 'base' && !riding() ? coveItems(hero, save) : []), ...(level.id === 'bunker' ? bunkerLocItems(hero) : []), ...(hero.passenger || canHop() ? [{ id: 'hop', icon: hero.passenger ? '🛬' : '🫶' }] : []), ...(!hero.passenger && save.dragon?.got && DRAGON_OK.includes(level.id) ? [{ id: 'dragon', icon: riding() ? '🛬' : '🐉' }] : []), ...(riding() ? [{ id: 'fire', icon: '🔥' }] : []), ...(kitchen(save).dishes.length && friendNear(hero) ? [{ id: 'treat', icon: '🍽️' }] : []), ...(level.id === 'winter' && atHole(hero) ? [{ id: 'fish', icon: '🎣' }] : []), ...(level.id === 'winter' && !inPond() ? [{ id: 'snowball', icon: '❄️' }] : []), ...ITEMS.map(i => i.id === 'cloak' ? { ...i, icon: hero.invisT > 0 ? '✨' : (hero.invisCool > 0 ? '⏳' : '👻') } : i)].map(i => ({ ...i, n: itemCount(i.id) })), useItem);
   setRes(save.res, level.id === 'autumn');
 }
 

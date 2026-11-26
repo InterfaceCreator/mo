@@ -4,7 +4,10 @@
 import { T, scene, camera, sun, hemi, sunDisc, setSkyGrad, SUN_OFF, SUN_DIR, group, box } from './engine.js';
 import { cloudNight, onLevelReset, addCollider } from './world.js';
 
-export const DAY_CYCLE = 480; // Полный суточный цикл: 8 минут (480 секунд)
+// сутки: день 30 минут, закат 1.5, ночь 4, рассвет 1.5 — всего 37 минут
+const T_DAY = 1800, T_SUNSET = 90, T_NIGHT = 240, T_SUNRISE = 90;
+export const DAY_CYCLE = T_DAY + T_SUNSET + T_NIGHT + T_SUNRISE;
+const AT_SUNSET = T_DAY, AT_NIGHT = T_DAY + T_SUNSET, AT_SUNRISE = AT_NIGHT + T_NIGHT;
 
 let st = null;
 onLevelReset(() => {
@@ -231,14 +234,14 @@ export function setDayTime(timeSec) {
 export function skipToPhase(target) {
   if (!st) initDayNight();
   if (target === 'day') st.time = 80;
-  else if (target === 'sunset') st.time = 245;
-  else if (target === 'night') st.time = 320;
-  else if (target === 'sunrise') st.time = 425;
+  else if (target === 'sunset') st.time = AT_SUNSET + 5;
+  else if (target === 'night') st.time = AT_NIGHT;
+  else if (target === 'sunrise') st.time = AT_SUNRISE + 5;
   else {
     // Следующая фаза по кругу
-    if (st.phase === 'day') st.time = 245;
-    else if (st.phase === 'sunset') st.time = 320;
-    else if (st.phase === 'night') st.time = 425;
+    if (st.phase === 'day') st.time = AT_SUNSET + 5;
+    else if (st.phase === 'sunset') st.time = AT_NIGHT;
+    else if (st.phase === 'night') st.time = AT_SUNRISE + 5;
     else st.time = 80;
   }
 }
@@ -285,28 +288,24 @@ export function updateDayNight(dt, hero, levelId, save) {
   // Обновление времени
   st.time = (st.time + dt) % DAY_CYCLE;
   if (save) save.dayTime = st.time;
-  const p = st.time / DAY_CYCLE; // от 0.0 до 1.0
+  const p = st.time / DAY_CYCLE, tt = st.time; // p — от 0.0 до 1.0
 
-  // Фазы суточного цикла (480 сек = 8 мин):
-  // 0.00 .. 0.50 (4.0 мин) — Солнечный день (nightK = 0)
-  // 0.50 .. 0.625 (1.0 мин) — Закат (плавный переход 0 -> 1)
-  // 0.625 .. 0.875 (2.0 мин) — Звёздная ночь (nightK = 1)
-  // 0.875 .. 1.00 (1.0 мин) — Рассвет (плавный переход 1 -> 0)
+  // Фазы суток (см. T_DAY…): солнечный день → закат (плавно 0 → 1) → звёздная ночь → рассвет (1 → 0)
   let nightK = 0, sunsetK = 0, sunriseK = 0, phase = 'day';
 
-  if (p < 0.50) {
+  if (tt < AT_SUNSET) {
     nightK = 0;
     phase = 'day';
-  } else if (p < 0.625) {
-    const k = (p - 0.50) / 0.125;
+  } else if (tt < AT_NIGHT) {
+    const k = (tt - AT_SUNSET) / T_SUNSET;
     nightK = k * k * (3 - 2 * k); // smoothstep
     sunsetK = Math.sin(k * Math.PI);
     phase = 'sunset';
-  } else if (p < 0.875) {
+  } else if (tt < AT_SUNRISE) {
     nightK = 1;
     phase = 'night';
   } else {
-    const k = (p - 0.875) / 0.125;
+    const k = (tt - AT_SUNRISE) / T_SUNRISE;
     nightK = 1 - k * k * (3 - 2 * k); // smoothstep
     sunriseK = Math.sin(k * Math.PI);
     phase = 'sunrise';
@@ -339,7 +338,9 @@ export function updateDayNight(dt, hero, levelId, save) {
 
   // 2. Движение солнца и луны по небосводу + перемещение теней
   // Солнце всходит на востоке (+X), поднимается в зенит, заходит на западе (-X)
-  const sunAngle = (p - 0.25) * Math.PI * 2;
+  // солнце движется как в прежних 8-минутных сутках: день — половина круга, закат, ночь, рассвет — остальное
+  const sp = tt < AT_SUNSET ? tt / T_DAY * 0.5 : tt < AT_NIGHT ? 0.5 + (tt - AT_SUNSET) / T_SUNSET * 0.125 : tt < AT_SUNRISE ? 0.625 + (tt - AT_NIGHT) / T_NIGHT * 0.25 : 0.875 + (tt - AT_SUNRISE) / T_SUNRISE * 0.125;
+  const sunAngle = (sp - 0.25) * Math.PI * 2;
   const sunX = Math.cos(sunAngle) * 22;
   const sunY = Math.max(4, Math.sin(sunAngle) * 32);
   const sunZ = 12 + Math.cos(sunAngle * 0.5) * 4;
@@ -479,25 +480,33 @@ export function runSleepScreen(onMorning) {
   const icon = document.getElementById('sleepMoonIcon');
   const t1 = document.getElementById('sleepMainText');
   const t2 = document.getElementById('sleepSubText');
-  if (icon) icon.textContent = '🌙';
-  if (t1) t1.textContent = 'Спокойной ночи...';
-  if (t2) t2.textContent = 'Сладких снов 💤';
+  // легли днём (или на закате) — проснёмся ночью; легли ночью или на рассвете — утром
+  const toNight = !st || st.phase === 'day' || st.phase === 'sunset';
+  if (icon) icon.textContent = toNight ? '😴' : '🌙';
+  if (t1) t1.textContent = toNight ? 'Дневной сон...' : 'Спокойной ночи...';
+  if (t2) t2.textContent = toNight ? 'Отдохни немножко 💤' : 'Сладких снов 💤';
 
   el.style.pointerEvents = 'all';
   el.style.opacity = '1';
 
   clearTimeout(sleepCutsceneTimer);
   sleepCutsceneTimer = setTimeout(() => {
-    // Переводим время на яркий солнечный день (80с в 480с суточном цикле)
-    setDayTime(80);
-    if (icon) icon.textContent = '☀️';
-    if (t1) t1.textContent = 'Наступает утро! 🌅';
-    if (t2) t2.textContent = 'Птицы поют, солнце взошло!';
+    if (toNight) {                                                  // проснулись звёздной ночью
+      setDayTime(AT_NIGHT + 5);
+      if (icon) icon.textContent = '🌙';
+      if (t1) t1.textContent = 'Наступила ночь ✨';
+      if (t2) t2.textContent = 'Звёзды зажглись, фонари горят';
+    } else {                                                        // проснулись ясным утром
+      setDayTime(80);
+      if (icon) icon.textContent = '☀️';
+      if (t1) t1.textContent = 'Наступает утро! 🌅';
+      if (t2) t2.textContent = 'Птицы поют, солнце взошло!';
+    }
 
     sleepCutsceneTimer = setTimeout(() => {
       el.style.opacity = '0';
       el.style.pointerEvents = 'none';
-      if (onMorning) onMorning();
+      if (onMorning) onMorning(toNight);
     }, 1100);
   }, 1200);
 }

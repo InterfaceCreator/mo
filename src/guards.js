@@ -13,6 +13,7 @@ const KINDS = {
   capy: { s: 2, build: p => buildBeast(p, { body: 0x9a6a3c, head: 0x8a5a2e, snout: 0x6e4422, ear: 'round', w: 1, h: 0.8, d: 1.5, hd: 0.75, leg: 0.32 }) },
   goose: { s: 2.1, build: p => buildBird(p, { body: 0xffffff, beak: 0xff9f1a, neck: 0.5, wing: 0xeeeeee }) },
   dino: { s: 2.3, build: p => buildDino(p, { body: 0x5fbf5a, belly: 0xc8f0a0, spikes: 0xffd93b }) },
+  trex: { s: 3.6, build: p => buildDino(p, { body: 0x9ad86a, belly: 0xfff0a0, spikes: 0xff9f40 }) },   // Сонный Рекс в Долине динозавров: большой, добрый, неуклюжий
   lizard: { s: 2.2, build: p => buildDino(p, { body: 0xff9a3d, belly: 0xffe0a0, spikes: 0xff3b1a }) },
   peng: { s: 2.2, build: p => buildBird(p, { body: 0x2b2b3a, beak: 0xffa31a, wing: 0x1e1e2a, legC: 0xffa31a }) },
   boar: { s: 2, build: p => buildBeast(p, { body: 0x6a4a34, head: 0x7a5a40, snout: 0xc89a7a, nose: 0x3a2a2a, tusks: true, ear: 'point', quills: 0x4a3424, tail: 'stub', w: 1, h: 0.75, d: 1.4, hd: 0.7, leg: 0.32 }) },
@@ -107,6 +108,7 @@ export function vanishGuard(nest) {
 
 export function wake(nest, invis = false) {
   const gd = guards.find(g => g.nest === nest); if (!gd) return;
+  if (nest.calm) { puff('💕', gd.g.position.clone().setY(gd.g.position.y + gd.s * 1.9), { size: 1.4, rise: 0.8, life: 1.2 }); return; }   // друг (Долина динозавров: Рекс с 5 ❤️) — не гонится
   gd.state = 'alert'; gd.t = 0.55; sleepPose(gd, false);
   puff(invis ? '😱' : (nest.guard === 'gorilla' ? '💪' : '❗'), gd.g.position.clone().setY(gd.g.position.y + gd.s * 1.9), { size: 1.4, rise: 0.8, life: 0.9 });
   if (nest.guard === 'gorilla' && !invis) puff('🦍', gd.g.position.clone().setY(gd.g.position.y + gd.s * 2.6), { size: 1.8, rise: 1, life: 1.2 });

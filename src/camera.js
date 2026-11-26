@@ -31,9 +31,9 @@ export function updateCam(c, dt, hero, { look, zoom, lastLook }) {
 
   if (hero.camPitchMin && c.pitch < hero.camPitchMin) c.pitch = hero.camPitchMin;
   // точка, на которую смотрим: по высоте сглажена, чтобы прыжки не дёргали картинку
-  const p = hero.pos;
+  const p = hero.camAt || hero.pos;                                       // camAt — смотрим не на героя (полёт попугая в бухте)
   if (!c.init) { c.ty = p.y + HEAD; c.cur = c.dist; c.init = true; }
-  c.ty = damp(c.ty, p.y + HEAD, hero.grounded ? 10 : 3, dt);
+  c.ty = damp(c.ty, p.y + HEAD, hero.grounded || hero.camAt ? 10 : 3, dt);
   target.set(p.x, c.ty, p.z);
 
   dir.set(Math.sin(c.yaw) * Math.cos(c.pitch), Math.sin(c.pitch), Math.cos(c.yaw) * Math.cos(c.pitch));

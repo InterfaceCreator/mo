@@ -7,6 +7,7 @@
 import { T, group, box, mat, scene } from './engine.js';
 import { solid, tree, addCollider, onLevelReset } from './world.js';
 import { water } from './terrain.js';
+import { relief, noise, flatMask, grassColor } from './relief.js';
 import { makeLabel, puff, confetti } from './fx.js';
 import { buildHero, compactHero, PEOPLE } from './hero.js';
 import { BANYA } from './spa.js';
@@ -250,18 +251,26 @@ export function buildDacha(w) {
   for (const sx of [-1, 1]) { for (const zz of [-2, 0, 2]) box(bridge, 0.18, 1.1, 0.18, 0x6a3f1e, sx * 1.75, 0.75 + (zz ? 0 : 0.25), zz); box(bridge, 0.14, 0.14, 4.4, 0x8a5a2b, sx * 1.75, 1.3 + 0.1, 0); }
 
   // деревья вдоль дороги
+  // холмы на лугах (relief.js): ровно — участок, дорога, ручей, баня с джакузи, бункер, стога, калитка из парка
+  const RN = noise(71), dflat = flatMask([
+    { d: (x, z) => { let m = 1e9; for (const q of road) m = Math.min(m, Math.hypot(q.x - x, q.z - z)); return m - 4; } },
+    { d: (x, z) => Math.abs(z - zs(x)) - 5 }, [BANYA.x - 12, BANYA.x + 14, BANYA.z - 8, BANYA.z + 8], [DACHA.x0 - 3, DACHA.x1 + 3, DACHA.z0 - 4, G.z1],
+    [PIT.x0 - 5, PIT.x0 + PIT.n + 5, PIT.z0 - 6, PIT.z0 + PIT.n + 5], [G.x0, G.x1, G.z0, G.z0 + 5], [DACHA_GATE.x - 6, DACHA_GATE.x + 6, G.z0, G.z0 + 10],
+    { c: [-55, 125, 3] }, { c: [-6, 133, 3] }, { c: [-52, 160, 3] }, { c: [2, 168, 3] },
+  ], 9);
+  const HH = relief(w, { id: 'dacha', x0: G.x0 + 1.4, x1: G.x1 - 1.4, z0: G.z0, z1: DACHA.z0 - 2, height: (x, z) => (RN(x, z, 18) * 9 - 2.9) * dflat(x, z), color: grassColor(0.3) });
   for (let i = 4; i < road.length - 6; i += 5) {
     const q = road[i]; if (Math.abs(q.z - zs(q.x)) < 5) continue;
     for (const sd of [-1, 1]) {
       const off = 5 + R() * 1.5;
-      tree(w, q.x + q.rx * off * sd, q.z + q.rz * off * sd, 0.85 + R() * 0.3, 0, (i / 5 + (sd > 0 ? 1 : 0)) % 2 ? 'birch' : 'apple');
+      tree(w, q.x + q.rx * off * sd, q.z + q.rz * off * sd, 0.85 + R() * 0.3, HH(q.x + q.rx * off * sd, q.z + q.rz * off * sd), (i / 5 + (sd > 0 ? 1 : 0)) % 2 ? 'birch' : 'apple');
     }
   }
   for (let k = 0, placed = 0; k < 200 && placed < 34; k++) {
     const x = G.x0 + 4 + R() * (G.x1 - G.x0 - 8), z = G.z0 + 6 + R() * (DACHA.z0 - G.z0 - 10);
     if (x > BANYA.x - 9 && x < BANYA.x + 16 && Math.abs(z - BANYA.z) < 9) continue;
     if (Math.abs(z - zs(x)) < 5 || road.some(q => Math.hypot(q.x - x, q.z - z) < 9)) continue;
-    tree(w, x, z, 0.8 + R() * 0.5, 0, ['birch', 'oak', 'pine', 'birch'][Math.floor(R() * 4)]); placed++;
+    tree(w, x, z, 0.8 + R() * 0.5, HH(x, z), ['birch', 'oak', 'pine', 'birch'][Math.floor(R() * 4)]); placed++;
   }
   for (let i = 0; i < road.length; i += 1) {
     if (R() < 0.45) continue; const q = road[i], sd = R() < 0.5 ? -1 : 1, off = 2.2 + R() * 1.6;
@@ -1184,7 +1193,7 @@ export function dachaSleep(hero, save, { toast, confetti, SFX, persist, MOTYA })
     }, i * 380);
   }
 
-  runSleepScreen(() => {
+  runSleepScreen(toNight => {
     if (!hero.sleeping && !hero.climb?.sleep) return;
     hero.sleeping = false;
     hero.sleep = false;
@@ -1197,7 +1206,8 @@ export function dachaSleep(hero, save, { toast, confetti, SFX, persist, MOTYA })
     persist();
     SFX.fanfare?.();
     confetti(hero.pos.clone().setY(hero.pos.y + 1.8), 40);
-    toast(`☀️ С добрым утром! ${MOTYA?.() ? 'Выспалась и полна' : 'Выспался и полон'} сил!${paid ? ' +50 🪙' : ''}<small>наступил ясный солнечный день 🌅</small>`);
+    toast(toNight ? `🌙 Добрый вечер! ${MOTYA?.() ? 'Отдохнула' : 'Отдохнул'}${paid ? ' +50 🪙' : ''}<small>наступила звёздная ночь — горят фонари ✨</small>`
+      : `☀️ С добрым утром! ${MOTYA?.() ? 'Выспалась и полна' : 'Выспался и полон'} сил!${paid ? ' +50 🪙' : ''}<small>наступил ясный солнечный день 🌅</small>`);
   });
 }
 

@@ -9,8 +9,12 @@
 // коллизии, деревья (их рубят топором), воду с рябью, склеенные меши — и при выгрузке убирает ровно это.
 // Строится не больше одного сектора за кадр. ?perf — на экране видно, сколько миллисекунд строился каждый сектор.
 import { scene, group } from './engine.js';
-import { captureColliders, removeColliders, onLevelReset, bake, removeChunks, trees } from './world.js';
+import { captureColliders, removeColliders, onLevelReset, bake, trees, portals, chunks, groundPatchIds, setGroundPatch } from './world.js';
 import { waters } from './terrain.js';
+import { FUN_LISTS } from './fun.js';
+
+// общие списки, куда модули добавляют своё при постройке (деревья, вода, порталы, батуты, зверюшки, склеенные меши…)
+const REGS = [trees, waters, portals, chunks, ...FUN_LISTS];
 
 const SHOW = 95, HIDE = 125, PREBUILD = 150, DISPOSE = 230;   // туман — 60…150 м: появление и исчезновение не видно
 const PERF = new URLSearchParams(location.search).has('perf');
@@ -20,7 +24,7 @@ class Sector {
     this.id = id; this.bounds = bounds; this.buildFn = build; this.keep = keep;   // keep — не выгружать (там земля базы)
     this.built = false; this.active = false; this.reset();
   }
-  reset() { this.group = null; this.loose = []; this.colliders = []; this.chunks = []; this.trees = []; this.waters = []; }
+  reset() { this.group = null; this.loose = []; this.colliders = []; this.chunks = []; this.regs = REGS.map(() => []); }
   dist(p) {
     const b = this.bounds;
     return Math.hypot(Math.max(b.x0 - p.x, 0, p.x - b.x1), Math.max(b.z0 - p.z, 0, p.z - b.z1));
@@ -29,11 +33,13 @@ class Sector {
   build() {
     const t0 = performance.now();
     const g = group(scene); g.userData.sector = this.id;
-    const before = new Set(scene.children), tr0 = trees.length, wa0 = waters.length;
+    const before = new Set(scene.children), len0 = REGS.map(r => r.length), ch0 = chunks.length, gp0 = new Set(groundPatchIds());
     this.colliders = captureColliders(() => this.buildFn(g));
+    bake(g);
     this.loose = scene.children.filter(o => o !== g && !before.has(o));
-    this.trees = trees.slice(tr0); this.waters = waters.slice(wa0);
-    this.chunks = bake(g) || [];
+    this.regs = REGS.map((r, i) => r.slice(len0[i]));
+    this.chunks = chunks.slice(ch0);
+    this.patches = groundPatchIds().filter(id => !gp0.has(id));      // рельеф (relief.js) — убрать при выгрузке
     this.group = g; this.built = true; this.active = true;
     perf(this.id, performance.now() - t0);
   }
@@ -56,9 +62,10 @@ class Sector {
       for (const mt of mats) { if (mt.userData?.cached) continue; mt.map?.dispose(); mt.dispose(); }   // свои текстуры (подписи, вода) — тоже
     });
     for (const o of [this.group, ...this.loose]) { scene.remove(o); free(o); }
-    removeChunks(this.chunks); removeColliders(this.colliders);
-    const del = (arr, own) => { const s = new Set(own); for (let i = arr.length - 1; i >= 0; i--) if (s.has(arr[i])) arr.splice(i, 1); };
-    del(trees, this.trees); del(waters, this.waters);
+    removeColliders(this.colliders);
+    for (const id of this.patches || []) setGroundPatch(id, null);
+    const del = (arr, own) => { if (!own.length) return; const s = new Set(own); for (let i = arr.length - 1; i >= 0; i--) if (s.has(arr[i])) arr.splice(i, 1); };
+    REGS.forEach((r, i) => del(r, this.regs[i]));
     this.reset(); this.built = false;
     perf(this.id, -1);
   }
@@ -82,6 +89,14 @@ export function setupBaseSectors(w, save, profile, hero, B, at = hero.pos) {
     north,
     new Sector({ id: 'base_park', bounds: { x0: -72, x1: 72, z0: 60, z1: 115 }, build: g => { B.park(g, save, profile); B.spa(g); } }),
     new Sector({ id: 'base_dacha', bounds: { x0: -72, x1: 72, z0: 115, z1: 220 }, build: g => { B.dacha(g); B.garden(save, hero); B.bunker(g, save, profile); } }),
+    // на восток через ворота: лесная дорога → джунгли → Долина динозавров (dinoland.js)
+    new Sector({ id: 'base_forest', bounds: { x0: 66, x1: 200, z0: -30, z1: 120 }, build: g => B.forest(g, save) }),
+    new Sector({ id: 'base_jungle', bounds: { x0: 200, x1: 300, z0: -30, z1: 120 }, build: g => B.jungle(g) }),
+    new Sector({ id: 'base_valley', bounds: { x0: 300, x1: 430, z0: -30, z1: 120 }, build: g => B.valley(g, save) }),
+    // на запад через ворота у домика: луг → Пиратская бухта → море с островами (cove.js)
+    new Sector({ id: 'base_meadow', bounds: { x0: -130, x1: -66, z0: -40, z1: 130 }, build: g => B.meadow(g, save) }),
+    new Sector({ id: 'base_cove', bounds: { x0: -200, x1: -130, z0: -40, z1: 130 }, build: g => B.cove(g, save) }),
+    new Sector({ id: 'base_sea', bounds: { x0: -360, x1: -200, z0: -40, z1: 130 }, build: g => B.sea(g, save) }),
   ];
   // при входе: всё, что рядом с точкой появления, — сразу (герой не должен оказаться без земли под ногами)
   for (const s of sectors) if (!s.built && s.dist(at) < SHOW) s.build();

@@ -6,6 +6,7 @@ import { buildBeast, buildBird, animateAnimal } from './animals.js';
 import { puff, confetti } from './fx.js';
 
 const stars = [], scrolls = [], pads = [], critters = [], rotors = [], flows = [], flutters = [], swimmers = [], leaves = [];
+export const FUN_LISTS = [stars, scrolls, pads, critters, rotors, flows, flutters, swimmers, leaves];   // сектора убирают свои при выгрузке
 onLevelReset(() => { stars.length = scrolls.length = pads.length = critters.length = rotors.length = flows.length = flutters.length = swimmers.length = leaves.length = 0; });
 let leafT = 0;
 

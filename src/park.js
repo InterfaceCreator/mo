@@ -127,8 +127,7 @@ export function buildPark(w, save, who) {
     box(w, x1 - x0, 0.14, z1 - z0, 0xffffff, mid(x0, x1), 0.07, mid(z0, z1), { studs: true });
   const wt = water(w, B.x1 - B.x0, B.surf, 0x3fb8ff); wt.scale.y = (B.z1 - B.z0) / (B.x1 - B.x0); wt.position.set(mid(B.x0, B.x1), B.surf, mid(B.z0, B.z1));
   // стены парка
-  solid(w, 2, 12, P.z1 - P.z0 + 1, 0xb8672a, P.x0, 0, mid(P.z0, P.z1) + 0.5, { cam: true });
-  solid(w, 2, 12, P.z1 - P.z0 + 1, 0xb8672a, P.x1, 0, mid(P.z0, P.z1) + 0.5, { cam: true });
+  // боковых стен нет — парк открыт на луг у моря (cove.js) и в лес к Долине (dinoland.js)
   // южная граница парка открыта на дачу (стена убрана, свободный проход по всей ширине)
   const G = DACHA_GATE;
   box(w, 0.22, 2.6, 0.22, 0x6a3f1e, G.x - 2.8, 1.3, P.z1 + 0.5);

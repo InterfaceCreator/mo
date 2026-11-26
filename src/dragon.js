@@ -8,14 +8,19 @@ import { onLevelReset } from './world.js';
 import { puff, confetti, makeLabel } from './fx.js';
 
 export const GIFT = { x: 0, z: 27 };                 // прямо на дорожке перед точкой появления — не пропустишь
-const C = { body: 0x2fae6a, dark: 0x1f8a50, belly: 0xffe08a, wing: 0xff7a3a, wingDark: 0xd8501a, horn: 0xffd23f, saddle: 0xd8261a };
+// расцветки: зелёный — Мотин, красный — мамин (подарок)
+const PAL = {
+  green: { body: 0x2fae6a, dark: 0x1f8a50, belly: 0xffe08a, wing: 0xff7a3a, wingDark: 0xd8501a, horn: 0xffd23f, saddle: 0xd8261a },
+  red: { body: 0xd8261a, dark: 0x9a1410, belly: 0xffd8a0, wing: 0xffb03a, wingDark: 0xff7a1a, horn: 0xfff0b0, saddle: 0xffffff },
+};
 export const SADDLE_Y = 2.4;                 // где сидит герой (над землёй)
 
 let gift = null, D = null, fireT = 0;
 onLevelReset(() => { gift = null; });
 
 // дракон смотрит вперёд (+z): тело, шея и голова, хвост, четыре лапы, крылья, седло
-function buildModel(parent) {
+function buildModel(parent, color) {
+  const C = PAL[color] || PAL.green;
   const g = group(parent, 0, 0, 0), body = group(g, 0, 0, 0);
   box(body, 1.8, 1.4, 3.2, C.body, 0, 1.6, 0); box(body, 1.5, 0.3, 2.8, C.belly, 0, 0.98, 0.05);
   const legs = [];
@@ -46,12 +51,14 @@ function buildModel(parent) {
 
 // ---------- подарок на базе ----------
 export function buildGift(save, who) {
-  if (who !== 'motya' || save.dragon?.got) return;
+  if (save.dragon?.got) return;
+  const mama = who === 'mama';                                       // маме — красный дракон в розовой коробке
   const g = group(scene, GIFT.x, 0, GIFT.z); g.userData.dynamic = true;
   const b = group(g, 0, 0, 0);
-  box(b, 2.6, 2.4, 2.6, 0x9b6bff, 0, 1.2, 0); box(b, 2.7, 2.5, 0.5, 0xffd23f, 0, 1.2, 0); box(b, 0.5, 2.5, 2.7, 0xffd23f, 0, 1.2, 0);
-  for (const sx of [-1, 1]) { const bw = box(b, 1.1, 0.7, 0.3, 0xffd23f, sx * 0.55, 2.75, 0); bw.rotation.z = sx * 0.4; }
-  const lb = makeLabel(5.5, 1.4); lb.position.set(GIFT.x, 4.6, GIFT.z); scene.add(lb); lb.userData.set('🎁 Подарок для Моти!', { color: '#ffe14d' });
+  const bc = mama ? 0xff9ac8 : 0x9b6bff, rc = mama ? 0xd8261a : 0xffd23f;
+  box(b, 2.6, 2.4, 2.6, bc, 0, 1.2, 0); box(b, 2.7, 2.5, 0.5, rc, 0, 1.2, 0); box(b, 0.5, 2.5, 2.7, rc, 0, 1.2, 0);
+  for (const sx of [-1, 1]) { const bw = box(b, 1.1, 0.7, 0.3, rc, sx * 0.55, 2.75, 0); bw.rotation.z = sx * 0.4; }
+  const lb = makeLabel(5.5, 1.4); lb.position.set(GIFT.x, 4.6, GIFT.z); scene.add(lb); lb.userData.set(mama ? '🎁 Подарок для Юли ❤️' : '🎁 Подарок для Моти!', { color: mama ? '#ffd0e8' : '#ffe14d' });
   gift = { g, b, lb, t: 0 };
 }
 // вернёт true — коробку открыли
@@ -71,11 +78,11 @@ export function updateGift(dt, hero) {
 // ---------- сесть / слезть ----------
 export const riding = () => !!D;
 // дракон на любом герое (свой или второго игрока): makeDragon(root) → animDragon(d, dt, {...})
-export function makeDragon(root) { const d = buildModel(root); d.g.scale.setScalar(0.01); d.grow = 0; d.fireT = 0; return d; }
+export function makeDragon(root, color) { const d = buildModel(root, color); d.g.scale.setScalar(0.01); d.grow = 0; d.fireT = 0; return d; }
 export function dropDragon(root, d) { if (d) root.remove(d.g); }
-export function mount(hero) {
+export function mount(hero, color) {
   if (D) return;
-  D = makeDragon(hero.model.root);
+  D = makeDragon(hero.model.root, color);
   hero.fly = true;
   confetti(hero.pos.clone().setY(2), 60);
 }

@@ -167,7 +167,7 @@ function drive(who, dt, online) {
   if (back && !r.wasBack) onEvent('passenger');
   r.wasBack = back;
   // у второго игрока свой дракон — показываем его под ним
-  if ((last.dr === 1) !== !!r.dragon) { if (r.dragon) { dropDragon(r.m.root, r.dragon); r.dragon = null; } else r.dragon = makeDragon(r.m.root); }
+  if ((last.dr === 1) !== !!r.dragon) { if (r.dragon) { dropDragon(r.m.root, r.dragon); r.dragon = null; } else r.dragon = makeDragon(r.m.root, other === 'mama' ? 'red' : 'green'); }
   if (r.dragon) animDragon(r.dragon, dt, { air: !!c.a, vy: c.vy || 0, speed: c.s || 0, pos: r.m.root.position, face: r.face });
   const stale = !online || now - last.at > 3000;
   r.label.userData.set((stale ? '📶 ' : '') + duoName(who), { color: stale ? '#ffb0b0' : '#ffffff' });

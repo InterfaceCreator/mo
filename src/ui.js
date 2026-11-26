@@ -66,14 +66,20 @@ export function bindBook(getFound, eggs, friends) {
 // запись: { icon, pet (id вида — тогда вместо значка картинка), title, text, t, read }
 let notes = [], notesChanged = () => {};
 export function bindNotes(list, onChange) { notes = list; notesChanged = onChange; bellBadge(); }
+// старые записи уходят: сначала тихие (обычные сообщения), потом остальные; записки Василия (keep) остаются всегда
+function trimNotes() {
+  for (let i = notes.length - 1; notes.filter(n => n.quiet).length > 30 && i >= 0; i--) if (notes[i].quiet) notes.splice(i, 1);
+  for (let i = notes.length - 1; notes.length > 60 && i >= 0; i--) if (!notes[i].keep) notes.splice(i, 1);
+}
 function bellBadge() {
   const n = notes.filter(x => !x.read).length, b = $('bellBtn').querySelector('b');
   b.textContent = n > 9 ? '9+' : n; b.style.display = n ? 'block' : 'none';
 }
+let lastNotify = 0;
 export function notify(entry) {
+  lastNotify = Date.now();
   notes.unshift({ t: Date.now(), read: false, ...entry });
-  // старые новости уходят, кроме записок Василия (keep) — их можно перечитывать
-  for (let i = notes.length - 1; notes.length > 40 && i >= 0; i--) if (!notes[i].keep) notes.splice(i, 1);
+  trimNotes();
   bellBadge(); notesChanged();
   const el = $('bellBtn'); el.classList.remove('ring'); void el.offsetWidth; el.classList.add('ring');
 }
@@ -102,7 +108,7 @@ export function petNote(data, reward = 0, fresh = false) {
   const sp = SPECIES[data.s], R = RARITY[sp.r];
   const name = (data.gold ? 'Золотой ' : '') + (data.big ? 'Большой ' : '') + sp.name;
   notify({ pet: data.s, title: fresh ? `🐣 Новый питомец: ${name}` : `🐣 Вылупился: ${name}`, text: `${R.name} · +${petIncome(data)} монет в секунду` + (reward ? ` · подарок +${fmt(reward)}` : '') });
-  toast(`🐣 ${name}!<small>${fresh ? 'такого ещё не было' : 'вылупился'} — смотри 🔔</small>`);
+  toast(`🐣 ${name}!<small>${fresh ? 'такого ещё не было' : 'вылупился'} — смотри 🔔</small>`, { log: false });   // уже в колокольчике
   if (fresh) $('bookBtn').querySelector('.dot').style.display = 'block';
 }
 
@@ -120,12 +126,38 @@ export function setItems(list, onUse) {
     box.appendChild(b);
   }
 }
-// всплывающее сообщение на пару секунд
-let toastT = 0;
-export function toast(html) {
+// всплывающее сообщение: висит столько, чтобы успеть прочитать (4…10 с по длине текста); пришло новое, пока висит
+// старое, — встаёт в очередь (старое ещё чуть-чуть видно, потом сменяется). Тап по сообщению — закрыть сразу.
+// Каждое сообщение попадает в историю колокольчика 🔔 (тихо: без счётчика и звона) — можно перечитать.
+let quietSave = 0, toastT = 0, toastUntil = 0, toastShown = 0, toastQ = [], toastLast = '';
+const plain = h => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+const readTime = h => Math.min(10000, Math.max(4000, 2200 + plain(h).length * 55));
+function toastShow(html) {
   const t = $('toast'); t.innerHTML = html; placeTop(t); t.classList.add('on'); $('zoneHint')?.classList.add('under');
-  clearTimeout(toastT); toastT = setTimeout(() => { t.classList.remove('on'); $('zoneHint')?.classList.remove('under'); }, 3200);
+  toastShown = Date.now(); toastUntil = toastShown + readTime(html);
+  clearTimeout(toastT); toastT = setTimeout(toastNext, toastUntil - toastShown);
 }
+function toastNext() {
+  if (toastQ.length) return toastShow(toastQ.shift());
+  $('toast').classList.remove('on'); $('zoneHint')?.classList.remove('under'); toastUntil = 0;
+}
+export function toast(html, { log = true } = {}) {
+  if (!html) return;
+  if (log && html !== toastLast && Date.now() - lastNotify > 1500) {   // в историю колокольчика — тихо (то, что только что пришло через notify, — не дублируем)
+    const m = html.split(/<small>/i), title = plain(m[0]), text = m[1] ? plain(m[1]) : '';
+    notes.unshift({ t: Date.now(), read: true, quiet: true, icon: '💬', title, text }); trimNotes();
+    clearTimeout(quietSave); quietSave = setTimeout(notesChanged, 4000);   // сохраняем не на каждое сообщение, а пачкой
+  }
+  toastLast = html;
+  const now = Date.now();
+  if (!toastUntil || now - toastShown > 2200) { toastQ.length = 0; return toastShow(html); }   // старое уже прочитано — сразу новое
+  if (toastQ[toastQ.length - 1] === html || $('toast').innerHTML === html) return;              // то же самое — не дублируем
+  toastQ.push(html); if (toastQ.length > 3) toastQ.shift();
+  clearTimeout(toastT); toastT = setTimeout(toastNext, Math.max(0, toastShown + 2200 - now));    // текущее покажем хотя бы 2.2 с
+}
+let toastTap = null;                                                // закрыть — только коротким тапом (не протяжкой)
+$('toast').addEventListener('pointerdown', e => { e.stopPropagation(); toastTap = { x: e.clientX, y: e.clientY, t: Date.now() }; });
+$('toast').addEventListener('pointerup', e => { const s = toastTap; toastTap = null; if (s && Date.now() - s.t < 400 && Math.hypot(e.clientX - s.x, e.clientY - s.y) < 12) { clearTimeout(toastT); toastNext(); } });
 
 // ---------- выбор игрока ----------
 const MAMA_PIN = '132';

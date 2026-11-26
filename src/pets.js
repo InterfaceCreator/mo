@@ -18,7 +18,7 @@ export const RARITY = [
 
 const RAINBOW = [0xff5a5a, 0xffd93b, 0x5fd35f, 0x3fa7ff, 0x9b6bff];
 // home — в каких местах этот зверь вылупляется (из яиц тамошних гнёзд); так у каждого места свои питомцы
-const F = ['forest', 'base'], D = ['desert'], I = ['ice'], TR = ['track'], AU = ['autumn'];
+const F = ['forest', 'base'], D = ['desert'], I = ['ice'], TR = ['track'], AU = ['autumn'], DN = ['dinos'];   // dinos — гнёзда Долины динозавров
 export const SPECIES = {
   // --- Лес ---
   chick:    { name: 'Цыплёнок', r: 0, home: F, build: p => buildBird(p, { body: 0xffe14d, beak: 0xff9f1a, tuft: true }) },
@@ -40,6 +40,13 @@ export const SPECIES = {
   firedragon: { name: 'Огненный дракончик', r: 5, home: TR, build: p => buildDino(p, { body: 0xff4a1a, belly: 0xffd23f, spikes: 0xffe14d, wings: 0xff8a1a }) },   // только из огненного яйца босса
   icedragon: { name: 'Ледяной дракончик', r: 5, home: TR, build: p => buildDino(p, { body: 0x5fb8f0, belly: 0xe8f8ff, spikes: 0xffffff, wings: 0xbfe9ff }) },   // из ледяного яйца (2-й круг)
   golddragon: { name: 'Золотой дракончик', r: 6, home: TR, build: p => buildDino(p, { body: 0xffb81a, belly: 0xfff3a0, spikes: 0xff7a1a, wings: 0xffe14d }) },  // из солнечного яйца (3-й круг и дальше)
+  // Долина динозавров (dinoland.js)
+  dinobaby: { name: 'Динозаврик', r: 2, home: DN, build: p => buildDino(p, { body: 0x8fd14a, belly: 0xe8ffb0, spikes: 0xff9f40 }) },
+  tricera:  { name: 'Трицератопсик', r: 2, home: DN, build: p => dinoHorns(buildDino(p, { body: 0x6fa8dc, belly: 0xd8ecff, spikes: 0x3a6ad8 })) },
+  stego:    { name: 'Стегозаврик', r: 3, home: DN, build: p => dinoPlates(buildDino(p, { body: 0xffb050, belly: 0xfff0c8, spikes: 0xff6a3d })) },
+  pterobaby:{ name: 'Птеродактилик', r: 3, home: DN, build: p => buildDino(p, { body: 0xb88aff, belly: 0xf0e0ff, spikes: 0xff7ac8, wings: 0x9b6bff }) },
+  bronto:   { name: 'Бронтозаврик', r: 4, home: DN, build: p => dinoNeck(buildDino(p, { body: 0x5fc8a0, belly: 0xd8fff0, spikes: 0x3a9a7a })) },
+  babyrex:  { name: 'Малыш Рекс', r: 4, home: DN, build: p => buildDino(p, { body: 0x9ad86a, belly: 0xfff0a0, spikes: 0xff9f40 }) },
   // подарки из тайных комнат — больше нигде не бывают
   spacedragon: { name: 'Космический дракончик', r: 6, home: [], own: true, build: p => buildDino(p, { body: 0x2a2f8a, belly: 0x9b6bff, spikes: 0x7fe8ff, wings: 0xff7ac8 }) },
   cupdragon: { name: 'Золотой дракончик-участник', r: 4, home: [], own: true, keep: true, build: p => cupDragon(p) },   // за соревнования (21.11.2026): гуляет всегда, места не занимает
@@ -67,6 +74,10 @@ export const SPECIES = {
   aurora:   { name: 'Олень северного сияния', r: 6, home: I, build: p => buildBeast(p, { body: 0xdff6ff, antlers: 0x7fffd4, spots: 0x9b6bff, ear: 'point', snout: 0xffffff, tail: 'stub', leg: 0.65, w: 0.75, d: 1.2 }) },
   icedragon:{ name: 'Ледяной дракон', r: 5, home: I, build: p => buildDino(p, { body: 0x7fd4ff, belly: 0xe8f8ff, wings: 0x3fa7ff, spikes: 0xffffff }) },
 };
+// динозаврики: рога и воротник, пластины на спине, длинная шея
+function dinoHorns(m) { const h = m.head; box(h, 1.05, 0.75, 0.12, 0xffe0a0, 0, 0.2, -0.42); for (const sx of [-0.22, 0.22]) { const r = box(h, 0.1, 0.1, 0.45, 0xffffff, sx, 0.33, 0.45); r.rotation.x = -0.5; } box(h, 0.1, 0.1, 0.3, 0xffffff, 0, -0.02, 0.55); return m; }
+function dinoPlates(m) { for (let i = 0; i < 5; i++) box(m.body, 0.08, 0.42, 0.36, 0xff6a3d, 0, 1.6 - i * 0.12, 0.3 - i * 0.3); return m; }
+function dinoNeck(m) { m.head.position.y += 0.95; m.head.position.z += 0.25; box(m.body, 0.36, 1.2, 0.36, 0x5fc8a0, 0, 2.05, 0.62); return m; }
 // золотой дракончик с медалью участника на шее
 function cupDragon(p) {
   const m = buildDino(p, { body: 0xffc21a, belly: 0xfff3a0, spikes: 0xff7a1a, wings: 0xffe680 });
@@ -136,6 +147,7 @@ export function penIncome() { return pen.best.reduce((s, d) => s + petIncome(d),
 export function addPenPet(data, from) {
   const g = group(scene), m = buildPet(g, data);
   const R = PEN.roam;
+  if (from && Math.hypot(from.x - (R.x0 + R.x1) / 2, from.z - (R.z0 + R.z1) / 2) > 40) from = null;   // издалека (Долина динозавров) — сразу в загон, а не «пешком» через полкарты
   g.position.set(from ? from.x : rnd(R.x0, R.x1), 0, from ? from.z : rnd(R.z0, R.z1));
   const label = makeLabel(1.8, 0.45); label.position.y = (data.big ? 2.6 : 1.9); g.add(label);
   label.userData.set('+' + petIncome(data), { color: '#ffe14d', coin: true });
